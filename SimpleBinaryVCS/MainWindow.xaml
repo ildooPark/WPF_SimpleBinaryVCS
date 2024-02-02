@@ -21,11 +21,16 @@
             </Grid.ColumnDefinitions>
 
             <TextBox Grid.Column="0"
-                     Height="100"
+                     Height="Auto"
                      VerticalAlignment="Top"
-                     x:Name="jsonParsed"
-                Text="{Binding Path = VcsVM.VersionLog}">
-
+                     x:Name="updaterName"
+                     Text="{Binding Path = BackupVM.VersionLog}">
+            </TextBox>
+            <TextBox Grid.Column="0"
+                    Height="Auto"
+                    VerticalAlignment="Top"
+                    x:Name="UpdateLog"
+                    Text="{Binding Path = BackupVM.VersionLog}">
             </TextBox>
             <DataGrid Grid.Column="0"
                     Name="BackupLog" 
@@ -68,8 +73,8 @@
                 </DataGrid.Columns>
             </DataGrid>
             <DataGrid Grid.Column="2"
-                Name="CurrentProjectFileList" 
-                ItemsSource='{Binding Vcs.ProjectFiles}'
+                Name="nextProjectVersionFileList" 
+                ItemsSource='{Binding VcsVM.ProjectFiles}'
                 BorderBrush="#cdcdcd"
                 ScrollViewer.CanContentScroll="True"
                 ScrollViewer.VerticalScrollBarVisibility="Auto"
@@ -79,10 +84,9 @@
                 AutoGenerateColumns="False"
                 >
                 <DataGrid.Columns>
-                    <DataGridTextColumn Header="FileName" Binding="{Binding updaterName}" Width ="2*"/>
-                    <DataGridTextColumn Header="Version" Binding="{Binding updatedVersion}" Width ="3*"/>
+                    <DataGridTextColumn Header="FileName" Binding="{Binding fileName}" Width ="2*"/>
                     <DataGridTextColumn Header="Deployed Date" Binding="{Binding updatedTime}" Width ="5*"/>
-                    <DataGridTextColumn Header="Changes" Binding="{Binding numberOfChanges}" Width ="1*"/>
+                    <DataGridTextColumn Header="Hash" Binding="{Binding fileHash}" Width ="3*"/>
                 </DataGrid.Columns>
             </DataGrid>
             <GridSplitter Grid.Column="1"
@@ -94,13 +98,13 @@
                 <TextBox 
                     Name="UpdaterNameInput"
                     Margin="5,0,5,15"
-                    Text="{Binding VcsVM.CurrentProject.updaterName}"
+                    Text="{Binding VcsVM.nextProjectVersion.updaterName}"
                          />
                 <Label Content="Update Message"/>
                 <TextBox 
                     Name="DeployVersionInput"
                     Margin="5,0,5,15"
-                    Text="{Binding VcsVM.CurrentProject.updateLog}" Height="49"
+                    Text="{Binding VcsVM.nextProjectVersion.updateLog}" Height="49"
                          />
                 <DataGrid Grid.Column="2"
                     Name="uploadWindow" 
@@ -171,7 +175,7 @@
                 Content="Fetch" 
                 HorizontalAlignment="Left"
                 Height="Auto" 
-                Command="{Binding BackUpVM.GetBackUpData}"
+                Command="{Binding BackUpVM.MakeBackup}"
                 Width="Auto" />
 
         </Grid>

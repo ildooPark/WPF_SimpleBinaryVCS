@@ -15,6 +15,7 @@ namespace SimpleBinaryVCS.Model
         public string fileName {  get; set; }
         public string? fileVersion {  get; set; }
         public string filePath {  get; set; }
+        public string? fileHash { get; set; }
         public DateTime updatedTime {  get; set; }
         public FileBase(bool isNew, long fileSize, string fileName, string filePath, string? fileVersion)
         {

@@ -18,8 +18,29 @@ namespace SimpleBinaryVCS.Model
         public string? updatedVersion {  get; set; }
         public string? updateLog { get; set; }
         public int numberOfChanges {  get; set; }
-        public ObservableCollection<FileBase> projectFiles { get; set; }
-        public ObservableCollection<FileBase> diffLog {  get; set; } 
+        private ObservableCollection<FileBase> projectFiles; 
+        public ObservableCollection<FileBase> ProjectFiles 
+        { 
+            get
+            {
+                if (projectFiles == null)
+                {
+                    projectFiles = new ObservableCollection<FileBase>();
+                    return projectFiles;
+                }
+                else 
+                    return projectFiles;
+            }
+            set
+            { 
+                projectFiles = value; 
+            }
+        }
+        public ObservableCollection<FileBase> diffLog 
+        {  
+            get; 
+            set; 
+        } 
         public ProjectData() 
         { 
             projectFiles = new ObservableCollection<FileBase>();

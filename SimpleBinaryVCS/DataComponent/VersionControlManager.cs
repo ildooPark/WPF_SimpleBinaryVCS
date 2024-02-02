@@ -25,10 +25,23 @@ namespace SimpleBinaryVCS.DataComponent
                 projectLoaded?.Invoke(); 
             }
         }
-        public Action projectLoaded; 
-        public ProjectData ProjectData { get; set; }
+        public Action projectLoaded;
+        private ProjectData projectData; 
+        public ProjectData ProjectData 
+        { 
+            get
+            {
+                if (projectData == null) projectData = new ProjectData();
+                return projectData;
+            }
+            set
+            {
+                projectData = value;
+            }
+        }
         public VersionControlManager()
         {
+            projectData = new ProjectData();
         }
 
         /// <summary>

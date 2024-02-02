@@ -10,21 +10,30 @@ namespace SimpleBinaryVCS.DataComponent
 {
     public class UploaderManager
     {
-        public ObservableCollection<FileBase> g_uploadedFileList;
+        private ObservableCollection<FileBase> uploadedFileList; 
+        public ObservableCollection<FileBase> UploadedFileList
+        {
+            get
+            { 
+                if (uploadedFileList == null) uploadedFileList = new ObservableCollection<FileBase>();
+                return uploadedFileList;
+            }
+            set { uploadedFileList = value; }
+        }
 
         public UploaderManager()
         {
-            g_uploadedFileList = new ObservableCollection<FileBase>();
+            uploadedFileList = new ObservableCollection<FileBase>();
         }
 
         public void AddNewfile(FileBase fileUploaded)
         {
-            g_uploadedFileList.Add(fileUploaded);
+            uploadedFileList.Add(fileUploaded);
         }
 
         public void RemoveAll()
         {
-            g_uploadedFileList.Clear();
+            uploadedFileList.Clear();
         }
     }
 }

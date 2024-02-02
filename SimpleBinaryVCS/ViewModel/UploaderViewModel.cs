@@ -48,7 +48,7 @@ namespace SimpleBinaryVCS.ViewModel
         }
         public UploaderViewModel()
         {
-            UploadedFileList = App.VcsManager.ProjectData.projectFiles;
+            UploadedFileList = App.UploaderManager.UploadedFileList;
         }
 
         private bool CanUploadFile(object obj) { return true; }

@@ -19,33 +19,13 @@ namespace SimpleBinaryVCS.ViewModel
 {
     public class VCSViewModel : ViewModelBase
     {
-        bool validProject;
-        public bool ValidProject
+        private ProjectData nextProjectVersion; 
+        public ProjectData NextProjectVersion
         {
-            get { return validProject; }
-        }
-        private ProjectData currentProject; 
-        public ProjectData CurrentProject
-        {
-            get { return currentProject; }
+            get { return nextProjectVersion; }
             set
             {
-                currentProject = value;
-                versionLog = currentProject.updateLog; 
-                OnPropertyChanged("VersionLog");
-            }
-        }
-        private string? versionLog;
-        public string? VersionLog
-        {
-            get
-            {
-                return versionLog; 
-            }
-            set
-            {
-                versionLog = value;
-                OnPropertyChanged("VersionLog");
+                nextProjectVersion = value;
             }
         }
 
@@ -71,18 +51,18 @@ namespace SimpleBinaryVCS.ViewModel
         }
         public VCSViewModel()
         {
-            projectFiles = App.VcsManager.ProjectData.projectFiles; 
-            currentProject = new ProjectData(); 
+            nextProjectVersion = App.VcsManager.ProjectData; 
+            projectFiles = App.VcsManager.ProjectData.ProjectFiles; 
         }
 
         private void UpdateProject(object obj)
         {
-            if (currentProject.updatedVersion == null || currentProject.updaterName == null)
+            if (nextProjectVersion.updatedVersion == null || nextProjectVersion.updaterName == null)
             {
                 var response = MessageBox.Show("Must Have both Deploy Version AND UpdaterName", "ok", MessageBoxButtons.OK);
                 if (response == DialogResult.OK) return; 
             }
-            foreach (FileBase uploadedFile in App.UploaderManager.g_uploadedFileList)
+            foreach (FileBase uploadedFile in App.UploaderManager.UploadedFileList)
             {
                 if (projectFiles.Contains(uploadedFile))
                 {
@@ -106,14 +86,14 @@ namespace SimpleBinaryVCS.ViewModel
                     }
                 }
             }
-            App.VcsManager.
+            //App.VcsManager.
             return;
         }
 
         private bool CanUpdate(object obj)
         {
-            if (projectFiles == null || projectFiles.Count == 0 || App.UploaderManager.g_uploadedFileList.Count == 0) return false;
-            if (currentProject.updatedVersion == null || currentProject.updaterName == null)
+            if (projectFiles == null || projectFiles.Count == 0 || App.UploaderManager.UploadedFileList.Count == 0) return false;
+            if (nextProjectVersion.updatedVersion == null || nextProjectVersion.updaterName == null)
             {
                 return false;
             }
@@ -133,6 +113,7 @@ namespace SimpleBinaryVCS.ViewModel
             if (openFD.ShowDialog() == DialogResult.OK)
             {
                 App.VcsManager.ProjectPath = openFD.SelectedPath;
+                App.VcsManager.ProjectData.projectName = Path.GetFileName(openFD.SelectedPath);
             }
 
             //Get .bin VersionLog File 
@@ -148,7 +129,7 @@ namespace SimpleBinaryVCS.ViewModel
                     currentData = MemoryPackSerializer.Deserialize<ProjectData>(stream); 
                     if (currentData != null)
                     {
-                        CurrentProject = currentData;
+                        nextProjectVersion = currentData;
                     }
                 }
                 catch (Exception e)

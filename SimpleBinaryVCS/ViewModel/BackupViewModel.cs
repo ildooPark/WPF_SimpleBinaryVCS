@@ -4,6 +4,7 @@ using SimpleBinaryVCS.Model;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -35,17 +36,17 @@ namespace SimpleBinaryVCS.ViewModel
                 return getBackupData;
             }
         }
-        private ICommand backup;
-        public ICommand Backup
+        private ICommand makebackup;
+        public ICommand MakeBackup
         {
             get
             {
-                if (backup == null) backup = new RelayCommand(LoadBackUps, CanLoadBackUps);
-                return backup;
+                if (makebackup == null) makebackup = new RelayCommand(LoadBackUps, CanLoadBackUps);
+                return makebackup;
             }
         }
-        private BackupManager backupManager;
-        public BackupManager BackupManager => backupManager;
+        //private BackupManager backupManager;
+        //public BackupManager BackupManager => backupManager;
 
         public BackupViewModel()
         {
@@ -71,6 +72,19 @@ namespace SimpleBinaryVCS.ViewModel
         private void LoadBackUps(object obj)
         {
             //string?[] backUps = 
+        }
+
+        private void TryGetAllLogs(string directoryPath, out string[]? VersionLogFiles)
+        {
+            try
+            {
+                VersionLogFiles = Directory.GetFiles(directoryPath, "BinaryVersionLog.*", SearchOption.AllDirectories);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+                VersionLogFiles = null;
+            }
         }
     }
 }
