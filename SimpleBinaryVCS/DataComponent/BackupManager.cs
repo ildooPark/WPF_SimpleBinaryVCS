@@ -14,8 +14,6 @@ namespace SimpleBinaryVCS.DataComponent
         // Keeps track of all the Project Files, 
         // First tracks the json file in a given Path Directory 
         // if Json file not found, then set the bool to null 
-        private bool newProject; 
-        public bool NewProject { get { return newProject; } set { newProject = value; } }
 
         private Dictionary<string, FileBase> projectFiles;
         public Dictionary<string, FileBase> ProjectFiles { get => projectFiles; } 

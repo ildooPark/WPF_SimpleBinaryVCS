@@ -27,10 +27,8 @@ namespace SimpleBinaryVCS.DataComponent
         }
         public Action projectLoaded; 
         public ProjectData ProjectData { get; set; }
-        public ObservableCollection<FileBase> uploadedFileList;
         public VersionControlManager()
         {
-            uploadedFileList = new ObservableCollection<FileBase>();
         }
 
         /// <summary>
@@ -40,14 +38,14 @@ namespace SimpleBinaryVCS.DataComponent
         /// <param name="dstFile"></param>
         /// <param name="result">First is srcHash, Second is dstHash</param>
         /// <returns></returns>
-        public static bool TryCompareMD5CheckSum(string srcFile, string dstFile, out Tuple<string?, string?> result)
+        public static bool TryCompareMD5CheckSum(string? srcFile, string? dstFile, out (string?, string?) result)
         {
             byte[] srcHashBytes, dstHashBytes;
             using MD5 md5 = MD5.Create();
             if (md5 == null)
             {
                 MessageBox.Show("Failed to Initialize MD5");
-                result = new Tuple<string?, string?>(null, null);  
+                result = (null, null);  
                 return false; 
             }
             using (var srcStream = File.OpenRead(srcFile))
@@ -60,7 +58,7 @@ namespace SimpleBinaryVCS.DataComponent
             }
             string srcHashString = BitConverter.ToString(srcHashBytes).Replace("-", ""); 
             string dstHashString = BitConverter.ToString(srcHashBytes).Replace("-", "");
-            result = new Tuple<string?, string?>(srcHashString, dstHashString);
+            result =  (srcHashString, dstHashString);
             return srcHashString == dstHashString;
         }
 

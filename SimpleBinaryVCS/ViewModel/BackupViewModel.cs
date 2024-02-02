@@ -40,7 +40,7 @@ namespace SimpleBinaryVCS.ViewModel
         {
             get
             {
-                if (backup == null) backup = new RelayCommand(BackUp, CanBackUp);
+                if (backup == null) backup = new RelayCommand(LoadBackUps, CanLoadBackUps);
                 return backup;
             }
         }
@@ -54,20 +54,21 @@ namespace SimpleBinaryVCS.ViewModel
 
         private bool CanRetrieveBackUp(object obj)
         {
-            return true; 
+            if (App.Current == null || App.VcsManager == null || App.VcsManager.ProjectPath == null) return false;
+            return true;
         }
 
         private void RetrieveBackUp(object obj)
         {
 
         }
-        private bool CanBackUp(object obj)
+        private bool CanLoadBackUps(object obj)
         {
             if (App.VcsManager.ProjectPath == null) return false;
             return true;
         }
 
-        private void BackUp(object obj)
+        private void LoadBackUps(object obj)
         {
             //string?[] backUps = 
         }

@@ -71,7 +71,7 @@ namespace SimpleBinaryVCS.ViewModel
         }
         public VCSViewModel()
         {
-            projectFiles = new ObservableCollection<FileBase>();
+            projectFiles = App.VcsManager.ProjectData.projectFiles; 
             currentProject = new ProjectData(); 
         }
 
@@ -82,27 +82,39 @@ namespace SimpleBinaryVCS.ViewModel
                 var response = MessageBox.Show("Must Have both Deploy Version AND UpdaterName", "ok", MessageBoxButtons.OK);
                 if (response == DialogResult.OK) return; 
             }
-            foreach (FileBase uploadedFile in App.VcsManager.uploadedFileList)
+            foreach (FileBase uploadedFile in App.UploaderManager.g_uploadedFileList)
             {
                 if (projectFiles.Contains(uploadedFile))
                 {
-                    //Compute Hash 
+                    FileBase? srcFile = projectFiles.FirstOrDefault(x => x == uploadedFile); 
+                    if (srcFile != null)
+                    {
+                        (string?, string?) resultingHash; 
+                        bool result = VersionControlManager.TryCompareMD5CheckSum(srcFile.filePath, uploadedFile.filePath, out resultingHash);
+                        Console.WriteLine($"Hash Values, {resultingHash.Item1} {resultingHash.Item2}");
+                        App.VcsManager.ProjectData.diffLog.Add(uploadedFile);
+                        App.VcsManager.ProjectData.diffLog.Add(srcFile);
+                    }
                 }
                 else
                 {
                     // 
+                    string? newFileHash = VersionControlManager.GetMD5CheckSum(uploadedFile.filePath);
+                    if (newFileHash != null)
+                    {
+                        App.VcsManager.ProjectData.diffLog.Add(uploadedFile);
+                    }
                 }
             }
+            App.VcsManager.
             return;
         }
 
         private bool CanUpdate(object obj)
         {
-            if (projectFiles == null || projectFiles.Count == 0 || App.VcsManager.uploadedFileList.Count == 0) return false;
+            if (projectFiles == null || projectFiles.Count == 0 || App.UploaderManager.g_uploadedFileList.Count == 0) return false;
             if (currentProject.updatedVersion == null || currentProject.updaterName == null)
             {
-                //var response = MessageBox.Show("Must Have both Deploy Version AND UpdaterName", "ok", MessageBoxButtons.OK); 
-                //if (response == DialogResult.OK)
                 return false;
             }
             return true;
@@ -146,7 +158,8 @@ namespace SimpleBinaryVCS.ViewModel
             }
             else
             {
-                var result = MessageBox.Show("BinaryVersionLog file not found!", "Initialize New Project?", MessageBoxButtons.YesNo); 
+                var result = MessageBox.Show("BinaryVersionLog file not found!\n Initialize New Project?",
+                    "Import Project", MessageBoxButtons.YesNo); 
                 if (result == DialogResult.Yes)
                 {
                     //Parse 

@@ -9,16 +9,16 @@
 
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height = "50" />
-            <RowDefinition/>
+            <RowDefinition Height = "1*" />
+            <RowDefinition Height = "9*" />
         </Grid.RowDefinitions>
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="4*"/>
                 <ColumnDefinition Width="3*"/>
                 <ColumnDefinition Width="3*"/>
+                <ColumnDefinition Width="3*"/>
+                <ColumnDefinition Width="1*"/>
             </Grid.ColumnDefinitions>
-            <Grid Grid.Column="1"/>
 
             <TextBox Grid.Column="0"
                      Height="100"
@@ -50,8 +50,26 @@
                           BorderBrush="Black"
                           />
             <DataGrid Grid.Column="1"
-                Name="projectDirectory" 
-                ItemsSource='{Binding VcsVM.ProjectFiles}'
+                    Name="backupList" 
+                    ItemsSource='{Binding BackupVM.ProjectDataList}'
+                    BorderBrush="#cdcdcd"
+                    ScrollViewer.CanContentScroll="True"
+                    ScrollViewer.VerticalScrollBarVisibility="Auto"
+                    ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                    CanUserAddRows="False"
+                    CanUserDeleteRows="False"
+                    AutoGenerateColumns="False"
+                    >
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Updater" Binding="{Binding updaterName}" Width ="2*"/>
+                    <DataGridTextColumn Header="Version" Binding="{Binding updatedVersion}" Width ="3*"/>
+                    <DataGridTextColumn Header="Deployed Date" Binding="{Binding updatedTime}" Width ="5*"/>
+                    <DataGridTextColumn Header="Changes" Binding="{Binding numberOfChanges}" Width ="1*"/>
+                </DataGrid.Columns>
+            </DataGrid>
+            <DataGrid Grid.Column="2"
+                Name="CurrentProjectFileList" 
+                ItemsSource='{Binding Vcs.ProjectFiles}'
                 BorderBrush="#cdcdcd"
                 ScrollViewer.CanContentScroll="True"
                 ScrollViewer.VerticalScrollBarVisibility="Auto"
@@ -61,17 +79,17 @@
                 AutoGenerateColumns="False"
                 >
                 <DataGrid.Columns>
-                    <DataGridTextColumn Header="Updater" Binding="{Binding fileName}" Width ="2*"/>
-                    <DataGridTextColumn Header="Version" Binding="{Binding fileVersion}" Width ="3*"/>
+                    <DataGridTextColumn Header="FileName" Binding="{Binding updaterName}" Width ="2*"/>
+                    <DataGridTextColumn Header="Version" Binding="{Binding updatedVersion}" Width ="3*"/>
                     <DataGridTextColumn Header="Deployed Date" Binding="{Binding updatedTime}" Width ="5*"/>
-                    <DataGridTextColumn Header="Changes" Binding="{Binding updatedTime}" Width ="1*"/>
+                    <DataGridTextColumn Header="Changes" Binding="{Binding numberOfChanges}" Width ="1*"/>
                 </DataGrid.Columns>
             </DataGrid>
             <GridSplitter Grid.Column="1"
               BorderThickness="1"
               BorderBrush="Black"
               />
-            <StackPanel Grid.Column="2">
+            <StackPanel Grid.Column="3">
                 <Label Content="Updater"/>
                 <TextBox 
                     Name="UpdaterNameInput"
@@ -82,7 +100,7 @@
                 <TextBox 
                     Name="DeployVersionInput"
                     Margin="5,0,5,15"
-                    Text="{Binding VcsVM.CurrentProject.updatedVersion}" Height="49"
+                    Text="{Binding VcsVM.CurrentProject.updateLog}" Height="49"
                          />
                 <DataGrid Grid.Column="2"
                     Name="uploadWindow" 
@@ -120,6 +138,12 @@
                         Margin="20, 5, 20, 0"
                         Command="{Binding VcsVM.ConductUpdate}"
                         />
+                <Button x:Name="RevertButton"
+                        Content="Revert" 
+                        Height="20"
+                        Margin="20, 5, 20, 0"
+                        Command="{Binding BackupVM.ConductRevert}"
+                        />
             </StackPanel>
         </Grid>
         <Grid>
@@ -131,25 +155,24 @@
             <Label x:Name="versionLabel" Content="{Binding Path = VcsVM.VersionLog, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Left" Height="50" Width="99"/>
             <Button Grid.Column="0"
                 x:Name="VersionDetail" 
-                HorizontalAlignment="Right"
+                HorizontalAlignment="Left"
                 Content="Full Log" 
-                Height="50" 
+                Height="Auto" 
                 Command="{Binding BackUpVM.GetBackUpData}"
-                Width="79" />
-            <Button Grid.Column="1"
+                Width="Auto" Margin="73,0,0,0" />
+            <Button
                 x:Name="GetProject" 
-                HorizontalAlignment="Right"
                 Content="GetProject" 
-                Height="50" 
+                Height="Auto" 
                 Command="{Binding VcsVM.GetProject}"
-                Width="79" />
-            <Button Grid.Column="2"
+                Width="Auto" Margin="148,0,23,-1" />
+            <Button Grid.Column="0"
                 x:Name="FetchButton" 
-                HorizontalAlignment="Right"
                 Content="Fetch" 
-                Height="50" 
+                HorizontalAlignment="Left"
+                Height="Auto" 
                 Command="{Binding BackUpVM.GetBackUpData}"
-                Width="79" />
+                Width="Auto" />
 
         </Grid>
     </Grid>

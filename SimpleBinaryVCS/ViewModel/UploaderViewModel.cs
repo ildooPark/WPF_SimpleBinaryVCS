@@ -15,23 +15,6 @@ namespace SimpleBinaryVCS.ViewModel
 {
     public class UploaderViewModel : ViewModelBase
     {
-        bool validProject;
-        public bool ValidProject
-        {
-            get { return validProject; }
-            set { validProject = value; }
-        }
-
-        bool validNewFile;
-        public bool ValidNewFile
-        {
-            get { return ValidNewFile; }
-            set
-            {
-                ValidNewFile = value;
-                OnPropertyChanged("File");
-            }
-        }
         private string[] filesWithPath;
         private string[] filesNameOnly;
         public ObservableCollection<FileBase> UploadedFileList { get; set; }
@@ -65,7 +48,7 @@ namespace SimpleBinaryVCS.ViewModel
         }
         public UploaderViewModel()
         {
-            UploadedFileList = App.VcsManager.uploadedFileList;
+            UploadedFileList = App.VcsManager.ProjectData.projectFiles;
         }
 
         private bool CanUploadFile(object obj) { return true; }

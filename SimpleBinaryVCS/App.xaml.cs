@@ -25,5 +25,19 @@ namespace SimpleBinaryVCS
                     return vcsManager;
             } 
         }
+        private static UploaderManager uploaderManager;
+        public static UploaderManager UploaderManager
+        {
+            get
+            {
+                if (uploaderManager == null)
+                {
+                    uploaderManager = new UploaderManager();
+                    return uploaderManager;
+                }
+                else
+                    return uploaderManager;
+            }
+        }
     }
 }

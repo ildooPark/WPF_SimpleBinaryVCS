@@ -14,19 +14,20 @@ namespace SimpleBinaryVCS.Model
         public long fileSize { get; set; }
         public string fileName {  get; set; }
         public string? fileVersion {  get; set; }
-        public string? filePath {  get; set; }
+        public string filePath {  get; set; }
         public DateTime updatedTime {  get; set; }
-        public FileBase(bool isNew, long fileSize, string fileName, string? filePath, string? fileVersion)
+        public FileBase(bool isNew, long fileSize, string fileName, string filePath, string? fileVersion)
         {
             this.isNew = isNew;
+            this.fileSize = fileSize;
             this.fileName = fileName;
             this.fileVersion = fileVersion;
-            this.fileSize = fileSize;
+            this.filePath = filePath;
             this.updatedTime = DateTime.Now;
         }
 
         [MemoryPackConstructor]
-        public FileBase(bool isNew, long fileSize, string fileName, string? filePath, string? fileVersion, DateTime updatedTime)
+        public FileBase(bool isNew, long fileSize, string fileName, string filePath, string? fileVersion, DateTime updatedTime)
         {
             this.isNew = isNew;
             this.fileSize = fileSize;
