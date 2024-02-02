@@ -22,6 +22,7 @@ namespace SimpleBinaryVCS
             InitializeComponent();
             MainViewModel mainVM = new MainViewModel();
             this.DataContext = mainVM;
+
         }
     }
 }
