@@ -69,8 +69,8 @@ namespace SimpleBinaryVCS.ViewModel
                 OnPropertyChanged("CurrentVersion");
             }
         }
-        private ObservableCollection<FileBase> projectFiles;
-        public ObservableCollection<FileBase> ProjectFiles
+        private ObservableCollection<ProjectFile> projectFiles;
+        public ObservableCollection<ProjectFile> ProjectFiles
         {
             get => projectFiles;
             set
@@ -83,20 +83,24 @@ namespace SimpleBinaryVCS.ViewModel
         private ICommand? conductUpdate;
         public ICommand ConductUpdate
         {
-            get => conductUpdate ?? new RelayCommand(UpdateProject, CanUpdateProject);
+            get
+            {
+                if (conductUpdate == null) conductUpdate = new RelayCommand(UpdateProject, CanUpdateProject);
+                return conductUpdate; 
+            }
         }
 
         private ICommand? getProject;
         public ICommand GetProject
         {
-            get => getProject ?? new RelayCommand(RetrieveProject, CanRetrieveProject);
+            get
+            {
+                if (getProject == null) getProject = new RelayCommand(RetrieveProject, CanRetrieveProject);
+                return getProject;
+            }
         }
 
-        private ICommand? refreshProject;
-        public ICommand RefreshProject
-        {
-            get => refreshProject ?? new RelayCommand(RefreshProjectDirectory, CanRetrieveProject);
-        }
+
 
         public VCSViewModel()
         {
@@ -127,7 +131,7 @@ namespace SimpleBinaryVCS.ViewModel
             projectData.updatedVersion = GetprojectDataVersionName();
             projectData.DiffLog.Clear();
 
-            foreach (FileBase uploadedFile in App.UploaderManager.UploadedFileList)
+            foreach (ProjectFile uploadedFile in App.UploaderManager.UploadedFileList)
             {
                 if (projectFiles.Contains(uploadedFile))
                 {
@@ -284,7 +288,7 @@ namespace SimpleBinaryVCS.ViewModel
             foreach (string filePath in newProjectFiles)
             {
                 var fileInfo = FileVersionInfo.GetVersionInfo(filePath);
-                FileBase newFile = new FileBase(
+                ProjectFile newFile = new ProjectFile(
                     true,
                     new FileInfo(filePath).Length,
                     Path.GetFileName(filePath),
@@ -321,10 +325,7 @@ namespace SimpleBinaryVCS.ViewModel
 
         }
 
-        private void RefreshProjectDirectory(object parameter)
-        {
-            
-        }
+
 
         private void FetchResponse(object parameter)
         {

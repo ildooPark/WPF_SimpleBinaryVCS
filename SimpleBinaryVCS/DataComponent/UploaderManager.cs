@@ -14,28 +14,28 @@ namespace SimpleBinaryVCS.DataComponent
     {
         public Action<object>? UploadTrigger;
         public Action<object>? fileChangeTrigger;
-        private ObservableCollection<FileBase> uploadedFileList; 
-        public ObservableCollection<FileBase> UploadedFileList
+        private ObservableCollection<ProjectFile> uploadedFileList; 
+        public ObservableCollection<ProjectFile> UploadedFileList
         {
             get
             { 
-                if (uploadedFileList == null) uploadedFileList = new ObservableCollection<FileBase>();
+                if (uploadedFileList == null) uploadedFileList = new ObservableCollection<ProjectFile>();
                 return uploadedFileList;
             }
             set { uploadedFileList = value; }
         }
 
-        private Queue<FileUploaded>? changedFileList;
+        private Queue<ChangedFile>? changedFileList;
 
         public UploaderManager()
         {
-            uploadedFileList = new ObservableCollection<FileBase>();
-            changedFileList = new Queue<FileUploaded>();
+            uploadedFileList = new ObservableCollection<ProjectFile>();
+            changedFileList = new Queue<ChangedFile>();
 
         }
 
         
-        public void AddNewfile(FileBase fileUploaded)
+        public void AddNewfile(ProjectFile fileUploaded)
         {
             uploadedFileList.Add(fileUploaded);
         }

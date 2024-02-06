@@ -13,13 +13,18 @@ using System.Diagnostics;
 
 namespace SimpleBinaryVCS.ViewModel
 {
+    public enum VMState
+    {
+        Idle,
+        Calculating
+    }
     public class UploaderViewModel : ViewModelBase
     {
         private string[]? filesWithPath;
         private string[]? filesNameOnly;
-        public ObservableCollection<FileBase> UploadedFileList { get; set; }
-        private FileBase? selectedItem; 
-        public FileBase SelectedItem
+        public ObservableCollection<ProjectFile> UploadedFileList { get; set; }
+        private ProjectFile? selectedItem; 
+        public ProjectFile SelectedItem
         {
             get { return selectedItem;}
             set
@@ -47,12 +52,33 @@ namespace SimpleBinaryVCS.ViewModel
             }
         }
 
+        private ICommand? refreshProject;
+        public ICommand RefreshProject
+        {
+            get
+            {
+                if (refreshProject == null) refreshProject = new RelayCommand(RefreshProjectDirectory, CanUploadFile);
+                return refreshProject;
+            }
+        }
 
+        private ICommand? checkProjectIntegrity; 
+        public ICommand CheckProjectIntegrity
+        {
+            get
+            {
+                if (checkProjectIntegrity == null) checkProjectIntegrity = new RelayCommand(async (filesNameOnly) => await RunProjectVersionIntegrity(filesNameOnly), CanRunIntegrityTest); 
+                return checkProjectIntegrity;
+                    
+            }
+        }
         private FileManager fileManager;
+        private VMState currentState; 
         public UploaderViewModel()
         {
             UploadedFileList = App.UploaderManager.UploadedFileList;
-            fileManager = App.FileManager; 
+            fileManager = App.FileManager;
+            currentState = VMState.Idle; 
         }
 
         private bool CanUploadFile(object obj) { return true; }
@@ -72,12 +98,13 @@ namespace SimpleBinaryVCS.ViewModel
             for (int i = 0; i < filesWithPath.Length; i++)
             {
                 var fileInfo = FileVersionInfo.GetVersionInfo(filesWithPath[i]);
-                FileBase newFile = new FileBase(
+                ProjectFile newFile = new ProjectFile(
                     true, 
                     new FileInfo(filesWithPath[i]).Length, 
                     filesNameOnly[i], 
                     filesWithPath[i], 
                     fileInfo.FileVersion);
+                newFile.fileChangedState = FileChangedState.Uploaded;
                 UploadedFileList.Add(newFile);
             }
 
@@ -87,6 +114,21 @@ namespace SimpleBinaryVCS.ViewModel
         private void RefreshFiles(object obj)
         {
             UploadedFileList.Clear(); 
+        }
+
+        private void RefreshProjectDirectory(object parameter)
+        {
+            ProjectFile[]? changedFiles = fileManager.GetChangedFiles(); 
+        }
+        private bool CanRunIntegrityTest(object parameter)
+        {
+            return currentState == VMState.Idle; 
+        }
+        private async Task RunProjectVersionIntegrity(object parameter)
+        {
+            currentState = VMState.Calculating;
+            await fileManager.PerformIntegrityCheck(); 
+            currentState = VMState.Idle;
         }
     }
 }

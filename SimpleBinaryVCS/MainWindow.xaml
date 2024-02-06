@@ -171,8 +171,28 @@
                             <GridViewColumn  Header="Name" DisplayMemberBinding="{Binding fileName}" Width ="Auto" />
                             <GridViewColumn  Header="Version" DisplayMemberBinding="{Binding fileBuildVersion}" Width ="Auto" />
                             <GridViewColumn  Header="FilePath" DisplayMemberBinding="{Binding filePath}" Width ="Auto" />
+                            <GridViewColumn  Header="Change Type" DisplayMemberBinding="{Binding fileChangedState}" Width ="Auto" />
                         </GridView>
                     </ListView.View>
+                    <ListView.ItemContainerStyle>
+                        <Style TargetType="ListViewItem">
+                            <Setter Property="Background" Value="Transparent"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding fileChangedState}" Value="Added">
+                                    <Setter Property="Background" Value="LightBlue"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding fileChangedState}" Value="Uploaded">
+                                    <Setter Property="Background" Value="LightGoldenrodYellow"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding fileChangedState}" Value="Changed">
+                                    <Setter Property="Background" Value="LightGreen"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding fileChangedState}" Value="Deleted">
+                                    <Setter Property="Background" Value="LightCoral"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ListView.ItemContainerStyle>
                 </ListView>
                 <StackPanel Grid.Row="2">
                     <Button

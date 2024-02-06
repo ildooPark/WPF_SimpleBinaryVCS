@@ -81,8 +81,8 @@ namespace SimpleBinaryVCS.ViewModel
                 OnPropertyChanged("UpdateLog"); 
             }
         }
-        private ObservableCollection<FileBase>? diffLog;
-        public ObservableCollection<FileBase> DiffLog
+        private ObservableCollection<ProjectFile>? diffLog;
+        public ObservableCollection<ProjectFile> DiffLog
         {
             get => diffLog;
             set
@@ -148,12 +148,12 @@ namespace SimpleBinaryVCS.ViewModel
             DirectoryInfo? parentDirectory = Directory.GetParent(App.VcsManager.ProjectData.projectPath);
             string backupPath = $"{parentDirectory?.ToString()}\\Backup_{Path.GetFileName(App.VcsManager.ProjectData.projectPath)}\\Backup_{App.VcsManager.ProjectData.updatedVersion}";
             if (!File.Exists(backupPath)) Directory.CreateDirectory(backupPath);
-            foreach (FileBase file in App.VcsManager.ProjectData.ProjectFiles)
+            foreach (ProjectFile file in App.VcsManager.ProjectData.ProjectFiles)
             {
                 string newBackupPath = $"{backupPath}\\{Path.GetRelativePath(App.VcsManager.ProjectData.projectPath, file.filePath)}";
                 if (!File.Exists(Path.GetDirectoryName(newBackupPath))) Directory.CreateDirectory(Path.GetDirectoryName(newBackupPath));
                 File.Copy(file.filePath, newBackupPath, true);
-                FileBase newFile = new FileBase(file);
+                ProjectFile newFile = new ProjectFile(file);
                 newFile.filePath = backupPath;
                 newFile.isNew = false;
                 backUpData.ProjectFiles.Add(newFile); 

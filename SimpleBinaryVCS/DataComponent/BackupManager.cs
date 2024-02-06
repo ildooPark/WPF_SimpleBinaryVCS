@@ -15,12 +15,12 @@
 //        // First tracks the json file in a given Path Directory 
 //        // if Json file not found, then set the bool to null 
 
-//        private Dictionary<string, FileBase> projectFiles;
-//        public Dictionary<string, FileBase> ProjectFiles { get => projectFiles; } 
+//        private Dictionary<string, ProjectFile> projectFiles;
+//        public Dictionary<string, ProjectFile> ProjectFiles { get => projectFiles; } 
 
 //        public BackupManager()
 //        {
-//            projectFiles = new Dictionary<string, FileBase>();
+//            projectFiles = new Dictionary<string, ProjectFile>();
 //        }
         
 //        // Save BackUp 

@@ -1,6 +1,8 @@
-﻿using SimpleBinaryVCS.Model;
+﻿using Microsoft.TeamFoundation.Build.Client;
+using SimpleBinaryVCS.Model;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -12,6 +14,7 @@ namespace SimpleBinaryVCS.DataComponent
     public enum FileChangedState
     {
         Added,
+        Uploaded,
         Changed,
         Deleted
     }
@@ -20,8 +23,8 @@ namespace SimpleBinaryVCS.DataComponent
         // Dependent on UploadManager, and VcsManager 
         private VersionControlManager vcsManager;
         private UploaderManager uploadManager;
-        private Dictionary<string, FileBase> filesDict;
-        private Queue<FileUploaded> changedFilesQueue; 
+        private Dictionary<string, ProjectFile> changedFilesDict;
+        private Queue<ChangedFile> changedFilesQueue; 
         // Collects Project File Changes, 
         // Activates the 
         public Action? fileChanges;
@@ -30,9 +33,15 @@ namespace SimpleBinaryVCS.DataComponent
         {
             vcsManager = App.VcsManager;
             uploadManager = App.UploaderManager;
-            filesDict = new Dictionary<string, FileBase>(); 
-            changedFilesQueue = new Queue<FileUploaded>();
+            changedFilesDict = new Dictionary<string, ProjectFile>(); 
+            changedFilesQueue = new Queue<ChangedFile>();
             vcsManager.projectLoadAction += ActivateFileWatcher;
+            vcsManager.updateAction += UpdateResponse; 
+        }
+
+        private void UpdateResponse(object obj)
+        {
+            throw new NotImplementedException();
         }
 
         public void ActivateFileWatcher(object obj)
@@ -48,13 +57,13 @@ namespace SimpleBinaryVCS.DataComponent
                 return;
             }
             fileSystemWatcher.IncludeSubdirectories = true;
-            fileSystemWatcher.Created += OnFileCreated; 
+            fileSystemWatcher.Created += OnFileCreated;
             fileSystemWatcher.Changed += OnFileChanged;
             fileSystemWatcher.Deleted += OnFileDeleted;
             fileSystemWatcher.EnableRaisingEvents = true;
-            foreach (FileBase file in vcsManager.ProjectData.ProjectFiles)
+            foreach (ProjectFile file in vcsManager.ProjectData.ProjectFiles)
             {
-                filesDict.Add(file.fileName, file);
+                changedFilesDict.Add(file.fileName, file);
             }
         }
 
@@ -65,7 +74,33 @@ namespace SimpleBinaryVCS.DataComponent
 
         private void OnFileChanged(object sender, FileSystemEventArgs e)
         {
-            throw new NotImplementedException();
+            string filePath = e.FullPath;
+            bool checkExistingFile = changedFilesDict.TryGetValue(Path.GetFileName(e.FullPath), out var file); 
+            if (!checkExistingFile)
+            {
+                MessageBox.Show($"Following file {Path.GetFileName(e.FullPath)} is not Changed File!"); return; 
+                //Make new File
+                var fileInfo = FileVersionInfo.GetVersionInfo(e.FullPath);
+                ProjectFile newFile = new ProjectFile(
+                    true,
+                    new FileInfo(e.FullPath).Length,
+                    Path.GetFileName(e.FullPath),
+                    e.FullPath,
+                    fileInfo.FileVersion);
+                newFile.fileHash = App.VcsManager.GetMD5CheckSum(e.FullPath);
+                newFile.deployedProjectVersion = vcsManager.ProjectData.updatedVersion;
+                vcsManager.ProjectData.ProjectFiles.Add(newFile);
+                vcsManager.ProjectData.DiffLog.Add(newFile);
+            }
+            else
+            {
+                //Compare Hash 
+                string? newFileHash = vcsManager.GetMD5CheckSum(filePath);
+                if (newFileHash == file.fileHash) return;
+                // Upload the file into Uploader Manager? 
+                // No, Directly Address to the DiffLog 
+                // 
+            }
         }
 
         private void OnFileCreated(object sender, FileSystemEventArgs e)
@@ -73,12 +108,12 @@ namespace SimpleBinaryVCS.DataComponent
             throw new NotImplementedException();
         }
 
-        public FileBase[]? GetChangedFiles()
+        public ProjectFile[]? GetChangedFiles()
         {
             // Get Current ProjectFiles 
             if (changedFilesQueue.Count() == 0) return null; 
             // 
-            FileBase[] changedFiles = new FileBase[changedFilesQueue.Count()];
+            ProjectFile[] changedFiles = new ProjectFile[changedFilesQueue.Count()];
 
             for (int i = 0; i < changedFilesQueue.Count(); i++)
             {
@@ -91,13 +126,13 @@ namespace SimpleBinaryVCS.DataComponent
         public void RevertResponse(object obj)
         {
 
-            filesDict.Clear(); 
+            changedFilesDict.Clear(); 
         }
 
-        private async Task<bool> PerformIntegrityCheck()
+        public async Task PerformIntegrityCheck()
         {
             await Task.Run(() => RunIntegrityCheck());
-            return true; 
+            return;
         }
 
         private void RunIntegrityCheck()

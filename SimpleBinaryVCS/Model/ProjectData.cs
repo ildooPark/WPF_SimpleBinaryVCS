@@ -20,14 +20,14 @@ namespace SimpleBinaryVCS.Model
         public int revisionNumber { get; set; }
         public string? updateLog { get; set; }
         public int numberOfChanges {  get; set; }
-        private ObservableCollection<FileBase>? projectFiles; 
-        public ObservableCollection<FileBase> ProjectFiles 
+        private ObservableCollection<ProjectFile>? projectFiles; 
+        public ObservableCollection<ProjectFile> ProjectFiles 
         { 
             get
             {
                 if (projectFiles == null)
                 {
-                    projectFiles = new ObservableCollection<FileBase>();
+                    projectFiles = new ObservableCollection<ProjectFile>();
                     return projectFiles;
                 }
                 else 
@@ -38,14 +38,14 @@ namespace SimpleBinaryVCS.Model
                 projectFiles = value; 
             }
         }
-        private ObservableCollection<FileBase>? diffLog;
-        public ObservableCollection<FileBase> DiffLog
+        private ObservableCollection<ProjectFile>? diffLog;
+        public ObservableCollection<ProjectFile> DiffLog
         {
             get
             {
                 if (diffLog == null)
                 {
-                    diffLog = new ObservableCollection<FileBase>();
+                    diffLog = new ObservableCollection<ProjectFile>();
                     return diffLog;
                 }
                 else
@@ -71,8 +71,8 @@ namespace SimpleBinaryVCS.Model
             this.revisionNumber = srcProjectData.revisionNumber;
             this.updateLog = srcProjectData.updateLog;
             this.numberOfChanges = srcProjectData.numberOfChanges;
-            this.ProjectFiles = new ObservableCollection<FileBase>();
-            this.DiffLog = new ObservableCollection<FileBase>(srcProjectData.DiffLog);
+            this.ProjectFiles = new ObservableCollection<ProjectFile>();
+            this.DiffLog = new ObservableCollection<ProjectFile>(srcProjectData.DiffLog);
         }
     }
 }
