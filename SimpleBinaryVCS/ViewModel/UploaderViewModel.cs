@@ -15,10 +15,10 @@ namespace SimpleBinaryVCS.ViewModel
 {
     public class UploaderViewModel : ViewModelBase
     {
-        private string[] filesWithPath;
-        private string[] filesNameOnly;
+        private string[]? filesWithPath;
+        private string[]? filesNameOnly;
         public ObservableCollection<FileBase> UploadedFileList { get; set; }
-        private FileBase selectedItem; 
+        private FileBase? selectedItem; 
         public FileBase SelectedItem
         {
             get { return selectedItem;}
@@ -28,8 +28,8 @@ namespace SimpleBinaryVCS.ViewModel
                 OnPropertyChanged("SelectedItem"); 
             }
         }
-        private ICommand conductUpload;
-        private ICommand clearUpload;
+        private ICommand? conductUpload;
+        private ICommand? clearUpload;
         public ICommand ConductUpload
         {
             get
@@ -46,9 +46,13 @@ namespace SimpleBinaryVCS.ViewModel
                 return clearUpload;
             }
         }
+
+
+        private FileManager fileManager;
         public UploaderViewModel()
         {
             UploadedFileList = App.UploaderManager.UploadedFileList;
+            fileManager = App.FileManager; 
         }
 
         private bool CanUploadFile(object obj) { return true; }
@@ -65,13 +69,19 @@ namespace SimpleBinaryVCS.ViewModel
                 filesNameOnly = fileOpen.SafeFileNames;
             }
             else return; 
-            foreach (string filePath in filesWithPath)
+            for (int i = 0; i < filesWithPath.Length; i++)
             {
-
-                var fileInfo = FileVersionInfo.GetVersionInfo(filePath);
-                FileBase newFile = new FileBase(true, new FileInfo(filePath).Length, fileInfo.FileName, filePath, fileInfo.FileVersion);
+                var fileInfo = FileVersionInfo.GetVersionInfo(filesWithPath[i]);
+                FileBase newFile = new FileBase(
+                    true, 
+                    new FileInfo(filesWithPath[i]).Length, 
+                    filesNameOnly[i], 
+                    filesWithPath[i], 
+                    fileInfo.FileVersion);
                 UploadedFileList.Add(newFile);
             }
+
+            fileOpen.Dispose(); 
         }
 
         private void RefreshFiles(object obj)

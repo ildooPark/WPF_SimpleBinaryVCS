@@ -12,28 +12,15 @@ namespace SimpleBinaryVCS.DataComponent
 {
     public class VersionControlManager
     {
-        private string? projectPath;
-        public string? ProjectPath
-        {
-            get
-            {
-                return projectPath;
-            }
-            set
-            {
-                projectPath = value;
-                projectLoaded?.Invoke(); 
-            }
-        }
-        public Action projectLoaded;
-        private ProjectData projectData; 
+        public string? mainProjectPath {  get; set; }
+        public Action<object> updateAction;
+        public Action<object> revertAction;
+        public Action<object> projectLoadAction;
+        public Action<object> fetchAction; 
+        private ProjectData? projectData; 
         public ProjectData ProjectData 
         { 
-            get
-            {
-                if (projectData == null) projectData = new ProjectData();
-                return projectData;
-            }
+            get => projectData ?? new ProjectData();
             set
             {
                 projectData = value;
@@ -53,6 +40,11 @@ namespace SimpleBinaryVCS.DataComponent
         /// <returns></returns>
         public static bool TryCompareMD5CheckSum(string? srcFile, string? dstFile, out (string?, string?) result)
         {
+            if (srcFile == null || dstFile == null)
+            {
+                result = (null, null); 
+                return false;
+            }
             byte[] srcHashBytes, dstHashBytes;
             using MD5 md5 = MD5.Create();
             if (md5 == null)
@@ -75,7 +67,7 @@ namespace SimpleBinaryVCS.DataComponent
             return srcHashString == dstHashString;
         }
 
-        public static string? GetMD5CheckSum(string srcFile)
+        public string? GetMD5CheckSum(string srcFile)
         {
             byte[] srcHashBytes;
             using MD5 md5 = MD5.Create();
@@ -88,6 +80,7 @@ namespace SimpleBinaryVCS.DataComponent
             {
                 srcHashBytes = md5.ComputeHash(srcStream);
             }
+            md5.Dispose(); 
             return BitConverter.ToString(srcHashBytes).Replace("-", "");
         }
     }

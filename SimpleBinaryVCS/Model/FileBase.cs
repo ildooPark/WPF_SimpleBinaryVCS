@@ -8,70 +8,79 @@ using System.Threading.Tasks;
 namespace SimpleBinaryVCS.Model
 {
     [MemoryPackable]
-    public partial class FileBase
+    public partial class FileBase : IEquatable<FileBase>
     {
         public bool isNew { get; set; }
         public long fileSize { get; set; }
         public string fileName {  get; set; }
-        public string? fileVersion {  get; set; }
+        /// <summary>
+        /// File Build Version
+        /// </summary>
+        public string? fileBuildVersion {  get; set; }
+        /// <summary>
+        /// RelativePath to the ProjectFolder Directory
+        /// </summary>
         public string filePath {  get; set; }
         public string? fileHash { get; set; }
+        public string? deployedProjectVersion { get; set; }
         public DateTime updatedTime {  get; set; }
+        public FileBase() { }
+
         public FileBase(bool isNew, long fileSize, string fileName, string filePath, string? fileVersion)
         {
             this.isNew = isNew;
             this.fileSize = fileSize;
             this.fileName = fileName;
-            this.fileVersion = fileVersion;
+            this.fileBuildVersion = fileVersion;
             this.filePath = filePath;
             this.updatedTime = DateTime.Now;
         }
 
         [MemoryPackConstructor]
-        public FileBase(bool isNew, long fileSize, string fileName, string filePath, string? fileVersion, DateTime updatedTime)
+        public FileBase(bool isNew, long fileSize, string fileName, string? fileBuildVersion, string filePath, string fileHash, string? deployedProjectVersion, DateTime updatedTime)
         {
             this.isNew = isNew;
             this.fileSize = fileSize;
             this.fileName = fileName;
-            this.fileVersion = fileVersion;
+            this.fileBuildVersion = fileBuildVersion;
             this.filePath = filePath;
+            this.fileHash = fileHash;
+            this.deployedProjectVersion = deployedProjectVersion;
             this.updatedTime = updatedTime; 
         }
 
+        public FileBase(FileBase srcFile)
+        {
+            this.isNew = srcFile.isNew;
+            this.fileSize = srcFile.fileSize;
+            this.fileName = srcFile.fileName;
+            this.fileBuildVersion = srcFile.fileBuildVersion;
+            this.filePath = srcFile.filePath;
+            this.fileHash = srcFile.fileHash;
+            this.deployedProjectVersion = srcFile.deployedProjectVersion;
+            this.updatedTime = srcFile.updatedTime;
+        }
         /// <summary>
         /// First compares fileVersion, then the updatedTime; 
         /// smaller fileVersion corresponds to newer file
         /// </summary>
         /// <param name="other"></param>
         /// <returns></returns>
-        /// <exception cref="NotImplementedException"></exception>
-        public int CompareTo(FileBase other)
+        public int CompareTo(FileBase other) 
         {
-            if (this.fileVersion == null || other.fileVersion == null)
-                return this.updatedTime.CompareTo(other.updatedTime);
-
-            char thisVersion = char.ToLower(this.fileVersion[this.fileVersion.Length - 1]);
-            char otherVersion = char.ToLower(other.fileVersion[other.fileVersion.Length - 1]); 
-            if (char.IsLetter(thisVersion) && char.IsLetter(otherVersion))
-            {
-                
-            }
-            else
-            {
-                return char.IsLetter(thisVersion) ? -1 : 1;
-            }
-            return this.fileVersion.CompareTo(other.fileVersion);
+            if (this.updatedTime.CompareTo(other.updatedTime) == 0)
+                return this.fileSize.CompareTo(other.fileSize);
+            return this.updatedTime.CompareTo(other.updatedTime);
         }
         /// <summary>
         /// Checks 1. fileName, 2. fileVersion 
         /// IF all returns as true, then MD5 checksum is used to compute the differences.
         /// </summary>
-        /// <param name="other"></param>
-        /// <returns></returns>
-        public bool Equals(FileBase other)
+        /// <param name = "other" ></ param >
+        /// < returns ></ returns >
+        public bool Equals(FileBase? other)
         {
-            if (other.fileName != this.fileName) return false;
-            return true;
+            return other?.fileName == this.fileName;
         }
         /// <summary>
         /// Returns False if not Same
