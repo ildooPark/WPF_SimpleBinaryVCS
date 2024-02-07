@@ -26,8 +26,9 @@ namespace SimpleBinaryVCS.Model
         public string filePath {  get; set; }
         public string? fileHash { get; set; }
         public string? deployedProjectVersion { get; set; }
-        public FileChangedState fileChangedState;
         public DateTime updatedTime {  get; set; }
+        public FileChangedState? fileChangedState { get; set; }
+
         public ProjectFile() { }
         /// <summary>
         /// Lacks FileHash, DeployedProjectVersion, FileChangedState

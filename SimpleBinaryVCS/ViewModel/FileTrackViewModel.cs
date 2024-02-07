@@ -18,11 +18,11 @@ namespace SimpleBinaryVCS.ViewModel
         Idle,
         Calculating
     }
-    public class UploaderViewModel : ViewModelBase
+    public class FileTrackViewModel : ViewModelBase
     {
         private string[]? filesWithPath;
         private string[]? filesNameOnly;
-        public ObservableCollection<ProjectFile> UploadedFileList { get; set; }
+        public ObservableCollection<ProjectFile> ChangedFileList { get; set; }
         private ProjectFile? selectedItem; 
         public ProjectFile SelectedItem
         {
@@ -52,13 +52,13 @@ namespace SimpleBinaryVCS.ViewModel
             }
         }
 
-        private ICommand? refreshProject;
-        public ICommand RefreshProject
+        private ICommand? getLocalChanges;
+        public ICommand GetLocalChanges
         {
             get
             {
-                if (refreshProject == null) refreshProject = new RelayCommand(RefreshProjectDirectory, CanUploadFile);
-                return refreshProject;
+                if (getLocalChanges == null) getLocalChanges = new RelayCommand(PullLocalFileChanges, CanPullLocalChanges);
+                return getLocalChanges;
             }
         }
 
@@ -72,17 +72,31 @@ namespace SimpleBinaryVCS.ViewModel
                     
             }
         }
+        private int detectedFileChange;
+        public int DetectedFileChange
+        {
+            get { return detectedFileChange; }
+            set
+            {
+                detectedFileChange = value;
+                OnPropertyChanged("DetectedFileChange");
+            }
+        }
         private FileManager fileManager;
         private VMState currentState; 
-        public UploaderViewModel()
+        public FileTrackViewModel()
         {
-            UploadedFileList = App.UploaderManager.UploadedFileList;
+            this.ChangedFileList = App.FileTrackManager.ChangedFileList;
             fileManager = App.FileManager;
+            fileManager.newLocalFileChange += OnNewLocalFileChange; 
             currentState = VMState.Idle; 
         }
-
+        private void OnNewLocalFileChange(int numFile)
+        {
+            DetectedFileChange = numFile;
+        }
+        private bool CanPullLocalChanges(object obj) { return detectedFileChange != 0; }
         private bool CanUploadFile(object obj) { return true; }
-
         private void UploadFile(object obj)
         {
             OpenFileDialog fileOpen = new OpenFileDialog()
@@ -105,20 +119,21 @@ namespace SimpleBinaryVCS.ViewModel
                     filesWithPath[i], 
                     fileInfo.FileVersion);
                 newFile.fileChangedState = FileChangedState.Uploaded;
-                UploadedFileList.Add(newFile);
+                ChangedFileList.Add(newFile);
             }
-
             fileOpen.Dispose(); 
         }
 
         private void RefreshFiles(object obj)
         {
-            UploadedFileList.Clear(); 
+            ChangedFileList.Clear(); 
         }
 
-        private void RefreshProjectDirectory(object parameter)
+        private void PullLocalFileChanges(object parameter)
         {
-            ProjectFile[]? changedFiles = fileManager.GetChangedFiles(); 
+            currentState = VMState.Calculating;
+            ChangedFile[]? changedFiles = fileManager.GetChangedFiles();
+            currentState = VMState.Idle;
         }
         private bool CanRunIntegrityTest(object parameter)
         {

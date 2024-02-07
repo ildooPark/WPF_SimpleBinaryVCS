@@ -26,14 +26,14 @@ namespace SimpleBinaryVCS
             }
         }
 
-        private static UploaderManager? uploaderManager;
-        public static UploaderManager UploaderManager
+        private static FileTrackManager? uploaderManager;
+        public static FileTrackManager FileTrackManager
         {
             get
             {
                 if (uploaderManager == null)
                 {
-                    uploaderManager = new UploaderManager();
+                    uploaderManager = new FileTrackManager();
                     return uploaderManager;
                 }
                 else

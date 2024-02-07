@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 namespace SimpleBinaryVCS.Model
 {
     [MemoryPackable]
-    public partial class ProjectData
+    public partial class ProjectData : IEquatable<ProjectData>, IComparer<ProjectData>, IComparable<ProjectData>
     {
         public string? projectName { get; set; }
         public string? projectPath { get; set; }
@@ -73,6 +73,27 @@ namespace SimpleBinaryVCS.Model
             this.numberOfChanges = srcProjectData.numberOfChanges;
             this.ProjectFiles = new ObservableCollection<ProjectFile>();
             this.DiffLog = new ObservableCollection<ProjectFile>(srcProjectData.DiffLog);
+        }
+
+        public bool Equals(ProjectData? other)
+        {
+            if (other == null) return false;
+            return other.updatedVersion == this.updatedVersion; 
+        }
+
+        public int Compare(ProjectData? x, ProjectData? y)
+        {
+            if (x.revisionNumber.CompareTo(y.revisionNumber) == 0) 
+                return x.updatedTime.CompareTo(y.updatedTime);
+            return x.revisionNumber.CompareTo(y.revisionNumber);
+        }
+
+        public int CompareTo(ProjectData? other)
+        {
+            if (this.revisionNumber.CompareTo(other.revisionNumber) == 0)
+                return this.updatedTime.CompareTo(other.updatedTime);
+            if (this.revisionNumber > other.revisionNumber) return -1;
+            return 1; 
         }
     }
 }
