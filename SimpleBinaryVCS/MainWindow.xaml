@@ -86,7 +86,7 @@
             <StackPanel Grid.Column="1">
                 <DataGrid
                     Name="backupList" 
-                    ItemsSource="{Binding BackupVM.ProjectDataList}"
+                    ItemsSource="{Binding BackupVM.BackupProjectDataList}"
                     SelectedItem="{Binding BackupVM.SelectedItem}"
                     BorderBrush="#cdcdcd"
                     ScrollViewer.CanContentScroll="True"

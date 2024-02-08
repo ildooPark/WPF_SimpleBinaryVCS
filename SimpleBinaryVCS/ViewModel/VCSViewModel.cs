@@ -117,7 +117,7 @@ namespace SimpleBinaryVCS.ViewModel
         {
             detectedFileChange = numFile;
         }
-
+        #region Update Version 
         private bool CanUpdateProject(object obj)
         {
             if (projectFiles == null || App.FileTrackManager.ChangedFileList.Count == 0) return false;
@@ -149,7 +149,12 @@ namespace SimpleBinaryVCS.ViewModel
                         string? fileHash = App.VcsManager.GetMD5CheckSum(changedFile.filePath);
                         if (fileHash == null) return; 
                         changedFile.fileHash = fileHash;
-                        if (fileHash == ProjectFiles[srcIndex].fileHash) return; 
+                        if (fileHash == ProjectFiles[srcIndex].fileHash)
+                        {
+                            MessageBox.Show($"UploadedFile {changedFile.fileName} " + $"is identical to existing File {ProjectFiles[srcIndex].fileName} \n" + $"UploadedFile FileHash : \n" + $"ProjectFile {ProjectFiles[srcIndex].fileHash}"); 
+                            return;
+
+                        }
                         changedFile.deployedProjectVersion = projectData.updatedVersion;
                         projectFiles[srcIndex].isNew = false; 
                         projectData.DiffLog.Add(changedFile);
@@ -228,7 +233,9 @@ namespace SimpleBinaryVCS.ViewModel
             projectData.updatedVersion = $"{DateTime.Now.ToString("yyyy_MM_dd")}_v{projectData.revisionNumber}";
             return projectData.updatedVersion;
         }
+        #endregion
 
+        #region Retrieving VersionLogs 
         private bool CanRetrieveProject(object parameter)
         {
             return true;
@@ -314,6 +321,7 @@ namespace SimpleBinaryVCS.ViewModel
             ProjectName = projectData.projectName;
             CurrentVersion = projectData.updatedVersion; 
         }
+        #endregion
         private void TryGetAllFiles(string directoryPath, out string[]? Files)
         {
             try

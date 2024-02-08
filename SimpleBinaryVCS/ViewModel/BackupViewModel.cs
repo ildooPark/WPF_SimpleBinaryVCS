@@ -20,13 +20,13 @@ namespace SimpleBinaryVCS.ViewModel
     {
         private PriorityQueue<ProjectData, ProjectData> importProjects;
         private ObservableCollection<ProjectData> projectDataList;
-        public ObservableCollection<ProjectData> ProjectDataList
+        public ObservableCollection<ProjectData> BackupProjectDataList
         {
             get => projectDataList;
             set
             {
                 projectDataList = value;
-                OnPropertyChanged("ProjectDataList"); 
+                OnPropertyChanged("BackupProjectDataList"); 
             }
         }
         private ProjectData? selectedItem; 
@@ -117,7 +117,7 @@ namespace SimpleBinaryVCS.ViewModel
             SelectedItem = null;
             vcsManager.NewestProjectData = null; 
             importProjects.Clear(); 
-            ProjectDataList.Clear();
+            BackupProjectDataList.Clear();
             if (App.VcsManager.ProjectData.projectPath == null) return;
             string[] mainVersionLog = Directory.GetFiles(App.VcsManager.ProjectData.projectPath, "VersionLog.*", SearchOption.AllDirectories);
             ProjectData? mainProjectData = MemoryPackSerializer.Deserialize<ProjectData>(File.ReadAllBytes(mainVersionLog[0]));
@@ -133,11 +133,11 @@ namespace SimpleBinaryVCS.ViewModel
                 importProjects.Enqueue(data, data);
             }
             vcsManager.NewestProjectData = importProjects.Dequeue();
-            ProjectDataList.Add(vcsManager.NewestProjectData);
-
-            for (int i = 0; i < importProjects.Count; i++)
+            BackupProjectDataList.Add(vcsManager.NewestProjectData);
+            int importProjectCount = importProjects.Count;
+            for (int i = 0; i < importProjectCount; i++)
             {
-                ProjectDataList.Add(importProjects.Dequeue());
+                BackupProjectDataList.Add(importProjects.Dequeue());
             }
         }
 

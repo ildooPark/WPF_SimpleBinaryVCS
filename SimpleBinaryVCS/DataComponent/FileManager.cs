@@ -23,6 +23,12 @@ namespace SimpleBinaryVCS.DataComponent
         Deleted
     }
 
+    public struct HashRequest
+    {
+        Action callBack; 
+
+    }
+
     public class FileManager
     {
         // Dependent on UploadManager, and VcsManager 
@@ -62,6 +68,7 @@ namespace SimpleBinaryVCS.DataComponent
         private DispatcherTimer changeNotifyTimer { get; set; } 
         private TimeSpan updateInterval { get; set; }
 
+        private SemaphoreSlim asyncControl { get; set; }
         public FileManager()
         {
             vcsManager = App.VcsManager;
@@ -70,14 +77,14 @@ namespace SimpleBinaryVCS.DataComponent
             changedFilesDict = new Dictionary<string, ChangedFile>();
             changeNotifyTimer = new DispatcherTimer();
             updateInterval = TimeSpan.FromSeconds(15);
-
+            asyncControl = new SemaphoreSlim(4); 
             vcsManager.projectLoadAction += ActivateFileWatcher;
             vcsManager.updateAction += UpdateResponse; 
         }
 
         private void UpdateResponse(object obj)
         {
-
+            return;
         }
 
         public void ActivateFileWatcher(object obj)
@@ -106,7 +113,7 @@ namespace SimpleBinaryVCS.DataComponent
             changeNotifyTimer.Tick += OnTimerTicked;
             foreach (ProjectFile file in vcsManager.ProjectData.ProjectFiles)
             {
-                changedFilesDict.Add(file.fileName, file);
+                projectFilesDict.Add(file.fileName, file);
             }
             
         }
@@ -128,6 +135,14 @@ namespace SimpleBinaryVCS.DataComponent
 
         }
 
+        private void HashNext()
+        {
+            lock (this)
+            {
+
+            }
+        }
+
         private void OnRefresh()
         {
             // Manually Poll through the directory, 
@@ -146,7 +161,7 @@ namespace SimpleBinaryVCS.DataComponent
             changeNotifyTimer?.Start(); 
         }
 
-        private void RegisterChangesWithoutOverlap(FileChangedState state, string filePath)
+        private async void RegisterChangesWithoutOverlap(FileChangedState state, string filePath)
         {
             try
             {
@@ -172,14 +187,14 @@ namespace SimpleBinaryVCS.DataComponent
                 MessageBox.Show($"{ex.Message}");
             }
         }
-        private void OnFileDeleted(object sender, FileSystemEventArgs e)
+        private async void OnFileDeleted(object sender, FileSystemEventArgs e)
         {
             ChangedFile detectedFile = new ChangedFile(FileChangedState.Deleted, e.FullPath, Path.GetFileName(e.FullPath));
             string filePath = e.FullPath;
         }
 
 
-        private void OnFileChanged(object sender, FileSystemEventArgs e)
+        private async void OnFileChanged(object sender, FileSystemEventArgs e)
         {
             // If file already Exists, and the delta second between last read time and last written time 
             try
@@ -258,6 +273,7 @@ namespace SimpleBinaryVCS.DataComponent
             //}
 
             //return changedFiles; 
+            return null; 
         }
 
         public void RevertResponse(object obj)
