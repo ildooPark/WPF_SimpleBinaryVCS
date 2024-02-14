@@ -43,7 +43,7 @@ namespace SimpleBinaryVCS.DataComponent
         /// <param name="dstFile"></param>
         /// <param name="result">First is srcHash, Second is dstHash</param>
         /// <returns></returns>
-        public static bool TryCompareMD5CheckSum(string? srcFile, string? dstFile, out (string?, string?) result)
+        public bool TryCompareMD5CheckSum(string? srcFile, string? dstFile, out (string?, string?) result)
         {
             if (srcFile == null || dstFile == null)
             {
@@ -72,16 +72,17 @@ namespace SimpleBinaryVCS.DataComponent
             return srcHashString == dstHashString;
         }
 
-        public string? GetMD5CheckSum(string srcFile)
+        public string? GetFileMD5CheckSum(string projectPath, string srcFileRelPath)
         {
             byte[] srcHashBytes;
+            string srcFileFullPath = Path.Combine(projectPath, srcFileRelPath);
             using MD5 md5 = MD5.Create();
             if (md5 == null)
             {
                 MessageBox.Show("Failed to Initialize MD5");
                 return null; 
             }
-            using (var srcStream = File.OpenRead(srcFile))
+            using (var srcStream = File.OpenRead(srcFileFullPath))
             {
                 srcHashBytes = md5.ComputeHash(srcStream);
             }
@@ -89,28 +90,30 @@ namespace SimpleBinaryVCS.DataComponent
             return BitConverter.ToString(srcHashBytes).Replace("-", "");
         }
 
-        public async void GetMD5CheckSumAsync(ChangedFile targetFile)
+        public async Task<string?> GetFileMD5CheckSumAsync(ChangedFile targetFile)
         {
             try
             {
+                targetFile.fileHashChecked = false; 
                 byte[] srcHashBytes;
                 using MD5 md5 = MD5.Create();
                 if (md5 == null)
                 {
                     MessageBox.Show("Failed to Initialize MD5 Async");
-                    return;
+                    return null;
                 }
-                using (var srcStream = File.OpenRead(targetFile.filePath))
+                using (var srcStream = File.OpenRead(targetFile.fileFullPath()))
                 {
                     srcHashBytes = await md5.ComputeHashAsync(srcStream);
                 }
-                targetFile.fileHash = BitConverter.ToString(srcHashBytes).Replace("-", "");
-                Console.WriteLine(targetFile.fileHash);
+                string resultHash = BitConverter.ToString(srcHashBytes).Replace("-", "");
                 md5.Dispose();
+                return resultHash;
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error occured {ex.Message} \nwhile Computing hash async by this file {targetFile.filePath}"); 
+                MessageBox.Show($"Error occured {ex.Message} \nwhile Computing hash async by this file {targetFile.fileRelPath}");
+                return null;
             }
         }
     }

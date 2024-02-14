@@ -10,11 +10,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Folder Include="Interfaces\" />
-    <Folder Include="View\" />
-  </ItemGroup>
-
-  <ItemGroup>
     <PackageReference Include="MemoryPack" Version="1.10.0" />
     <PackageReference Include="Microsoft.TeamFoundation.ObjectModel" Version="14.0.0.1" />
   </ItemGroup>

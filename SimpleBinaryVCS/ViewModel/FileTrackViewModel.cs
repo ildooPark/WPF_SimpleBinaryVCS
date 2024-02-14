@@ -1,6 +1,8 @@
 ﻿using SimpleBinaryVCS.DataComponent;
 using SimpleBinaryVCS.Model;
-using Microsoft.TeamFoundation.MVVM; 
+using Microsoft.TeamFoundation.MVVM;
+using WinForms = System.Windows.Forms;
+using WPF = System.Windows; 
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -20,8 +22,7 @@ namespace SimpleBinaryVCS.ViewModel
     }
     public class FileTrackViewModel : ViewModelBase
     {
-        private string[]? filesWithPath;
-        private string[]? filesNameOnly;
+        private string? updateDirPath; 
         public ObservableCollection<ProjectFile> ChangedFileList { get; set; }
         private ProjectFile? selectedItem; 
         public ProjectFile SelectedItem
@@ -34,7 +35,7 @@ namespace SimpleBinaryVCS.ViewModel
             }
         }
         private ICommand? conductUpload;
-        private ICommand? clearUpload;
+        private ICommand? clearRevert;
         public ICommand ConductUpload
         {
             get
@@ -43,12 +44,12 @@ namespace SimpleBinaryVCS.ViewModel
                 return conductUpload;
             }
         }
-        public ICommand ClearUpload
+        public ICommand ClearRevert
         {
             get
             {
-                if (clearUpload == null) clearUpload = new RelayCommand(RefreshFiles, CanUploadFile);
-                return clearUpload;
+                if (clearRevert == null) clearRevert = new RelayCommand(RefreshFiles, CanUploadFile);
+                return clearRevert;
             }
         }
 
@@ -67,7 +68,7 @@ namespace SimpleBinaryVCS.ViewModel
         {
             get
             {
-                if (checkProjectIntegrity == null) checkProjectIntegrity = new RelayCommand(async (filesNameOnly) => await RunProjectVersionIntegrity(filesNameOnly), CanRunIntegrityTest); 
+                if (checkProjectIntegrity == null) checkProjectIntegrity = new RelayCommand(RunProjectVersionIntegrity, CanRunIntegrityTest); 
                 return checkProjectIntegrity;
                     
             }
@@ -86,8 +87,8 @@ namespace SimpleBinaryVCS.ViewModel
         private VMState currentState; 
         public FileTrackViewModel()
         {
-            this.ChangedFileList = App.FileTrackManager.ChangedFileList;
             fileManager = App.FileManager;
+            this.ChangedFileList = fileManager.ChangedFileList;
             fileManager.newLocalFileChange += OnNewLocalFileChange; 
             currentState = VMState.Idle; 
         }
@@ -99,29 +100,38 @@ namespace SimpleBinaryVCS.ViewModel
         private bool CanUploadFile(object obj) { return true; }
         private void UploadFile(object obj)
         {
-            OpenFileDialog fileOpen = new OpenFileDialog()
+            try
             {
-                Multiselect = true
-            };
-            if (fileOpen.ShowDialog() == DialogResult.OK)
-            {
-                filesWithPath = fileOpen.FileNames;
-                filesNameOnly = fileOpen.SafeFileNames;
+                var openUpdateDir = new WinForms.FolderBrowserDialog();
+                if (openUpdateDir.ShowDialog() == DialogResult.OK)
+                {
+                    updateDirPath = openUpdateDir.SelectedPath;
+                }
+                else
+                {
+                    openUpdateDir.Dispose();
+                    return;
+                }
+                fileManager.RegisterNewFiles(updateDirPath);
+                openUpdateDir.Dispose(); 
             }
-            else return; 
-            for (int i = 0; i < filesWithPath.Length; i++)
+            catch (Exception ex)
             {
-                var fileInfo = FileVersionInfo.GetVersionInfo(filesWithPath[i]);
-                ProjectFile newFile = new ProjectFile(
-                    true, 
-                    new FileInfo(filesWithPath[i]).Length, 
-                    filesNameOnly[i], 
-                    filesWithPath[i], 
-                    fileInfo.FileVersion);
-                newFile.fileChangedState = FileChangedState.Uploaded;
-                ChangedFileList.Add(newFile);
+                WPF.MessageBox.Show(ex.Message); 
             }
-            fileOpen.Dispose(); 
+            //for (int i = 0; i < filesRelPath.Length; i++)
+            //{
+            //    var fileInfo = FileVersionInfo.GetVersionInfo(filesRelPath[i]);
+            //    ProjectFile newFile = new ProjectFile(
+            //        true, 
+            //        new FileInfo(filesRelPath[i]).Length, 
+            //        filesNameOnly[i],
+            //        filesRelPath[i], 
+            //        fileInfo.FileVersion);
+            //    newFile.fileChangedState = FileChangedState.Uploaded;
+            //    ChangedFileList.Add(newFile);
+            //}
+            //fileOpen.Dispose(); 
         }
 
         private void RefreshFiles(object obj)
@@ -132,17 +142,17 @@ namespace SimpleBinaryVCS.ViewModel
         private void PullLocalFileChanges(object parameter)
         {
             currentState = VMState.Calculating;
-            ChangedFile[]? changedFiles = fileManager.GetChangedFiles();
+            //ChangedFile[]? changedFiles = fileManager.GetChangedFiles();
             currentState = VMState.Idle;
         }
         private bool CanRunIntegrityTest(object parameter)
         {
-            return currentState == VMState.Idle; 
+            return currentState == VMState.Idle;
         }
-        private async Task RunProjectVersionIntegrity(object parameter)
+        private void RunProjectVersionIntegrity(object parameter)
         {
             currentState = VMState.Calculating;
-            await fileManager.PerformIntegrityCheck(); 
+            fileManager.PerformIntegrityCheck(parameter); 
             currentState = VMState.Idle;
         }
     }

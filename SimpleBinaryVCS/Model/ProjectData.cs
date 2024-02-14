@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text;
-using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace SimpleBinaryVCS.Model
@@ -12,13 +11,14 @@ namespace SimpleBinaryVCS.Model
     [MemoryPackable]
     public partial class ProjectData : IEquatable<ProjectData>, IComparer<ProjectData>, IComparable<ProjectData>
     {
-        public string? projectName { get; set; }
-        public string? projectPath { get; set; }
+        public string projectName { get; set; }
+        public string projectPath { get; set; }
         public string? updaterName {  get; set; }
         public DateTime updatedTime { get; set; }
         public string? updatedVersion {  get; set; }
         public int revisionNumber { get; set; }
         public string? updateLog { get; set; }
+        public string? changeLog { get; set; }
         public int numberOfChanges {  get; set; }
         private ObservableCollection<ProjectFile>? projectFiles; 
         public ObservableCollection<ProjectFile> ProjectFiles 
@@ -56,6 +56,16 @@ namespace SimpleBinaryVCS.Model
                 diffLog = value;
             }
         }
+        private List<ProjectData> projectDataList;
+        public List<ProjectData> ProjectDataList 
+        { 
+            get => projectDataList ??= (projectDataList = new List<ProjectData>());
+            set
+            {
+                projectDataList = value;
+            }
+        }
+
         [MemoryPackConstructor]
         public ProjectData() 
         { 

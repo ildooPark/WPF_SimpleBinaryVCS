@@ -20,10 +20,11 @@ namespace SimpleBinaryVCS.Model
         /// File Build Version
         /// </summary>
         public string? fileBuildVersion {  get; set; }
+        public string projectPath {  get; set; }
         /// <summary>
         /// RelativePath to the ProjectFolder Directory
         /// </summary>
-        public string filePath {  get; set; }
+        public string fileRelPath {  get; set; }
         public string? fileHash { get; set; }
         public string? deployedProjectVersion { get; set; }
         public DateTime updatedTime {  get; set; }
@@ -38,24 +39,27 @@ namespace SimpleBinaryVCS.Model
         /// <param name="fileName"></param>
         /// <param name="filePath"></param>
         /// <param name="fileVersion"></param>
-        public ProjectFile(bool isNew, long fileSize, string fileName, string filePath, string? fileVersion)
+        public ProjectFile(bool isNew, long fileSize, string fileName, string projectPath, string fileRelPath, string? fileVersion, FileChangedState changedState)
         {
             this.isNew = isNew;
             this.fileSize = fileSize;
             this.fileName = fileName;
             this.fileBuildVersion = fileVersion;
-            this.filePath = filePath;
+            this.projectPath = projectPath;
+            this.fileRelPath = fileRelPath;
             this.updatedTime = DateTime.Now;
+            this.fileChangedState = changedState;
         }
 
         [MemoryPackConstructor]
-        public ProjectFile(bool isNew, long fileSize, string fileName, string? fileBuildVersion, string filePath, string fileHash, string? deployedProjectVersion, DateTime updatedTime)
+        public ProjectFile(bool isNew, long fileSize, string fileName, string? fileBuildVersion, string projectPath, string fileRelPath, string fileHash, string? deployedProjectVersion, DateTime updatedTime)
         {
             this.isNew = isNew;
             this.fileSize = fileSize;
             this.fileName = fileName;
             this.fileBuildVersion = fileBuildVersion;
-            this.filePath = filePath;
+            this.projectPath = projectPath;
+            this.fileRelPath = fileRelPath;
             this.fileHash = fileHash;
             this.deployedProjectVersion = deployedProjectVersion;
             this.updatedTime = updatedTime; 
@@ -70,10 +74,26 @@ namespace SimpleBinaryVCS.Model
             this.fileSize = srcFile.fileSize;
             this.fileName = srcFile.fileName;
             this.fileBuildVersion = srcFile.fileBuildVersion;
-            this.filePath = srcFile.filePath;
+            this.projectPath= srcFile.projectPath;
+            this.fileRelPath = srcFile.fileRelPath;
             this.fileHash = srcFile.fileHash;
             this.deployedProjectVersion = srcFile.deployedProjectVersion;
             this.updatedTime = srcFile.updatedTime;
+        }
+
+        public ProjectFile(string fileSrcPath, string fileRelPath, string fileHash, FileChangedState state)
+        {
+            this.isNew = true;
+            string fileFullPath = Path.Combine(fileSrcPath, fileRelPath);
+            var fileInfo = FileVersionInfo.GetVersionInfo(fileFullPath);
+            this.fileSize = new FileInfo(fileFullPath).Length; 
+            this.fileBuildVersion = fileInfo.FileVersion;
+            this.projectPath = fileSrcPath; 
+            this.fileName = Path.GetFileName(fileFullPath);
+            this.fileRelPath = fileRelPath;
+            this.fileHash= fileHash;
+            this.updatedTime = DateTime.Now;
+            this.fileChangedState = state;
         }
 
         /// <summary>
@@ -84,12 +104,13 @@ namespace SimpleBinaryVCS.Model
         {
             this.isNew = true;
             fileChangedState = changedFile.fileChangedState;
-            var fileInfo = FileVersionInfo.GetVersionInfo(changedFile.filePath);
-            this.fileSize = new FileInfo(changedFile.filePath).Length;
+            var fileInfo = FileVersionInfo.GetVersionInfo(changedFile.fileFullPath());
+            this.fileSize = new FileInfo(changedFile.fileFullPath()).Length;
             this.fileBuildVersion = fileInfo.FileVersion;
+            this.projectPath = changedFile.fileSrcPath;
             this.fileName = changedFile.fileName;
-            this.filePath = changedFile.filePath;
-            this.fileHash = changedFile.fileHash;
+            this.fileRelPath = changedFile.fileRelPath;
+            this.fileHash = changedFile.FileHash;
             this.updatedTime = changedFile.changedTime;
         }
         /// <summary>
@@ -112,7 +133,7 @@ namespace SimpleBinaryVCS.Model
         /// < returns ></ returns >
         public bool Equals(ProjectFile? other)
         {
-            return other?.fileName == this.fileName;
+            return other?.fileRelPath == this.fileRelPath;
         }
         /// <summary>
         /// Returns False if not Same
@@ -122,6 +143,19 @@ namespace SimpleBinaryVCS.Model
         public bool CheckSize(ProjectFile other)
         {
             return other.fileSize == this.fileSize;
+        }
+
+        public string fileFullPath()
+        {
+            try
+            {
+                return Path.Combine(projectPath, fileRelPath);
+            }
+            catch (Exception ex) 
+            {
+                MessageBox.Show($"Couldn't get File's Full Path {ex.Message}");
+                return "";
+            }
         }
     }
 }

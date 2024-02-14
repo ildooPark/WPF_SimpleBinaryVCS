@@ -80,6 +80,15 @@ namespace SimpleBinaryVCS.ViewModel
                 OnPropertyChanged("ProjectFiles");
             }
         }
+        private ICommand? getDeploySrcDir;
+        public ICommand GetDeploySrcDir
+        {
+            get
+            {
+                if (getDeploySrcDir == null) getDeploySrcDir = new RelayCommand(SetDeploySrcDirectory, CanSetDeployDir);
+                return getDeploySrcDir;
+            }
+        }
 
         private ICommand? conductUpdate;
         public ICommand ConductUpdate
@@ -101,15 +110,17 @@ namespace SimpleBinaryVCS.ViewModel
             }
         }
         private int detectedFileChange;
-        private VersionControlManager vcsManager; 
+        private VersionControlManager vcsManager;
+        private FileManager fileManager; 
         public VCSViewModel()
         {
             projectData = App.VcsManager.ProjectData; 
             projectFiles = App.VcsManager.ProjectData.ProjectFiles;
-            vcsManager = App.VcsManager; 
-            App.VcsManager.fetchAction += FetchResponse;
-            App.VcsManager.revertAction += RevertResponse;
-            App.FileManager.newLocalFileChange += OnNewLocalFileChange;
+            vcsManager = App.VcsManager;
+            fileManager = App.FileManager; 
+            vcsManager.fetchAction += FetchResponse;
+            vcsManager.revertAction += RevertResponse;
+            fileManager.newLocalFileChange += OnNewLocalFileChange;
             detectedFileChange = 0; 
         }
 
@@ -120,12 +131,40 @@ namespace SimpleBinaryVCS.ViewModel
         #region Update Version 
         private bool CanUpdateProject(object obj)
         {
-            if (projectFiles == null || App.FileTrackManager.ChangedFileList.Count == 0) return false;
+            if (projectFiles == null || fileManager.ChangedFileList.Count == 0) return false;
             if (projectData.projectPath == null || updaterName == null || updateLog == null) return false;
             if (detectedFileChange != 0) return false;
             return true;
         }
 
+        private bool CanSetDeployDir(object obj)
+        {
+            return true; 
+        }
+
+        private void SetDeploySrcDirectory(object obj)
+        {
+            try
+            {
+                string? updateDirPath; 
+                var openUpdateDir = new WinForms.FolderBrowserDialog();
+                if (openUpdateDir.ShowDialog() == DialogResult.OK)
+                {
+                    updateDirPath = openUpdateDir.SelectedPath;
+                    fileManager.RegisterNewFiles(updateDirPath);
+                }
+                else
+                {
+                    openUpdateDir.Dispose();
+                    return;
+                }
+                openUpdateDir.Dispose();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
+        }
         private void UpdateProject(object obj)
         {
             if (updaterName == null || updateLog == null || updaterName == "" || updateLog == "")
@@ -133,20 +172,21 @@ namespace SimpleBinaryVCS.ViewModel
                 var response = MessageBox.Show("Must Have both Deploy Version AND UpdaterName", "ok", MessageBoxButtons.OK);
                 if (response == DialogResult.OK) return; 
             }
-            if (App.FileTrackManager.ChangedFileList.Count == 0 || App.FileTrackManager == null) return;
-            if (projectData.revisionNumber >= 1) App.VcsManager.updateAction?.Invoke(obj);
+            if (fileManager.ChangedFileList.Count == 0 || fileManager == null) return;
+            if (projectData.revisionNumber >= 1) vcsManager.updateAction?.Invoke(obj);
             projectData.numberOfChanges = 0;
             projectData.updatedVersion = GetprojectDataVersionName();
             projectData.DiffLog.Clear();
 
-            foreach (ProjectFile changedFile in App.FileTrackManager.ChangedFileList)
+            foreach (ProjectFile changedFile in fileManager.ChangedFileList)
             {
                 if (projectFiles.Contains(changedFile))
                 {
                     int srcIndex = projectFiles.IndexOf(changedFile);
                     if (srcIndex != -1)
                     {
-                        string? fileHash = App.VcsManager.GetMD5CheckSum(changedFile.filePath);
+                        // This should be converted to Switch statements 
+                        string? fileHash = vcsManager.GetFileMD5CheckSum(changedFile.projectPath, changedFile.fileRelPath);
                         if (fileHash == null) return; 
                         changedFile.fileHash = fileHash;
                         if (fileHash == ProjectFiles[srcIndex].fileHash)
@@ -159,42 +199,46 @@ namespace SimpleBinaryVCS.ViewModel
                         projectFiles[srcIndex].isNew = false; 
                         projectData.DiffLog.Add(changedFile);
                         projectData.DiffLog.Add(projectFiles[srcIndex]);
-                        if (!File.Exists(changedFile.filePath))
+                        if (!File.Exists(changedFile.fileRelPath))
                         {
-                            MessageBox.Show($"File Missing {changedFile.filePath}"); 
+                            MessageBox.Show($"File Missing {changedFile.fileRelPath}"); 
                             return;
                         }
                         try
                         {
-                            File.Copy(changedFile.filePath, projectFiles[srcIndex].filePath, true);
+                            File.Copy(changedFile.fileRelPath, projectFiles[srcIndex].fileRelPath, true);
                         }
                         catch (Exception ex)
                         {
                             MessageBox.Show($"Critical Error {ex.Message}");
+                            MessageBox.Show($"Couldn't Copy File From: {changedFile.fileFullPath()} To: {projectFiles[srcIndex].fileFullPath()}");
                         }
-                        changedFile.filePath = projectFiles[srcIndex].filePath;
+                        changedFile.fileRelPath = projectFiles[srcIndex].fileRelPath;
                         projectFiles[srcIndex] = changedFile;
                         projectData.numberOfChanges++; 
                     }
                 }
                 else // Adding New Files, Should update UploadedFilePath to the RelativeProjectPath
                 {
-                    string? newFileHash = App.VcsManager.GetMD5CheckSum(changedFile.filePath);
+                    string? newFileHash = vcsManager.GetFileMD5CheckSum(changedFile.projectPath, changedFile.fileRelPath);
                     if (newFileHash != null)
                     {
                         changedFile.fileHash = newFileHash;
                         changedFile.deployedProjectVersion = projectData.updatedVersion;
                         try
                         {
-                            File.Copy(changedFile.filePath, Path.Combine(projectData.projectPath ?? "", Path.GetFileName(changedFile.filePath)), true);
+                            File.Copy(changedFile.fileFullPath(), Path.Combine(projectData.projectPath, changedFile.fileRelPath), true);
                         }
                         catch (Exception e)
                         {
-                            MessageBox.Show($" Error :{e.Message} \nCouldn't Copy File in a given path, From: {projectData.projectPath}, To: {changedFile.filePath}"); 
+                            MessageBox.Show($" Error :{e.Message} \nCouldn't Copy File in a given path, From: {changedFile.fileFullPath()}, To: {Path.Combine(projectData.projectPath, changedFile.fileRelPath)}"); 
                         }
-                        changedFile.filePath = Path.Combine(projectData.projectPath ?? "", Path.GetFileName(changedFile.filePath));
-                        App.VcsManager.ProjectData.ProjectFiles.Add(changedFile);
-                        App.VcsManager.ProjectData.DiffLog.Add(changedFile);
+                        // ONLY Change the Project Path of the changedFile now. 
+
+                        changedFile.projectPath = projectData.projectPath;  
+                            //Path.Combine(projectData.projectPath ?? "", Path.GetFileName(changedFile.filePath));
+                        vcsManager.ProjectData.ProjectFiles.Add(changedFile);
+                        vcsManager.ProjectData.DiffLog.Add(changedFile);
                         projectData.numberOfChanges++;
                     }
                 }
@@ -209,15 +253,12 @@ namespace SimpleBinaryVCS.ViewModel
             projectData.updatedTime = DateTime.Now;
             projectData.updaterName = updaterName;
             projectData.updateLog = updateLog;
-            //Transfer all the files in the current Directory to the backup folder. 
-            //Serialize to .bin file, and then save the file to the projectFile Directory
-            //Update Complete. 
             byte[] serializedFile = MemoryPackSerializer.Serialize(projectData);
-            File.WriteAllBytes($"{App.VcsManager.ProjectData.projectPath}\\VersionLog.bin", serializedFile);
-            //Fetch Action
+            File.WriteAllBytes($"{vcsManager.ProjectData.projectPath}\\VersionLog.bin", serializedFile);
             App.FileTrackManager.ChangedFileList.Clear();
             UpdaterName = null;
-            UpdateLog = null; 
+            UpdateLog = null;
+            vcsManager.updateAction?.Invoke(obj);
             return;
         }
 
@@ -296,6 +337,7 @@ namespace SimpleBinaryVCS.ViewModel
 
         private void InitializeProject(string projectFilePath)
         {
+            StringBuilder changeLog = new StringBuilder();
             string[]? newProjectFiles; TryGetAllFiles(projectFilePath, out newProjectFiles);
             if (newProjectFiles == null) return;
             projectData.updatedVersion = GetprojectDataVersionName(); 
@@ -303,23 +345,32 @@ namespace SimpleBinaryVCS.ViewModel
             foreach (string filePath in newProjectFiles)
             {
                 var fileInfo = FileVersionInfo.GetVersionInfo(filePath);
-                ProjectFile newFile = new ProjectFile(
+                ProjectFile newFile = new ProjectFile
+                    (
                     true,
                     new FileInfo(filePath).Length,
                     Path.GetFileName(filePath),
-                    filePath,
-                    fileInfo.FileVersion);
-                newFile.fileHash = App.VcsManager.GetMD5CheckSum(filePath);
+                    projectFilePath,
+                    Path.GetRelativePath(projectFilePath, filePath),
+                    fileInfo.FileVersion, 
+                    FileChangedState.Added
+                    );
+
+                newFile.fileHash = vcsManager.GetFileMD5CheckSum(projectFilePath, filePath);
                 newFile.deployedProjectVersion = projectData.updatedVersion;
                 ProjectFiles.Add(newFile);
-                App.VcsManager.ProjectData.DiffLog.Add(newFile);
+                vcsManager.ProjectData.DiffLog.Add(newFile);
+                changeLog.AppendLine($"Added {newFile.fileName}");
             }
+            projectData.updatedTime = DateTime.Now;
+            projectData.changeLog = changeLog.ToString();
             projectData.numberOfChanges = ProjectFiles.Count;
             projectData.projectName = Path.GetFileName(projectFilePath);
             byte[] serializedFile = MemoryPackSerializer.Serialize(projectData);
             File.WriteAllBytes($"{projectData.projectPath}\\VersionLog.bin", serializedFile);
             ProjectName = projectData.projectName;
-            CurrentVersion = projectData.updatedVersion; 
+            CurrentVersion = projectData.updatedVersion;
+            vcsManager.updateAction?.Invoke(projectFilePath); 
         }
         #endregion
         private void TryGetAllFiles(string directoryPath, out string[]? Files)
