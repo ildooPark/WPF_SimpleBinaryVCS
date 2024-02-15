@@ -26,18 +26,18 @@ namespace SimpleBinaryVCS
             }
         }
 
-        private static UploaderManager? uploaderManager;
-        public static UploaderManager UploaderManager
+        private static BackupManager? backupManager;
+        public static BackupManager BackupManager
         {
             get
             {
-                if (uploaderManager == null)
+                if (backupManager == null)
                 {
-                    uploaderManager = new UploaderManager();
-                    return uploaderManager;
+                    backupManager = new BackupManager();
+                    return backupManager;
                 }
                 else
-                    return uploaderManager;
+                    return backupManager;
             }
         }
 

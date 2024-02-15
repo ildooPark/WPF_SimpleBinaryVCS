@@ -10,15 +10,15 @@ namespace SimpleBinaryVCS.ViewModel
     public class MainViewModel : ViewModelBase
     {
         private VCSViewModel vcsVM;
-        private UploaderViewModel uploaderVM;
+        private FileTrackViewModel fileTrackVM;
         private BackupViewModel backupVM;
         public VCSViewModel VcsVM => vcsVM;
-        public UploaderViewModel UploaderVM => uploaderVM;
+        public FileTrackViewModel FileTrackVM => fileTrackVM;
         public BackupViewModel BackupVM => backupVM; 
         public MainViewModel()
         {
             vcsVM = new VCSViewModel();
-            uploaderVM = new UploaderViewModel();
+            fileTrackVM = new FileTrackViewModel();
             backupVM = new BackupViewModel();
         }
     }
