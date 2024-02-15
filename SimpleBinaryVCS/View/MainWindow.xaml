@@ -36,23 +36,28 @@
                     x:Name="updaterTag"
                     Content = "Updater">
                     </Label>
-                    <Label
+                    <TextBox
                     Height="Auto"
+                    TextWrapping="Wrap"
                     VerticalAlignment="Top"
                     x:Name="updaterName"
-                    Content = "{Binding Path = BackupVM.UpdaterName}">
-                    </Label>
+                    Text = "{Binding Path = BackupVM.UpdaterName}">
+                    </TextBox>
                     <Label
                     Height="Auto"
                     VerticalAlignment="Top"
                     x:Name="updaterNameTag"
                     Content = "Update Log">
                     </Label>
-                    <Label
-                    Height="Auto"
-                    x:Name="UpdateLog"
-                    Content = "{Binding Path = BackupVM.UpdateLog}">
-                    </Label>
+                    <TextBox
+                        Height="Auto"
+                        TextWrapping="Wrap"
+                        x:Name="UpdateLog"
+                        Text = "{Binding Path = BackupVM.UpdateLog}"
+                        ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                        ScrollViewer.VerticalScrollBarVisibility="Auto"
+                        ScrollViewer.CanContentScroll="True"
+                    />
                 </StackPanel>
                 <DataGrid Grid.Row="1"
                     Name="BackupLog" 
@@ -72,18 +77,6 @@
                         <DataGridTextColumn Header="Deployed Date" Binding="{Binding updatedTime}" Width ="3*"/>
                         <DataGridTextColumn Header="HashValue" Binding="{Binding fileHash}" Width ="1*"/>
                     </DataGrid.Columns>
-                    <DataGrid.CellStyle>
-                        <Style TargetType="DataGridCell">
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding isNew}" Value="True">
-                                    <Setter Property="Background" Value="LightGreen"/>
-                                </DataTrigger>
-                                <DataTrigger Binding="{Binding isNew}" Value="False">
-                                    <Setter Property="Background" Value="PaleVioletRed"/>
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </DataGrid.CellStyle>
                 </DataGrid>
                 <DataGrid Grid.Row="2"
                     Name="DiffLog" 
@@ -98,14 +91,14 @@
                     >
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="Filename" Binding="{Binding fileName}" Width ="2*"/>
-                        <DataGridTextColumn Header="Version" Binding="{Binding deployedProjectVersion}" Width ="2*"/>
+                        <DataGridTextColumn Header="Version" Binding="{Binding fileSrcPath}" Width ="2*"/>
                         <DataGridTextColumn Header="Build Version" Binding="{Binding fileBuildVersion}" Width ="2*"/>
                         <DataGridTextColumn Header="Changed Date" Binding="{Binding updatedTime}" Width ="3*"/>
                         <DataGridTextColumn Header="HashValue" Binding="{Binding fileHash}" Width ="1*"/>
-                        <DataGridTemplateColumn Header="Revert">
+                        <DataGridTemplateColumn Header="Restore">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <Button Content="Action" Command="{Binding DataContext.BackupVM.AddForRevert, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
+                                    <Button Content="Restore" Command="{Binding DataContext.BackupVM.AddForRestore, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
                             CommandParameter="{Binding}" />
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
@@ -115,10 +108,18 @@
                         <Style TargetType="DataGridCell">
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding isNew}" Value="True">
-                                    <Setter Property="Background" Value="LightGreen"/>
+                                    <Setter Property="Background">
+                                        <Setter.Value>
+                                            <SolidColorBrush Color="LightGreen" Opacity="0.5"/>
+                                        </Setter.Value>
+                                    </Setter>
                                 </DataTrigger>
                                 <DataTrigger Binding="{Binding isNew}" Value="False">
-                                    <Setter Property="Background" Value="PaleVioletRed"/>
+                                    <Setter Property="Background">
+                                        <Setter.Value>
+                                            <SolidColorBrush Color="PaleVioletRed" Opacity="0.5"/>
+                                        </Setter.Value>
+                                    </Setter>
                                 </DataTrigger>
                             </Style.Triggers>
                         </Style>
@@ -220,7 +221,7 @@
                         <GridView>
                             <GridViewColumn  Header="Name" DisplayMemberBinding="{Binding fileName}" Width ="Auto" />
                             <GridViewColumn  Header="Version" DisplayMemberBinding="{Binding fileBuildVersion}" Width ="Auto" />
-                            <GridViewColumn  Header="FilePath" DisplayMemberBinding="{Binding filePath}" Width ="Auto" />
+                            <GridViewColumn  Header="FilePath" DisplayMemberBinding="{Binding fileRelPath}" Width ="Auto" />
                             <GridViewColumn  Header="Change Type" DisplayMemberBinding="{Binding fileChangedState}" Width ="Auto" />
                         </GridView>
                     </ListView.View>
@@ -255,10 +256,10 @@
                         /> --><!--#endregion-->
                         <Button
                          x:Name="ClearButton"
-                         Content="Clear Reverts" 
+                         Content="Clear New Files" 
                          Height="20"
                          Margin="20, 5, 20, 0"
-                         Command="{Binding FileTrackVM.ClearRevert}"
+                         Command="{Binding FileTrackVM.ClearNewfiles}"
                          />
                         <!--<Button
                          x:Name="RefreshButton"
@@ -275,7 +276,7 @@
                          Command="{Binding VcsVM.ConductUpdate}"
                          />
                     </StackPanel>
-                    <StackPanel Orientation="Horizontal">
+                    <!--<StackPanel Orientation="Horizontal">
                         <Label Name="LocalChanges"
                                FontSize="9"
                                FontStyle="Italic"
@@ -283,7 +284,7 @@
                         <Label Name="LocalChangesInt"
                                FontSize="9"
                                Content="{Binding FileTrackVM.DetectedFileChange}"/>
-                    </StackPanel>
+                    </StackPanel>-->
                 </StackPanel>
             </Grid>
         </Grid>

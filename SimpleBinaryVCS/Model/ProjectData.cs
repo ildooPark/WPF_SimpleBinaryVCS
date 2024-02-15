@@ -71,7 +71,7 @@ namespace SimpleBinaryVCS.Model
         { 
         }
 
-        public ProjectData(ProjectData srcProjectData)
+        public ProjectData(ProjectData srcProjectData, bool isRevert = false)
         {
             this.projectName = srcProjectData.projectName;
             this.projectPath = srcProjectData.projectPath;
@@ -80,9 +80,18 @@ namespace SimpleBinaryVCS.Model
             this.updatedVersion = srcProjectData.updatedVersion;
             this.revisionNumber = srcProjectData.revisionNumber;
             this.updateLog = srcProjectData.updateLog;
+            this.changeLog = srcProjectData.changeLog;
             this.numberOfChanges = srcProjectData.numberOfChanges;
             this.ProjectFiles = new ObservableCollection<ProjectFile>();
-            this.DiffLog = new ObservableCollection<ProjectFile>(srcProjectData.DiffLog);
+
+            if (!isRevert)
+            {
+                this.DiffLog = new ObservableCollection<ProjectFile>();
+            }
+            else
+            {
+                this.DiffLog = new ObservableCollection<ProjectFile>(srcProjectData.DiffLog);
+            }
         }
 
         public bool Equals(ProjectData? other)
@@ -104,6 +113,17 @@ namespace SimpleBinaryVCS.Model
                 return this.updatedTime.CompareTo(other.updatedTime);
             if (this.revisionNumber > other.revisionNumber) return -1;
             return 1; 
+        }
+
+        public void RegisterProjectToDict(Dictionary<string, object> dict)
+        {
+            dict.Add(nameof(this.projectName), this.projectName);
+            dict.Add(nameof(this.projectPath), this.projectPath);
+            dict.Add(nameof(this.updaterName), this.updaterName);
+            dict.Add(nameof(this.updatedTime), this.updatedTime);
+            dict.Add(nameof(this.updatedVersion), this.updatedVersion);
+            dict.Add(nameof(this.revisionNumber), this.revisionNumber);
+            dict.Add(nameof(this.numberOfChanges), this.numberOfChanges);
         }
     }
 }

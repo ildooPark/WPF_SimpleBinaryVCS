@@ -13,17 +13,20 @@ using System.Threading.Tasks;
 using WPF = System.Windows;
 using System.Windows.Navigation;
 using System.Windows.Threading;
+using Microsoft.VisualBasic;
 
 namespace SimpleBinaryVCS.DataComponent
 {
+    [Flags]
     public enum FileChangedState
     {
-        None,
-        Added,
-        Deleted,
-        Uploaded,
-        Modified,
-        Reverted
+        None = 0,
+        Added = 1,
+        Deleted = 1 << 1,
+        Restored = 1 << 2,
+        Modified = 1 << 3,
+        Backup = 1 << 4,
+        IntegrityChecked = 1 << 5
     }
     public class FileManager
     {
@@ -51,18 +54,16 @@ namespace SimpleBinaryVCS.DataComponent
                 fileChangeDetected = value;
             }
         }
+        public Action? ClearFiles; 
         public Action<int>? newLocalFileChange;
+        public Action? requestFetchPull;
 
         private VersionControlManager vcsManager;
-        private FileTrackManager fileTrackManager;
         private Dictionary<string, ProjectFile> projectFilesDict;
         private Dictionary<string, ChangedFile> changedFilesDict;
-        // Collects Project File Changes, 
-        // Activates the 
-        public Action? requestFetchPull;
-        public FileSystemWatcher? fileSystemWatcher { get; set; }
-        private DispatcherTimer changeNotifyTimer { get; set; } 
-        private TimeSpan updateInterval { get; set; }
+        //public FileSystemWatcher? fileSystemWatcher { get; set; }
+        //private DispatcherTimer changeNotifyTimer { get; set; } 
+        //private TimeSpan updateInterval { get; set; }
 
         private SemaphoreSlim asyncControl { get; set; }
         private ObservableCollection<ProjectFile> changedFileList;
@@ -80,13 +81,12 @@ namespace SimpleBinaryVCS.DataComponent
         public FileManager()
         {
             vcsManager = App.VcsManager;
-            fileTrackManager = App.FileTrackManager;
             changedFileList = new ObservableCollection<ProjectFile>();
             projectFilesDict = new Dictionary<string, ProjectFile>();
             changedFilesDict = new Dictionary<string, ChangedFile>();
-            changeNotifyTimer = new DispatcherTimer();
-            updateInterval = TimeSpan.FromSeconds(15);
-            asyncControl = new SemaphoreSlim(4); 
+            //changeNotifyTimer = new DispatcherTimer();
+            //updateInterval = TimeSpan.FromSeconds(15);
+            asyncControl = new SemaphoreSlim(5); 
             vcsManager.projectLoadAction += ActivateFileWatcher;
             vcsManager.updateAction += UpdateResponse; 
         }
@@ -98,6 +98,7 @@ namespace SimpleBinaryVCS.DataComponent
 
         public void ActivateFileWatcher(object obj)
         {
+            #region FileSystemWatcher Deprecated 
             //fileSystemWatcher = new FileSystemWatcher();
             //if (vcsManager.ProjectData.projectPath != null)
             //    fileSystemWatcher.Path = vcsManager.ProjectData.projectPath;
@@ -117,196 +118,77 @@ namespace SimpleBinaryVCS.DataComponent
             //    NotifyFilters.LastWrite |
             //    NotifyFilters.FileName |
             //    NotifyFilters.Size; 
-            
+
             //changeNotifyTimer.Interval = updateInterval;
             //changeNotifyTimer.Tick += OnTimerTicked;
+            #endregion
+            projectFilesDict.Clear(); 
+            changedFilesDict.Clear();
+            changedFileList.Clear();
             foreach (ProjectFile file in vcsManager.ProjectData.ProjectFiles)
             {
                 projectFilesDict.Add(file.fileRelPath, file);
             }
         }
 
-        private void OnTimerTicked(object? sender, EventArgs e)
+        private void UpdateChangedList()
         {
-            ////Gather all the files for comparing
-            //if (changedFilesQueue.Count <= 0) return; 
-            //for (int i = 0; i < changedFilesQueue.Count; i++)
-            //{
-            //    ChangedFile registerHash = changedFilesQueue.Dequeue();
-            //    vcsManager.GetMD5CheckSumAsync(registerHash);
-            //    _FileChanges--; 
-            //}
+            foreach (ChangedFile file in changedFilesDict.Values)
+            {
+                //compare the hash value, and if its the same, request to remove that file. 
+                if (projectFilesDict.TryGetValue(file.fileRelPath, out var correspondingFile))
+                {
+                    if (correspondingFile.fileHash != file.FileHash)
+                    {
+                        ProjectFile newFile = new ProjectFile(file, FileChangedState.Modified);
+                        changedFileList.Add(newFile);
+                    }
+                    else continue;
+                }
+                else
+                {
+                    ProjectFile newFile = new ProjectFile(file, FileChangedState.Added);
+                    changedFileList.Add(newFile);
+                }
+            }
         }
-
         /// <summary>
         /// Post Upload, Compute Hash value. 
         /// </summary>
-        private void ClearUnchangedFiles()
+        private async Task UpdateHashFromChangedList()
         {
             try
             {
+                //Update changedFilesDict
                 foreach (ChangedFile file in changedFilesDict.Values)
                 {
-                    if (file.fileChangedState != FileChangedState.Modified ||
-                    file.fileChangedState != FileChangedState.Uploaded)
-                    {
-                        //int fileIndex = changedFileList.IndexOf(file);
-                    }
-                    
-                    //compare the hash value, and if its the same, request to remove that file. 
-                    if (projectFilesDict.TryGetValue(file.fileName, out var correspondingFile))
-                    {
-                        if (correspondingFile.fileHash == file.FileHash)
-                        {
-                            //Delete that file from the ObservableCollection
-                            int fileIndex = changedFileList.IndexOf(correspondingFile);
-                            changedFileList.RemoveAt(fileIndex);
-                        }
-                    }
-                    else
-                    {
-                        return;
-                    }
+                    await asyncControl.WaitAsync();
+                    await vcsManager.GetFileMD5CheckSumAsync(file);
+                    asyncControl.Release();
                 }
             }
             catch (Exception ex)
             {
                 WPF.MessageBox.Show(ex.Message);
             }
-            //finally
-            //{
-            //    asyncControl.Release(); 
-            //}
-            //Compares the hash, and if it 
             
         }
 
-        private void StopTracker()
-        {
-            changeNotifyTimer?.Stop();
-        }
-
-        private void ResetTimer()
-        {
-            changeNotifyTimer?.Stop();
-            changeNotifyTimer.Interval = updateInterval; 
-            changeNotifyTimer?.Start(); 
-        }
-
-        //private async void RegisterChangesWithoutOverlap(FileChangedState state, string filePath)
-        //{
-        //    try
-        //    {
-        //        FileInfo fileInfo = new FileInfo(filePath);
-        //        string fileName = Path.GetFileName(filePath);
-        //        if (changedFilesDict.ContainsKey(fileName))
-        //        {
-        //            TimeSpan timeDiff = changedFilesDict[fileName].changedTime - fileInfo.LastWriteTime;
-        //            if (timeDiff.TotalSeconds < 1) return;
-        //            changedFilesDict[fileName] = new ChangedFile(FileChangedState.Modified, filePath, fileName);
-        //            await vcsManager.GetFileMD5CheckSumAsync(changedFilesDict[fileName]);
-        //            _FileChanges++;
-        //        }
-        //        else
-        //        {
-        //            changedFilesDict.Add(fileName, new ChangedFile(state, filePath, fileName));
-        //            await vcsManager.GetFileMD5CheckSumAsync(changedFilesDict[fileName]);
-        //            _FileChanges++; 
-        //        }
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        System.Windows.MessageBox.Show($"{ex.Message}");
-        //    }
-        //}
-        private void OnFileDeleted(object sender, FileSystemEventArgs e)
+        private async Task GetChangedFileHashAsync(ChangedFile file)
         {
             try
             {
-                string fileRelPath = Path.GetRelativePath(vcsManager.ProjectData.projectPath, e.FullPath);
-                if (projectFilesDict.ContainsKey(fileRelPath))
-                {
-                    if (changedFilesDict.ContainsKey(fileRelPath))
-                    {
-                        //If changeFileDict contains
-                        TimeSpan timeDiff = changedFilesDict[fileRelPath].changedTime - DateTime.Now;
-                        if (Math.Abs(timeDiff.TotalSeconds) < 1) return;
-                        changedFilesDict[fileRelPath].changedTime = DateTime.Now;
-                        changedFilesDict[fileRelPath].fileChangedState = FileChangedState.Deleted;
-
-                    }
-                    else
-                    {
-                        changedFilesDict.Add(fileRelPath, 
-                            new ChangedFile
-                            (FileChangedState.Deleted,
-                            vcsManager.ProjectData.projectPath,
-                            Path.GetRelativePath(vcsManager.ProjectData.projectPath, e.FullPath), 
-                            Path.GetFileName(e.FullPath)));
-                        _fileChanges++;
-                    }
-                }
-                else return; // File that was not registered as left, considered as insignificant change.
+                await asyncControl.WaitAsync();
+                await vcsManager.GetFileMD5CheckSumAsync(file);
             }
-            catch (Exception ex)
+            catch (Exception Ex)
             {
-                System.Windows.MessageBox.Show($"{ex.Message}");
-            }
-        }
-
-        private async Task<string?> GetHashAsync(string fileName)
-        {
-            await asyncControl.WaitAsync();
-            try
-            {
-                return await vcsManager.GetFileMD5CheckSumAsync(changedFilesDict[fileName]);
+                MessageBox.Show(Ex.Message);
             }
             finally
             {
                 asyncControl.Release();
             }
-           
-        }
-        private async void OnFileChanged(object sender, FileSystemEventArgs e)
-        {
-            // If file already Exists, and the delta second between last read time and last written time 
-            try
-            {
-                FileInfo fileInfo = new FileInfo(e.FullPath);
-                string fileRelPath = Path.GetRelativePath(vcsManager.ProjectData.projectPath, e.FullPath);
-                if (changedFilesDict.ContainsKey(fileRelPath))
-                {
-                    TimeSpan timeDiff = changedFilesDict[fileRelPath].changedTime - DateTime.Now;
-                    if (Math.Abs(timeDiff.TotalSeconds) < 1) return;
-
-                    await asyncControl.WaitAsync();
-                    string? hash = await GetHashAsync(fileRelPath);
-                    if (hash == null) return; 
-                    lock (dictLock)
-                    {
-                        changedFilesDict[fileRelPath].fileChangedState = FileChangedState.Modified;
-                        changedFilesDict[fileRelPath].FileHash = hash; 
-                        _FileChanges++;
-                    }
-                }
-                else
-                {
-                    changedFilesDict.Add(fileRelPath, 
-                        new ChangedFile(
-                            FileChangedState.Modified, 
-                            vcsManager.ProjectData.projectPath,
-                            Path.GetRelativePath(vcsManager.ProjectData.projectPath, e.FullPath), 
-                            Path.GetFileName(e.FullPath)));
-                    await asyncControl.WaitAsync();
-                    changedFilesDict[fileRelPath].FileHash = await GetHashAsync(fileRelPath);
-                    _FileChanges++;
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Windows.MessageBox.Show($"{ex.Message}");
-            }
-
         }
 
         private void OnFileCreated(object sender, FileSystemEventArgs e)
@@ -322,24 +204,11 @@ namespace SimpleBinaryVCS.DataComponent
 
         public void PerformIntegrityCheck(object obj)
         {
-            //try
-            //{
-            //    await asyncControl.WaitAsync();
-            //    await Task.Run(() => RunIntegrityCheck(obj));
-            //}
-            //catch (Exception Ex)
-            //{
-            //    WPF.MessageBox.Show(Ex.Message); 
-            //}
-            //finally
-            //{
-            //    asyncControl.Release();
-            //}
-            //return;
             RunIntegrityCheck(obj);
         }
         /// <summary>
-        /// Reset All the previously attempted changes, runs File Integrity Test against recorded Project Version to Current Project Directory files.
+        /// Based on File's given relative path to the project, 
+        /// runs File Integrity Test against recorded Project Version to Current Project Directory files.
         /// </summary>
         /// <param name="obj"></param>
         private void RunIntegrityCheck(object obj)
@@ -372,7 +241,7 @@ namespace SimpleBinaryVCS.DataComponent
                     fileIntegrityLog.AppendLine($"{fileRelPath} has been Added");
                     //Add to the ChangedFileList 
                     string? fileHash = vcsManager.GetFileMD5CheckSum(vcsManager.ProjectData.projectPath, fileRelPath);
-                    ProjectFile file = new ProjectFile(vcsManager.ProjectData.projectPath, fileRelPath, fileHash, FileChangedState.Added);
+                    ProjectFile file = new ProjectFile(vcsManager.ProjectData.projectPath, fileRelPath, fileHash, FileChangedState.Added | FileChangedState.IntegrityChecked);
                     changedFileList.Add(file);
                 }
 
@@ -380,21 +249,22 @@ namespace SimpleBinaryVCS.DataComponent
                 {
                     fileIntegrityLog.AppendLine($"{fileRelPath} has been Deleted");
                     ProjectFile file = projectFilesDict[fileRelPath];
-                    file.fileChangedState = FileChangedState.Deleted;
+                    file.fileChangedState = FileChangedState.Deleted | FileChangedState.IntegrityChecked;
                     changedFileList.Add(file);
                 }
-
                 //Changed Files : Could Potentially run Async for the Md5 computation
                 foreach(string fileRelPath in intersectFiles)
                 {
                     string? fileHash = vcsManager.GetFileMD5CheckSum(vcsManager.ProjectData.projectPath, fileRelPath);
                     if (projectFilesDict[fileRelPath].fileHash != fileHash)
                     {
-                        fileIntegrityLog.AppendLine($"File {projectFilesDict[fileRelPath].fileName} on {fileRelPath} has been changed");
+                        fileIntegrityLog.AppendLine($"File {projectFilesDict[fileRelPath].fileName} on {fileRelPath} has been modified");
                         var fileVersionInfo = FileVersionInfo.GetVersionInfo(Path.Combine(vcsManager.ProjectData.projectPath, fileRelPath));
 
                         ProjectFile file = new ProjectFile(projectFilesDict[fileRelPath]); 
+                        file.fileChangedState = FileChangedState.Modified | FileChangedState.IntegrityChecked;
                         file.fileHash = fileHash;
+                        file.isNew = true;
                         file.updatedTime = new FileInfo(file.fileFullPath()).LastAccessTime; 
                         changedFileList.Add(file);
                     }
@@ -408,12 +278,13 @@ namespace SimpleBinaryVCS.DataComponent
                 System.Windows.MessageBox.Show($"{Ex.Message}. Couldn't Run File Integrity Check");
             }
             var mainWindow = obj as WPF.Window;
-            IntegrityLogWindow logWindow = new IntegrityLogWindow();
+            IntegrityLogWindow logWindow = new IntegrityLogWindow(VersionCheckLog, changedFileList);
             logWindow.Owner = mainWindow;
             logWindow.WindowStartupLocation = WPF.WindowStartupLocation.CenterOwner;
             logWindow.Show();
         }
-        public void RegisterNewFiles(string updateDirPath)
+
+        public async void RegisterNewFiles(string updateDirPath)
         {
             string[]? filesFullPaths;
             try
@@ -423,7 +294,6 @@ namespace SimpleBinaryVCS.DataComponent
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.Message);
                 filesFullPaths = null;
             }
             if (filesFullPaths == null)
@@ -431,13 +301,14 @@ namespace SimpleBinaryVCS.DataComponent
                 WPF.MessageBox.Show($"Couldn't get files from given Directory {updateDirPath}");
                 return;
             }
-            foreach (string fileAbsPath in filesFullPaths)
+            try
             {
-                try
+                foreach (string fileAbsPath in filesFullPaths)
                 {
+                
                     var fileInfo = FileVersionInfo.GetVersionInfo(fileAbsPath);
                     ChangedFile newFile = new ChangedFile(
-                        FileChangedState.Uploaded,
+                        FileChangedState.None,
                         updateDirPath,
                         Path.GetRelativePath(updateDirPath, fileAbsPath),
                         Path.GetFileName(fileAbsPath));
@@ -445,25 +316,157 @@ namespace SimpleBinaryVCS.DataComponent
                     if (!changedFilesDict.TryAdd(newFile.fileRelPath, newFile))
                     {
                         WPF.MessageBox.Show($"Already Enlisted File {newFile.fileName}: for Update");
-                        return; 
                     }
-                }
-                catch (Exception Ex)
-                {
-                    WPF.MessageBox.Show(Ex.Message);
-                    return; 
+                    else continue; 
                 }
             }
-            ClearUnchangedFiles();
+            catch (Exception Ex)
+            {
+                WPF.MessageBox.Show(Ex.Message);
+                return;
+            }
+            await UpdateHashFromChangedList();
+            UpdateChangedList();
+            changedFilesDict.Clear();
         }
 
-        public void RegisterNewfile(ProjectFile projectFile)
+        public void RegisterNewfile(ProjectFile projectFile, FileChangedState state)
         {
-            Console.WriteLine($"{projectFile.fileName} is being Registered");
+            ProjectFile newfile = new ProjectFile(projectFile);
+            newfile.isNew = true;
+            newfile.fileChangedState = state;
+            changedFileList.Add(newfile);
         }
     }
 }
 #region Deprecated 
+//private void OnFileDeleted(object sender, FileSystemEventArgs e)
+//{
+//    try
+//    {
+//        string fileRelPath = Path.GetRelativePath(vcsManager.ProjectData.projectPath, e.FullPath);
+//        if (projectFilesDict.ContainsKey(fileRelPath))
+//        {
+//            if (changedFilesDict.ContainsKey(fileRelPath))
+//            {
+//                //If changeFileDict contains
+//                TimeSpan timeDiff = changedFilesDict[fileRelPath].changedTime - DateTime.Now;
+//                if (Math.Abs(timeDiff.TotalSeconds) < 1) return;
+//                changedFilesDict[fileRelPath].changedTime = DateTime.Now;
+//                changedFilesDict[fileRelPath].fileChangedState = FileChangedState.Deleted;
+
+//            }
+//            else
+//            {
+//                changedFilesDict.Add(fileRelPath, 
+//                    new ChangedFile
+//                    (FileChangedState.Deleted,
+//                    vcsManager.ProjectData.projectPath,
+//                    Path.GetRelativePath(vcsManager.ProjectData.projectPath, e.FullPath), 
+//                    Path.GetFileName(e.FullPath)));
+//                _fileChanges++;
+//            }
+//        }
+//        else return; // File that was not registered as left, considered as insignificant change.
+//    }
+//    catch (Exception ex)
+//    {
+//        System.Windows.MessageBox.Show($"{ex.Message}");
+//    }
+//}
+
+//private async void RegisterChangesWithoutOverlap(FileChangedState state, string filePath)
+//{
+//    try
+//    {
+//        FileInfo fileInfo = new FileInfo(filePath);
+//        string fileName = Path.GetFileName(filePath);
+//        if (changedFilesDict.ContainsKey(fileName))
+//        {
+//            TimeSpan timeDiff = changedFilesDict[fileName].changedTime - fileInfo.LastWriteTime;
+//            if (timeDiff.TotalSeconds < 1) return;
+//            changedFilesDict[fileName] = new ChangedFile(FileChangedState.Modified, filePath, fileName);
+//            await vcsManager.GetFileMD5CheckSumAsync(changedFilesDict[fileName]);
+//            _FileChanges++;
+//        }
+//        else
+//        {
+//            changedFilesDict.Add(fileName, new ChangedFile(state, filePath, fileName));
+//            await vcsManager.GetFileMD5CheckSumAsync(changedFilesDict[fileName]);
+//            _FileChanges++; 
+//        }
+//    }
+//    catch (Exception ex)
+//    {
+//        System.Windows.MessageBox.Show($"{ex.Message}");
+//    }
+//}
+
+//private async void OnFileChanged(object sender, FileSystemEventArgs e)
+//{
+//    // If file already Exists, and the delta second between last read time and last written time 
+//    try
+//    {
+//        FileInfo fileInfo = new FileInfo(e.FullPath);
+//        string fileRelPath = Path.GetRelativePath(vcsManager.ProjectData.projectPath, e.FullPath);
+//        if (changedFilesDict.ContainsKey(fileRelPath))
+//        {
+//            TimeSpan timeDiff = changedFilesDict[fileRelPath].changedTime - DateTime.Now;
+//            if (Math.Abs(timeDiff.TotalSeconds) < 1) return;
+
+//            await asyncControl.WaitAsync();
+//            string? hash = await GetHashAsync(fileRelPath);
+//            if (hash == null) return; 
+//            lock (dictLock)
+//            {
+//                changedFilesDict[fileRelPath].fileChangedState = FileChangedState.Modified;
+//                changedFilesDict[fileRelPath].FileHash = hash; 
+//                _FileChanges++;
+//            }
+//        }
+//        else
+//        {
+//            changedFilesDict.Add(fileRelPath, 
+//                new ChangedFile(
+//                    FileChangedState.Modified, 
+//                    vcsManager.ProjectData.projectPath,
+//                    Path.GetRelativePath(vcsManager.ProjectData.projectPath, e.FullPath), 
+//                    Path.GetFileName(e.FullPath)));
+//            await asyncControl.WaitAsync();
+//            changedFilesDict[fileRelPath].FileHash = await GetHashAsync(fileRelPath);
+//            _FileChanges++;
+//        }
+//    }
+//    catch (Exception ex)
+//    {
+//        System.Windows.MessageBox.Show($"{ex.Message}");
+//    }
+
+//}
+
+//private void StopTracker()
+//{
+//    changeNotifyTimer?.Stop();
+//}
+
+//private void ResetTimer()
+//{
+//    changeNotifyTimer?.Stop();
+//    changeNotifyTimer.Interval = updateInterval;
+//    changeNotifyTimer?.Start();
+//}
+//private void OnTimerTicked(object? sender, EventArgs e)
+//{
+//    ////Gather all the files for comparing
+//    //if (changedFilesQueue.Count <= 0) return; 
+//    //for (int i = 0; i < changedFilesQueue.Count; i++)
+//    //{
+//    //    ChangedFile registerHash = changedFilesQueue.Dequeue();
+//    //    vcsManager.GetMD5CheckSumAsync(registerHash);
+//    //    _FileChanges--; 
+//    //}
+//}
+
 //bool checkExistingFile = changedFilesDict.TryGetValue(Path.GetFileName(e.FullPath), out var file); 
 //if (!checkExistingFile)
 //{

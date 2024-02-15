@@ -1,6 +1,8 @@
-﻿using SimpleBinaryVCS.ViewModel;
+﻿using SimpleBinaryVCS.Model;
+using SimpleBinaryVCS.ViewModel;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -20,10 +22,17 @@ namespace SimpleBinaryVCS.View
     /// </summary>
     public partial class IntegrityLogWindow : Window
     {
-        public IntegrityLogWindow()
+        public IntegrityLogWindow(string versionLog, ObservableCollection<ProjectFile> fileList)
         {
             InitializeComponent();
-            VersionCheckViewModel versionCheckViewModel = new VersionCheckViewModel();
+            VersionCheckViewModel versionCheckViewModel = new VersionCheckViewModel(versionLog, fileList);
+            this.DataContext = versionCheckViewModel;
+        }
+
+        public IntegrityLogWindow(ProjectData projectData)
+        {
+            InitializeComponent();
+            VersionCheckViewModel versionCheckViewModel = new VersionCheckViewModel(projectData);
             this.DataContext = versionCheckViewModel;
         }
     }

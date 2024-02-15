@@ -25,31 +25,22 @@ namespace SimpleBinaryVCS.ViewModel
         private string? updateDirPath; 
         public ObservableCollection<ProjectFile> ChangedFileList { get; set; }
         private ProjectFile? selectedItem; 
-        public ProjectFile SelectedItem
+        public ProjectFile? SelectedItem
         {
-            get { return selectedItem;}
+            get => selectedItem ??= null; 
             set
             {
                 selectedItem = value;
                 OnPropertyChanged("SelectedItem"); 
             }
         }
-        private ICommand? conductUpload;
-        private ICommand? clearRevert;
-        public ICommand ConductUpload
+        private ICommand? clearNewfiles;
+        public ICommand ClearNewfiles
         {
             get
             {
-                if (conductUpload == null) conductUpload = new RelayCommand(UploadFile, CanUploadFile); 
-                return conductUpload;
-            }
-        }
-        public ICommand ClearRevert
-        {
-            get
-            {
-                if (clearRevert == null) clearRevert = new RelayCommand(RefreshFiles, CanUploadFile);
-                return clearRevert;
+                clearNewfiles ??= new RelayCommand(ClearFiles, CanUploadFile);
+                return clearNewfiles;
             }
         }
 
@@ -58,7 +49,7 @@ namespace SimpleBinaryVCS.ViewModel
         {
             get
             {
-                if (getLocalChanges == null) getLocalChanges = new RelayCommand(PullLocalFileChanges, CanPullLocalChanges);
+                getLocalChanges ??= new RelayCommand(PullLocalFileChanges, CanPullLocalChanges);
                 return getLocalChanges;
             }
         }
@@ -68,7 +59,7 @@ namespace SimpleBinaryVCS.ViewModel
         {
             get
             {
-                if (checkProjectIntegrity == null) checkProjectIntegrity = new RelayCommand(RunProjectVersionIntegrity, CanRunIntegrityTest); 
+                checkProjectIntegrity ??= new RelayCommand(RunProjectVersionIntegrity, CanRunIntegrityTest); 
                 return checkProjectIntegrity;
                     
             }
@@ -119,24 +110,23 @@ namespace SimpleBinaryVCS.ViewModel
             {
                 WPF.MessageBox.Show(ex.Message); 
             }
-            //for (int i = 0; i < filesRelPath.Length; i++)
-            //{
-            //    var fileInfo = FileVersionInfo.GetVersionInfo(filesRelPath[i]);
-            //    ProjectFile newFile = new ProjectFile(
-            //        true, 
-            //        new FileInfo(filesRelPath[i]).Length, 
-            //        filesNameOnly[i],
-            //        filesRelPath[i], 
-            //        fileInfo.FileVersion);
-            //    newFile.fileChangedState = FileChangedState.Uploaded;
-            //    ChangedFileList.Add(newFile);
-            //}
-            //fileOpen.Dispose(); 
         }
 
-        private void RefreshFiles(object obj)
+        private void ClearFiles(object obj)
         {
-            ChangedFileList.Clear(); 
+            List<ProjectFile> clearList = new List<ProjectFile>();
+            foreach (ProjectFile file in ChangedFileList)
+            {
+                if ((file.fileChangedState & FileChangedState.IntegrityChecked) == 0)
+                {
+                    clearList.Add(file);
+                }
+            }
+            foreach (ProjectFile file in clearList)
+            {
+                ChangedFileList.Remove(file);
+            }
+            
         }
 
         private void PullLocalFileChanges(object parameter)
