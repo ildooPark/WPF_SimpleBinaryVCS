@@ -1,6 +1,8 @@
 ﻿using MemoryPack;
 using SimpleBinaryVCS.Interfaces;
+using System.Collections;
 using System.Collections.ObjectModel;
+using System.IO;
 
 namespace SimpleBinaryVCS.Model
 {
@@ -28,14 +30,7 @@ namespace SimpleBinaryVCS.Model
             get => diffLog ??= new ObservableCollection<ProjectFile>();
             set => diffLog = value;
         }
-        private List<ProjectData>? projectDataList;
-        public List<ProjectData> ProjectDataList 
-        { 
-            get => projectDataList ??= (projectDataList = new List<ProjectData>());
-            set => projectDataList = value; 
-        }
-        public List<string> fileDirectories; 
-        public Dictionary<string, IFile> backupFiles;
+        
 
         [MemoryPackConstructor]
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
@@ -56,8 +51,6 @@ namespace SimpleBinaryVCS.Model
             this.changeLog = srcProjectData.changeLog;
             this.numberOfChanges = srcProjectData.numberOfChanges;
             this.projectFiles = new ObservableCollection<ProjectFile>();
-            this.fileDirectories = new List<string>(srcProjectData.fileDirectories);
-            this.backupFiles = new Dictionary<string, IFile>(srcProjectData.backupFiles);
             if (!isRevert)
             {
                 this.diffLog = new ObservableCollection<ProjectFile>();
@@ -108,6 +101,30 @@ namespace SimpleBinaryVCS.Model
             dict.Add(nameof(this.updatedVersion), this.updatedVersion);
             dict.Add(nameof(this.revisionNumber), this.revisionNumber);
             dict.Add(nameof(this.numberOfChanges), this.numberOfChanges);
+        }
+
+        public List<string> GetProjectDirPaths()
+        {
+            LinkedList<ProjectData> nodeList = new LinkedList<ProjectData>(); 
+            List<string> dirPaths = new List<string>();
+            foreach (ProjectFile file in ProjectFiles)
+            {
+
+                if (Path.GetDirectoryName(file.fileRelPath) == null || 
+                    Path.GetDirectoryName(file.fileRelPath) == string.Empty)
+                    continue;
+                dirPaths.Add(Path.GetDirectoryName(file.fileRelPath));
+            }
+            return dirPaths;
+        }
+        public List<string> GetProjectFileRelPaths()
+        {
+            List<string> filePaths = new List<string>();
+            foreach (ProjectFile file in ProjectFiles)
+            {
+                filePaths.Add(file.fileRelPath);
+            }
+            return filePaths;
         }
     }
 }

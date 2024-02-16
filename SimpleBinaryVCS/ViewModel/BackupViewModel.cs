@@ -149,7 +149,6 @@ namespace SimpleBinaryVCS.ViewModel
             {
                 MessageBox.Show($"BUVM 150 {Ex.Message}");
             }
-            
         }
 
         private bool CanRevert(object obj)
@@ -302,7 +301,6 @@ namespace SimpleBinaryVCS.ViewModel
                 }
                 foreach (ProjectFile file in vcsManager.ProjectData.DiffLog)
                 {
-                    //if (file.fileChangedState == FileChangedState.Restored) continue;
                     ProjectFile newFile = new ProjectFile(file);
                     string retrievablePath = backupManager.GetFileBackupPath(parentDirectory.ToString(), vcsManager.ProjectData.projectName, file.deployedProjectVersion);
                     newFile.fileSrcPath = retrievablePath;

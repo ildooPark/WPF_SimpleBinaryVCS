@@ -1,7 +1,9 @@
 ﻿using SimpleBinaryVCS.Model;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
 using System.Security.Cryptography;
+using System.Text;
 
 namespace SimpleBinaryVCS.DataComponent
 {
@@ -138,7 +140,63 @@ namespace SimpleBinaryVCS.DataComponent
 
         public void CompareVersion(ProjectData srcData,  ProjectData dstData)
         {
+            try
+            {
+                StringBuilder fileIntegrityLog = new StringBuilder();
+                fileIntegrityLog.AppendLine($"Conducting Version Integrity Check on {ProjectData.updatedVersion}");
+                List<string> recordedFiles = new List<string>();
+                List<string> directoryFiles = new List<string>();
+                
+                // Sort files, 
+                // Fitting to the SrcFiles, 
+                // Files which is not on the Dst 
+                IEnumerable<string> filesToAdd = directoryFiles.Except(recordedFiles);
+                // Files which is not on the Src
+                IEnumerable<string> filesToDelete = recordedFiles.Except(directoryFiles);
+                // Directories which is not on the Src
+                IEnumerable<string> deletedDirs = recordedFiles.Except(directoryFiles);
+                // Files to Overwrite
+                IEnumerable<string> intersectFiles = recordedFiles.Intersect(directoryFiles);
 
+                foreach (string fileRelPath in newlyAddedFiles)
+                {
+                    if (fileRelPath == "VersionLog.bin") continue;
+                    fileIntegrityLog.AppendLine($"{fileRelPath} has been Added");
+                    string? fileHash = GetFileMD5CheckSum(ProjectData.projectPath, fileRelPath);
+                    ProjectFile file = new ProjectFile(ProjectData.projectPath, fileRelPath, fileHash, FileChangedState.Added | FileChangedState.IntegrityChecked);
+                    changedFileList.Add(file);
+                }
+
+                foreach (string fileRelPath in deletedFiles)
+                {
+                    fileIntegrityLog.AppendLine($"{fileRelPath} has been Deleted");
+                    ProjectFile file = projectFilesDict[fileRelPath];
+                    file.fileChangedState = FileChangedState.Deleted | FileChangedState.IntegrityChecked;
+                    changedFileList.Add(file);
+                }
+                foreach (string fileRelPath in intersectFiles)
+                {
+                    string? fileHash = vcsManager.GetFileMD5CheckSum(vcsManager.ProjectData.projectPath, fileRelPath);
+                    if (projectFilesDict[fileRelPath].fileHash != fileHash)
+                    {
+                        fileIntegrityLog.AppendLine($"File {projectFilesDict[fileRelPath].fileName} on {fileRelPath} has been modified");
+                        var fileVersionInfo = FileVersionInfo.GetVersionInfo(Path.Combine(ProjectData.projectPath, fileRelPath));
+
+                        ProjectFile file = new ProjectFile(projectFilesDict[fileRelPath]);
+                        file.fileChangedState = FileChangedState.Modified | FileChangedState.IntegrityChecked;
+                        file.fileHash = fileHash;
+                        file.isNew = true;
+                        file.updatedTime = new FileInfo(file.fileFullPath()).LastAccessTime;
+                        changedFileList.Add(file);
+                    }
+                }
+                fileIntegrityLog.AppendLine("Integrity Check Complete");
+                versionCheckFinished?.Invoke();
+            }
+            catch (Exception Ex)
+            {
+                System.Windows.MessageBox.Show($"{Ex.Message}. Couldn't Run File Integrity Check");
+            }
         }
     }
 }
