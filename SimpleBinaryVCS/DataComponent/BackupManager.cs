@@ -1,4 +1,5 @@
 ﻿using SimpleBinaryVCS.Interfaces;
+using SimpleBinaryVCS.Model;
 using System.IO;
 
 namespace SimpleBinaryVCS.DataComponent
@@ -20,6 +21,11 @@ namespace SimpleBinaryVCS.DataComponent
 
         // Save BackUp 
 
+        public void MakeBackup (ProjectData projectData)
+        {
+
+        }
+
         public string GetFileBackupPath(string parentPath, string projectName,  string projectVersion)
         {
             string backupPath = $"{parentPath}\\Backup_{Path.GetFileName(projectName)}\\Backup_{projectVersion}";
@@ -32,5 +38,5 @@ namespace SimpleBinaryVCS.DataComponent
             //Else, Update Backup Path Info 
 
         }
-    }
+    } 
 }

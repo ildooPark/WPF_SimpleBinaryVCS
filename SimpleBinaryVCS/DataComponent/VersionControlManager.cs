@@ -1,4 +1,6 @@
-﻿using SimpleBinaryVCS.Model;
+﻿using MemoryPack;
+using SimpleBinaryVCS.Model;
+using WinForms = System.Windows.Forms;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
@@ -15,25 +17,32 @@ namespace SimpleBinaryVCS.DataComponent
         public Action<object>? pullAction;
         public Action<ProjectData>? projectLoadAction;
         public Action<object>? fetchAction;
-        public Action? versionCheckFinished; 
-        private ProjectData? projectData; 
-        public ProjectData ProjectData 
+        public Action? versionCheckFinished;
+        private ProjectRepository projectRepository; 
+        public ProjectRepository ProjectRepository
+        {
+            get => projectRepository; 
+            private set => projectRepository = value;
+        }
+        private ProjectData? currentProjectData; 
+        public ProjectData CurrentProjectData 
         { 
-            get => projectData ?? new ProjectData();
+            get => currentProjectData ?? new ProjectData();
             set
             {
-                projectData = value;
-                projectLoadAction?.Invoke(projectData);
+                currentProjectData = value;
+                projectLoadAction?.Invoke(currentProjectData);
             }
         }
-        public ProjectData? NewestProjectData { get; set; }
-        public ObservableCollection<ProjectData> ProjectDataList { get; set; }
+        public ProjectData? NewestProjectData { get; private set; }
+        public ObservableCollection<ProjectData> ProjectDataList { get; private set; }
         public VersionControlManager()
         {
-            projectData = new ProjectData();
+            currentProjectData = new ProjectData();
             ProjectDataList = new ObservableCollection<ProjectData>();
         }
 
+        #region MD5 CheckSum
         /// <summary>
         /// Returns true if content is the same. 
         /// </summary>
@@ -69,7 +78,6 @@ namespace SimpleBinaryVCS.DataComponent
             result =  (srcHashString, dstHashString);
             return srcHashString == dstHashString;
         }
-
         public string GetFileMD5CheckSum(string projectPath, string srcFileRelPath)
         {
             byte[] srcHashBytes;
@@ -87,7 +95,7 @@ namespace SimpleBinaryVCS.DataComponent
             md5.Dispose(); 
             return BitConverter.ToString(srcHashBytes).Replace("-", "");
         }
-        public async Task GetFileMD5CheckSumAsync(ChangedFile file)
+        public async Task GetFileMD5CheckSumAsync(TrackedFile file)
         {
             try
             {
@@ -111,7 +119,6 @@ namespace SimpleBinaryVCS.DataComponent
                 MessageBox.Show($"Error occured {ex.Message} \nwhile Computing hash async by this file {file.FileName}");
             }
         }
-
         public async Task<string?> GetFileMD5CheckSumAsync(string fileFullPath)
         {
             try
@@ -137,13 +144,112 @@ namespace SimpleBinaryVCS.DataComponent
                 return null;
             }
         }
+        #endregion
+        public bool TryRetrieveProject(string projectPath)
+        {
+            var openFD = new WinForms.FolderBrowserDialog();
+            string projectDataBin;
+            if (openFD.ShowDialog() == DialogResult.OK)
+            {
+                mainProjectPath = openFD.SelectedPath;
+                ProjectRepository.ProjectPath = openFD.SelectedPath;
+                ProjectRepository.ProjectName = Path.GetFileName(openFD.SelectedPath);
+            }
+            else return false;
+            openFD.Dispose();
+            //Get .bin VersionLog File 
+            string[] binFiles = Directory.GetFiles(ProjectRepository.ProjectPath, "VersionLog.*", SearchOption.AllDirectories);
 
+            if (binFiles.Length > 0)
+            {
+                projectDataBin = binFiles[0];
+                ProjectRepository? projectRepo;
+                try
+                {
+                    var stream = File.ReadAllBytes(projectDataBin);
+                    projectRepo = MemoryPackSerializer.Deserialize<ProjectRepository>(stream);
+                    if (projectRepo != null)
+                    {
+                        CurrentProjectData = projectRepo.ProjectMain;
+                    }
+                }
+                catch (Exception e)
+                {
+                    MessageBox.Show(e.Message);
+                }
+                fetchAction?.Invoke(projectPath);
+            }
+            else
+            {
+                var result = MessageBox.Show("VersionLog file not found!\n Initialize A New Project?",
+                    "Import Project", MessageBoxButtons.YesNo);
+                if (result == DialogResult.Yes)
+                {
+                    InitializeProject(openFD.SelectedPath);
+                }
+                else
+                {
+                    MessageBox.Show("Please Select Another Project Path");
+                    return false;
+                }
+            }
+            return true; 
+        }
+        private void InitializeProject(string projectFilePath)
+        {
+            StringBuilder changeLog = new StringBuilder();
+            TryGetAllFiles(projectFilePath, out string[]? newProjectFiles);
+            if (newProjectFiles == null)
+            { MessageBox.Show("Couldn't Get Project Files");  return; }
+            ProjectData newProjectData = new ProjectData();
+            newProjectData.UpdatedVersion = GetprojectDataVersionName();
+
+            foreach (string filePath in newProjectFiles)
+            {
+                var fileInfo = FileVersionInfo.GetVersionInfo(filePath);
+                ProjectFile newFile = new ProjectFile
+                    (
+                    true,
+                    new FileInfo(filePath).Length,
+                    Path.GetFileName(filePath),
+                    projectFilePath,
+                    Path.GetRelativePath(projectFilePath, filePath),
+                    fileInfo.FileVersion,
+                    FileChangedState.Added
+                    );
+
+                newFile.FileHash = GetFileMD5CheckSum(projectFilePath, filePath);
+                newFile.DeployedProjectVersion = newProjectData.UpdatedVersion;
+                newProjectData.ProjectFiles.Add(newFile);
+                newProjectData.ChangedFiles.Add(newFile);
+                changeLog.AppendLine($"Added {newFile.fileName}");
+            }
+            newProjectData.UpdatedTime = DateTime.Now;
+            newProjectData.ChangeLog = changeLog.ToString();
+            newProjectData.NumberOfChanges = newProjectData.ProjectFiles.Count;
+            newProjectData.ProjectName = Path.GetFileName(projectFilePath);
+            byte[] serializedFile = MemoryPackSerializer.Serialize(CurrentProjectData);
+            File.WriteAllBytes($"{CurrentProjectData.ProjectPath}\\VersionLog.bin", serializedFile);
+            ProjectName = CurrentProjectData.ProjectName;
+            CurrentVersion = CurrentProjectData.UpdatedVersion;
+            vcsManager.updateAction?.Invoke(projectFilePath);
+        }
+        private string GetprojectDataVersionName()
+        {
+            if (NewestProjectData == null || 
+                NewestProjectData.UpdatedVersion == null || 
+                ProjectRepository.RevisionNumber == 0)
+            {
+                return $"{Environment.MachineName}_{DateTime.Now.ToString("yyyy_MM_dd")}_{++ProjectRepository.RevisionNumber}";
+            }
+            return $"{Environment.MachineName}_{DateTime.Now.ToString("yyyy_MM_dd")}_v{++ProjectRepository.RevisionNumber}";
+        }
         public void CompareVersion(ProjectData srcData,  ProjectData dstData)
         {
             try
             {
                 StringBuilder fileIntegrityLog = new StringBuilder();
-                fileIntegrityLog.AppendLine($"Conducting Version Integrity Check on {ProjectData.updatedVersion}");
+                fileIntegrityLog.AppendLine($"Conducting Version Integrity Check on {CurrentProjectData.UpdatedVersion}");
                 List<string> recordedFiles = new List<string>();
                 List<string> directoryFiles = new List<string>();
                 
@@ -162,8 +268,8 @@ namespace SimpleBinaryVCS.DataComponent
                 {
                     if (fileRelPath == "VersionLog.bin") continue;
                     fileIntegrityLog.AppendLine($"{fileRelPath} has been Added");
-                    string? fileHash = GetFileMD5CheckSum(ProjectData.projectPath, fileRelPath);
-                    ProjectFile file = new ProjectFile(ProjectData.projectPath, fileRelPath, fileHash, FileChangedState.Added | FileChangedState.IntegrityChecked);
+                    string? fileHash = GetFileMD5CheckSum(CurrentProjectData.ProjectPath, fileRelPath);
+                    ProjectFile file = new ProjectFile(CurrentProjectData.ProjectPath, fileRelPath, fileHash, FileChangedState.Added | FileChangedState.IntegrityChecked);
                     changedFileList.Add(file);
                 }
 
@@ -171,7 +277,7 @@ namespace SimpleBinaryVCS.DataComponent
                 {
                     fileIntegrityLog.AppendLine($"{fileRelPath} has been Deleted");
                     ProjectFile file = projectFilesDict[fileRelPath];
-                    file.fileChangedState = FileChangedState.Deleted | FileChangedState.IntegrityChecked;
+                    file.fileState = FileChangedState.Deleted | FileChangedState.IntegrityChecked;
                     changedFileList.Add(file);
                 }
                 foreach (string fileRelPath in intersectFiles)
@@ -180,13 +286,13 @@ namespace SimpleBinaryVCS.DataComponent
                     if (projectFilesDict[fileRelPath].fileHash != fileHash)
                     {
                         fileIntegrityLog.AppendLine($"File {projectFilesDict[fileRelPath].fileName} on {fileRelPath} has been modified");
-                        var fileVersionInfo = FileVersionInfo.GetVersionInfo(Path.Combine(ProjectData.projectPath, fileRelPath));
+                        var fileVersionInfo = FileVersionInfo.GetVersionInfo(Path.Combine(CurrentProjectData.ProjectPath, fileRelPath));
 
                         ProjectFile file = new ProjectFile(projectFilesDict[fileRelPath]);
-                        file.fileChangedState = FileChangedState.Modified | FileChangedState.IntegrityChecked;
+                        file.fileState = FileChangedState.Modified | FileChangedState.IntegrityChecked;
                         file.fileHash = fileHash;
-                        file.isNew = true;
-                        file.updatedTime = new FileInfo(file.fileFullPath()).LastAccessTime;
+                        file.IsNew = true;
+                        file.UpdatedTime = new FileInfo(file.fileFullPath()).LastAccessTime;
                         changedFileList.Add(file);
                     }
                 }
@@ -196,6 +302,18 @@ namespace SimpleBinaryVCS.DataComponent
             catch (Exception Ex)
             {
                 System.Windows.MessageBox.Show($"{Ex.Message}. Couldn't Run File Integrity Check");
+            }
+        }
+        private void TryGetAllFiles(string directoryPath, out string[]? files)
+        {
+            try
+            {
+                files = Directory.GetFiles(directoryPath, "*", SearchOption.AllDirectories);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+                files = null;
             }
         }
     }

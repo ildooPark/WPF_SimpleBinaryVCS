@@ -83,7 +83,7 @@ namespace SimpleBinaryVCS.ViewModel
             List<ProjectFile> clearList = new List<ProjectFile>();
             foreach (ProjectFile file in ChangedFileList)
             {
-                if ((file.fileChangedState & FileChangedState.IntegrityChecked) == 0)
+                if ((file.fileState & FileChangedState.IntegrityChecked) == 0)
                 {
                     clearList.Add(file);
                 }
