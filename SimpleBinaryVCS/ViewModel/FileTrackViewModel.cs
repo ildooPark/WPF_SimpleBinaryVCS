@@ -12,6 +12,8 @@ using System.Threading.Tasks;
 using System.Windows.Input;
 using System.IO;
 using System.Diagnostics;
+using SimpleBinaryVCS.View;
+using System.Reflection.Metadata;
 
 namespace SimpleBinaryVCS.ViewModel
 {
@@ -22,8 +24,8 @@ namespace SimpleBinaryVCS.ViewModel
     }
     public class FileTrackViewModel : ViewModelBase
     {
-        private string? updateDirPath; 
         public ObservableCollection<ProjectFile> ChangedFileList { get; set; }
+
         private ProjectFile? selectedItem; 
         public ProjectFile? SelectedItem
         {
@@ -34,36 +36,19 @@ namespace SimpleBinaryVCS.ViewModel
                 OnPropertyChanged("SelectedItem"); 
             }
         }
+
         private ICommand? clearNewfiles;
         public ICommand ClearNewfiles
         {
-            get
-            {
-                clearNewfiles ??= new RelayCommand(ClearFiles, CanUploadFile);
-                return clearNewfiles;
-            }
-        }
-
-        private ICommand? getLocalChanges;
-        public ICommand GetLocalChanges
-        {
-            get
-            {
-                getLocalChanges ??= new RelayCommand(PullLocalFileChanges, CanPullLocalChanges);
-                return getLocalChanges;
-            }
+            get => clearNewfiles ??= new RelayCommand(ClearFiles, CanClearFiles);
         }
 
         private ICommand? checkProjectIntegrity; 
         public ICommand CheckProjectIntegrity
         {
-            get
-            {
-                checkProjectIntegrity ??= new RelayCommand(RunProjectVersionIntegrity, CanRunIntegrityTest); 
-                return checkProjectIntegrity;
-                    
-            }
+            get => checkProjectIntegrity ??= new RelayCommand(RunProjectVersionIntegrity, CanRunIntegrityTest);
         }
+
         private int detectedFileChange;
         public int DetectedFileChange
         {
@@ -74,43 +59,24 @@ namespace SimpleBinaryVCS.ViewModel
                 OnPropertyChanged("DetectedFileChange");
             }
         }
+
         private FileManager fileManager;
         private VMState currentState; 
         public FileTrackViewModel()
         {
-            fileManager = App.FileManager;
+            this.fileManager = App.FileManager;
             this.ChangedFileList = fileManager.ChangedFileList;
-            fileManager.newLocalFileChange += OnNewLocalFileChange; 
-            currentState = VMState.Idle; 
+            this.fileManager.newLocalFileChange += OnNewLocalFileChange;
+            this.fileManager.IntegrityCheckFinished += OpenIntegrityLogWindow;
+            this.currentState = VMState.Idle; 
         }
+
         private void OnNewLocalFileChange(int numFile)
         {
             DetectedFileChange = numFile;
         }
-        private bool CanPullLocalChanges(object obj) { return detectedFileChange != 0; }
-        private bool CanUploadFile(object obj) { return true; }
-        private void UploadFile(object obj)
-        {
-            try
-            {
-                var openUpdateDir = new WinForms.FolderBrowserDialog();
-                if (openUpdateDir.ShowDialog() == DialogResult.OK)
-                {
-                    updateDirPath = openUpdateDir.SelectedPath;
-                }
-                else
-                {
-                    openUpdateDir.Dispose();
-                    return;
-                }
-                fileManager.RegisterNewFiles(updateDirPath);
-                openUpdateDir.Dispose(); 
-            }
-            catch (Exception ex)
-            {
-                WPF.MessageBox.Show(ex.Message); 
-            }
-        }
+
+        private bool CanClearFiles(object obj) { return ChangedFileList.Count != 0; }
 
         private void ClearFiles(object obj)
         {
@@ -129,21 +95,26 @@ namespace SimpleBinaryVCS.ViewModel
             
         }
 
-        private void PullLocalFileChanges(object parameter)
-        {
-            currentState = VMState.Calculating;
-            //ChangedFile[]? changedFiles = fileManager.GetChangedFiles();
-            currentState = VMState.Idle;
-        }
         private bool CanRunIntegrityTest(object parameter)
         {
             return currentState == VMState.Idle;
         }
+
         private void RunProjectVersionIntegrity(object parameter)
         {
             currentState = VMState.Calculating;
-            fileManager.PerformIntegrityCheck(parameter); 
+            fileManager.PerformIntegrityCheck(parameter);
             currentState = VMState.Idle;
+        }
+
+        private void OpenIntegrityLogWindow(object sender, string changeLog, ObservableCollection<ProjectFile> changedFileList)
+        {
+            if (changedFileList == null) { MessageBox.Show("Model Binding Issue: ChangedList is Empty"); return; }
+            var mainWindow = sender as WPF.Window;
+            IntegrityLogWindow logWindow = new IntegrityLogWindow(changeLog, changedFileList);
+            logWindow.Owner = mainWindow;
+            logWindow.WindowStartupLocation = WPF.WindowStartupLocation.CenterOwner;
+            logWindow.Show();
         }
     }
 }

@@ -98,15 +98,12 @@ namespace SimpleBinaryVCS.ViewModel
         public BackupViewModel()
         {
             importProjects = new PriorityQueue<ProjectData, ProjectData>(); 
-            vcsManager = App.VcsManager; 
+            vcsManager = App.VcsManager;
+            vcsManager.updateAction += MakeBackUp;
+            vcsManager.fetchAction += Fetch;
+            backupProjectDataList = vcsManager.ProjectDataList;
             fileManager = App.FileManager;
             backupManager = App.BackupManager;
-            if (vcsManager != null)
-            {
-                vcsManager.updateAction += MakeBackUp;
-                vcsManager.fetchAction += Fetch;
-                backupProjectDataList = vcsManager.projectDataList;
-            }
         }
 
         private bool CanFetch(object obj)
@@ -123,29 +120,36 @@ namespace SimpleBinaryVCS.ViewModel
             BackupProjectDataList.Clear();
             //Set up Current Project at Main 
             if (vcsManager.mainProjectPath == null) return;
-            DirectoryInfo parentPath = Directory.GetParent(vcsManager.mainProjectPath);
-
-            string[] mainVersionLog = Directory.GetFiles(vcsManager.mainProjectPath, "VersionLog.*", SearchOption.AllDirectories);
-            ProjectData? mainProjectData = MemoryPackSerializer.Deserialize<ProjectData>(File.ReadAllBytes(mainVersionLog[0]));
-            if (mainProjectData == null) return;
-            vcsManager.ProjectData = mainProjectData;
-            string[]? backupVersionLogs;
-            if (parentPath == null) return;
-            TryGetBackupLogs(parentPath.ToString(), out backupVersionLogs);
-            if (backupVersionLogs == null) return;
-            foreach (string version in backupVersionLogs)
+            try
             {
-                ProjectData? data = MemoryPackSerializer.Deserialize<ProjectData>(File.ReadAllBytes(version));
-                if (data == null) continue;
-                importProjects.Enqueue(data, data);
+                DirectoryInfo? parentPath = Directory.GetParent(vcsManager.mainProjectPath);
+                string[] mainVersionLog = Directory.GetFiles(vcsManager.mainProjectPath, "VersionLog.*", SearchOption.AllDirectories);
+                ProjectData? mainProjectData = MemoryPackSerializer.Deserialize<ProjectData>(File.ReadAllBytes(mainVersionLog[0]));
+                if (mainProjectData == null) return;
+                vcsManager.ProjectData = mainProjectData;
+                string[]? backupVersionLogs;
+                if (parentPath == null) return;
+                TryGetBackupLogs(parentPath.ToString(), out backupVersionLogs);
+                if (backupVersionLogs == null) return;
+                foreach (string version in backupVersionLogs)
+                {
+                    ProjectData? data = MemoryPackSerializer.Deserialize<ProjectData>(File.ReadAllBytes(version));
+                    if (data == null) continue;
+                    importProjects.Enqueue(data, data);
+                }
+                vcsManager.NewestProjectData = importProjects.Dequeue();
+                BackupProjectDataList.Add(vcsManager.NewestProjectData);
+                int importProjectCount = importProjects.Count;
+                for (int i = 0; i < importProjectCount; i++)
+                {
+                    BackupProjectDataList.Add(importProjects.Dequeue());
+                }
             }
-            vcsManager.NewestProjectData = importProjects.Dequeue();
-            BackupProjectDataList.Add(vcsManager.NewestProjectData);
-            int importProjectCount = importProjects.Count;
-            for (int i = 0; i < importProjectCount; i++)
+            catch (Exception Ex)
             {
-                BackupProjectDataList.Add(importProjects.Dequeue());
+                MessageBox.Show($"BUVM 150 {Ex.Message}");
             }
+            
         }
 
         private bool CanRevert(object obj)
@@ -177,7 +181,12 @@ namespace SimpleBinaryVCS.ViewModel
         }
         private void Revert(object obj)
         {
-            var response = MessageBox.Show($"Do you want to Revert to {SelectedItem.updatedVersion}", "Confirm Updates",
+            if (selectedItem == null)
+            {
+                MessageBox.Show("BUVM 186: Selected BackupVersion is null");
+                return;
+            }
+            var response = MessageBox.Show($"Do you want to Revert to {selectedItem.updatedVersion}", "Confirm Updates",
                 MessageBoxButtons.YesNo); 
             if (response == DialogResult.Yes)
             {
@@ -185,9 +194,10 @@ namespace SimpleBinaryVCS.ViewModel
                 //1-1. Check for current project's backup
                 MakeBackUp(obj);
                 //1-2. Delete all the files in the current Directory 
+                //1-2. Compare Main with Revision Version 
                 DeleteAllInDirectory(vcsManager.mainProjectPath ?? "");
                 //2. Transfer the ProjectData to Current
-                RevertBackupToMain(SelectedItem);
+                RevertBackupToMain(selectedItem);
                 //3. Set Selected ProjectData as Current Project Data 
                 Fetch(obj);
             }
@@ -211,12 +221,12 @@ namespace SimpleBinaryVCS.ViewModel
 
         private void RevertBackupToMain(ProjectData revertData)
         {
-
-            string newSrcPath = vcsManager.mainProjectPath;
-            if (string.IsNullOrEmpty(newSrcPath))
+            if (string.IsNullOrEmpty(vcsManager.mainProjectPath))
             {
+                MessageBox.Show("Main Project Path is Empty");
                 return;
             }
+            string newSrcPath = vcsManager.mainProjectPath;
             try
             {
                 if (!File.Exists(newSrcPath))
@@ -230,7 +240,7 @@ namespace SimpleBinaryVCS.ViewModel
                         try
                         {
                             string newFilePath = $"{newSrcPath}\\{file.fileRelPath}";
-                            if (!File.Exists(Path.GetDirectoryName(newFilePath))) Directory.CreateDirectory(Path.GetDirectoryName(newFilePath));
+                            if (!File.Exists(Path.GetDirectoryName(newFilePath) ?? "")) Directory.CreateDirectory(Path.GetDirectoryName(newFilePath) ?? "");
                             File.Copy(file.fileFullPath(), newFilePath, true);
                             ProjectFile newFile = new ProjectFile(file);
                             newFile.fileSrcPath = newSrcPath;
@@ -264,8 +274,8 @@ namespace SimpleBinaryVCS.ViewModel
             //Make new ProjectData for backup 
             if (App.VcsManager.ProjectData.projectPath == null) return;
             DirectoryInfo? parentDirectory = Directory.GetParent(vcsManager.ProjectData.projectPath);
-            if (parentDirectory != null) return;
-            string backupSrcPath = $"{parentDirectory?.ToString()}\\Backup_{Path.GetFileName(vcsManager.ProjectData.projectPath)}\\Backup_{App.VcsManager.ProjectData.updatedVersion}";
+            if (parentDirectory == null) return;
+            string backupSrcPath = $"{parentDirectory.ToString()}\\Backup_{Path.GetFileName(vcsManager.ProjectData.projectPath)}\\Backup_{App.VcsManager.ProjectData.updatedVersion}";
             if (!File.Exists(backupSrcPath))
             {
                 ProjectData backUpData = new ProjectData(vcsManager.ProjectData);
@@ -277,7 +287,8 @@ namespace SimpleBinaryVCS.ViewModel
                     try
                     {
                         string newBackupFullPath = $"{backupSrcPath}\\{file.fileRelPath}";
-                        if (!File.Exists(Path.GetDirectoryName(newBackupFullPath))) Directory.CreateDirectory(Path.GetDirectoryName(newBackupFullPath));
+                        if (!File.Exists(Path.GetDirectoryName(newBackupFullPath) ?? "")) 
+                            Directory.CreateDirectory(Path.GetDirectoryName(newBackupFullPath) ?? "");
                         File.Copy(file.fileFullPath(), newBackupFullPath, true);
                         ProjectFile newFile = new ProjectFile(file);
                         newFile.fileSrcPath = backupSrcPath;
@@ -293,7 +304,7 @@ namespace SimpleBinaryVCS.ViewModel
                 {
                     //if (file.fileChangedState == FileChangedState.Restored) continue;
                     ProjectFile newFile = new ProjectFile(file);
-                    string retrievablePath = backupManager.GetFileBackupPath(parentDirectory?.ToString(), vcsManager.ProjectData.projectName, file.deployedProjectVersion);
+                    string retrievablePath = backupManager.GetFileBackupPath(parentDirectory.ToString(), vcsManager.ProjectData.projectName, file.deployedProjectVersion);
                     newFile.fileSrcPath = retrievablePath;
                     backUpData.DiffLog.Add(newFile);
                 }
@@ -302,10 +313,8 @@ namespace SimpleBinaryVCS.ViewModel
                 File.WriteAllBytes($"{backUpData.projectPath}\\VersionLog.bin", serializedFile);
             }
             else return;
-            // parentDirectory
-            // Take all the file in this directory, copy to the created directory 
-            // Take current ProjectData, for all the files in the observablecollection, paste new back up data to the string. 
         }
+
         private void CloneDirectory(string root, string dest)
         {
             string newFilePath; 
@@ -336,7 +345,7 @@ namespace SimpleBinaryVCS.ViewModel
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.Message);
+                MessageBox.Show(ex.Message);
                 VersionLogFiles = null;
                 return false;
             }

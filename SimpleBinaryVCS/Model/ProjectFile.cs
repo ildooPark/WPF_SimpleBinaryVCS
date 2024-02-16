@@ -19,18 +19,20 @@ namespace SimpleBinaryVCS.Model
         /// <summary>
         /// File Build Version
         /// </summary>
-        public string? fileBuildVersion {  get; set; }
+        public string fileBuildVersion {  get; set; }
         public string fileSrcPath {  get; set; }
         /// <summary>
         /// RelativePath to the ProjectFolder Directory
         /// </summary>
         public string fileRelPath {  get; set; }
-        public string? fileHash { get; set; }
-        public string? deployedProjectVersion { get; set; }
+        public string fileHash { get; set; }
+        public string deployedProjectVersion { get; set; }
         public DateTime updatedTime {  get; set; }
         public FileChangedState fileChangedState { get; set; }
 
+#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         public ProjectFile() { }
+#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         /// <summary>
         /// Lacks FileHash, DeployedProjectVersion, FileChangedState
         /// </summary>
@@ -44,20 +46,22 @@ namespace SimpleBinaryVCS.Model
             this.isNew = isNew;
             this.fileSize = fileSize;
             this.fileName = fileName;
-            this.fileBuildVersion = fileVersion;
+            this.fileBuildVersion = fileVersion ?? "";
             this.fileSrcPath = fileSrcPath;
             this.fileRelPath = fileRelPath;
             this.updatedTime = DateTime.Now;
             this.fileChangedState = changedState;
+            this.fileHash = "";
+            this.deployedProjectVersion = "";
         }
 
         [MemoryPackConstructor]
-        public ProjectFile(bool isNew, long fileSize, string fileName, string? fileBuildVersion, string fileSrcPath, string fileRelPath, string fileHash, string? deployedProjectVersion, DateTime updatedTime)
+        public ProjectFile(bool isNew, long fileSize, string fileName, string? fileBuildVersion, string fileSrcPath, string fileRelPath, string fileHash, string deployedProjectVersion, DateTime updatedTime)
         {
             this.isNew = isNew;
             this.fileSize = fileSize;
             this.fileName = fileName;
-            this.fileBuildVersion = fileBuildVersion;
+            this.fileBuildVersion = fileBuildVersion ?? "";
             this.fileSrcPath = fileSrcPath;
             this.fileRelPath = fileRelPath;
             this.fileHash = fileHash;
@@ -88,7 +92,8 @@ namespace SimpleBinaryVCS.Model
             string fileFullPath = Path.Combine(fileSrcPath, fileRelPath);
             var fileInfo = FileVersionInfo.GetVersionInfo(fileFullPath);
             this.fileSize = new FileInfo(fileFullPath).Length; 
-            this.fileBuildVersion = fileInfo.FileVersion;
+            this.fileBuildVersion = fileInfo.FileVersion ?? "";
+            this.deployedProjectVersion = "";
             this.fileSrcPath = fileSrcPath; 
             this.fileName = Path.GetFileName(fileFullPath);
             this.fileRelPath = fileRelPath;
@@ -105,12 +110,13 @@ namespace SimpleBinaryVCS.Model
         {
             this.isNew = true;
             this.fileChangedState = fileChangedState; 
-            var fileInfo = FileVersionInfo.GetVersionInfo(changedFile.FileAbsPath());
-            this.fileSize = new FileInfo(changedFile.FileAbsPath()).Length;
-            this.fileBuildVersion = fileInfo.FileVersion;
-            this.fileSrcPath = changedFile.fileSrcPath;
-            this.fileName = changedFile.fileName;
-            this.fileRelPath = changedFile.fileRelPath;
+            var fileInfo = FileVersionInfo.GetVersionInfo(changedFile.FileAbsPath);
+            this.fileSize = new FileInfo(changedFile.FileAbsPath).Length;
+            this.fileBuildVersion = fileInfo.FileVersion ?? "";
+            this.deployedProjectVersion = "";
+            this.fileSrcPath = changedFile.FileSrcPath;
+            this.fileName = changedFile.FileName;
+            this.fileRelPath = changedFile.FileRelPath;
             this.fileHash = changedFile.FileHash;
             this.updatedTime = changedFile.changedTime;
         }

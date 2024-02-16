@@ -169,7 +169,8 @@ namespace SimpleBinaryVCS.ViewModel
             if (updaterName == null || updateLog == null || updaterName == "" || updateLog == "")
             {
                 var response = MessageBox.Show("Must Have both Deploy Version AND UpdaterName", "ok", MessageBoxButtons.OK);
-                if (response == DialogResult.OK) return; 
+                if (response == DialogResult.OK) return;
+                return;
             }
             if (fileManager.ChangedFileList.Count == 0 || fileManager == null) return;
             //if (projectData.revisionNumber >= 1) vcsManager.updateAction?.Invoke(obj);
@@ -272,7 +273,7 @@ namespace SimpleBinaryVCS.ViewModel
                 {
                     try
                     {
-                        Directory.CreateDirectory(Path.GetDirectoryName(newFilePath));
+                        Directory.CreateDirectory(Path.GetDirectoryName(newFilePath) ?? "");
                     }
                     catch (Exception Ex)
                     {
@@ -286,16 +287,16 @@ namespace SimpleBinaryVCS.ViewModel
                 MessageBox.Show($"Line VCS 290: {Ex.Message}");
             }
         }
-        private string? GetprojectDataVersionName()
+        private string GetprojectDataVersionName()
         {
             if (vcsManager.NewestProjectData == null || vcsManager.NewestProjectData.updatedVersion == null || vcsManager.NewestProjectData.revisionNumber == 0)
             {
                 ProjectData.revisionNumber = 1;
-                ProjectData.updatedVersion = $"{DateTime.Now.ToString("yyyy_MM_dd")}_v{ProjectData.revisionNumber}"; 
+                ProjectData.updatedVersion = $"{Environment.MachineName}_{DateTime.Now.ToString("yyyy_MM_dd")}_v{ProjectData.revisionNumber}"; 
                 return ProjectData.updatedVersion;
             }
             ProjectData.revisionNumber = vcsManager.NewestProjectData.revisionNumber + 1;
-            ProjectData.updatedVersion = $"{DateTime.Now.ToString("yyyy_MM_dd")}_v{ProjectData.revisionNumber}";
+            ProjectData.updatedVersion = $"{Environment.MachineName}_{DateTime.Now.ToString("yyyy_MM_dd")}_v{ProjectData.revisionNumber}";
             return ProjectData.updatedVersion;
         }
         #endregion
@@ -361,7 +362,8 @@ namespace SimpleBinaryVCS.ViewModel
         private void InitializeProject(string projectFilePath)
         {
             StringBuilder changeLog = new StringBuilder();
-            string[]? newProjectFiles; TryGetAllFiles(projectFilePath, out newProjectFiles);
+            string[]? newProjectFiles, newProjectDirectories; 
+            TryGetAllFiles(projectFilePath, out newProjectFiles, out newProjectDirectories);
             if (newProjectFiles == null) return;
             ProjectData.updatedVersion = GetprojectDataVersionName(); 
 
@@ -396,17 +398,18 @@ namespace SimpleBinaryVCS.ViewModel
             vcsManager.updateAction?.Invoke(projectFilePath); 
         }
         #endregion
-        private void TryGetAllFiles(string directoryPath, out string[]? Files)
+        private void TryGetAllFiles(string directoryPath, out string[]? files, out string[]? directories)
         {
             try
             {
-                Files = Directory.GetFiles(directoryPath, "*", SearchOption.AllDirectories);
-
+                files = Directory.GetFiles(directoryPath, "*", SearchOption.AllDirectories);
+                directories = Directory.GetDirectories(directoryPath, "*", SearchOption.AllDirectories);
             }
             catch (Exception ex)
             {
                 MessageBox.Show(ex.Message);
-                Files = null; 
+                files = null; 
+                directories = null;
             }
         }
 

@@ -34,6 +34,7 @@ namespace SimpleBinaryVCS.Model
             get => projectDataList ??= (projectDataList = new List<ProjectData>());
             set => projectDataList = value; 
         }
+        public List<string> fileDirectories; 
         public Dictionary<string, IFile> backupFiles;
 
         [MemoryPackConstructor]
@@ -55,7 +56,8 @@ namespace SimpleBinaryVCS.Model
             this.changeLog = srcProjectData.changeLog;
             this.numberOfChanges = srcProjectData.numberOfChanges;
             this.projectFiles = new ObservableCollection<ProjectFile>();
-
+            this.fileDirectories = new List<string>(srcProjectData.fileDirectories);
+            this.backupFiles = new Dictionary<string, IFile>(srcProjectData.backupFiles);
             if (!isRevert)
             {
                 this.diffLog = new ObservableCollection<ProjectFile>();
@@ -74,6 +76,11 @@ namespace SimpleBinaryVCS.Model
 
         public int Compare(ProjectData? x, ProjectData? y)
         {
+            if (x == null || y == null)
+            {
+                MessageBox.Show("Invalid Comparison, ProjectData Cannot be Null");
+                return 0;
+            }
             if (x.revisionNumber.CompareTo(y.revisionNumber) == 0) 
                 return x.updatedTime.CompareTo(y.updatedTime);
             return x.revisionNumber.CompareTo(y.revisionNumber);
@@ -81,6 +88,11 @@ namespace SimpleBinaryVCS.Model
 
         public int CompareTo(ProjectData? other)
         {
+            if (other == null)
+            {
+                MessageBox.Show("Invalid Comparison, ProjectData Cannot be Null");
+                return 0;
+            }
             if (this.revisionNumber.CompareTo(other.revisionNumber) == 0)
                 return this.updatedTime.CompareTo(other.updatedTime);
             if (this.revisionNumber > other.revisionNumber) return -1;

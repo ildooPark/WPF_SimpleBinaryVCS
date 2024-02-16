@@ -22,53 +22,29 @@ namespace SimpleBinaryVCS.DataComponent
     public class FileManager
     {
         // Dependent on UploadManager, and VcsManager 
-        private int _fileChanges;
-        public int _FileChanges
-        {
-            get
-            {
-                return _fileChanges;
-            }
-            set
-            {
-                _fileChanges = Math.Max(value, 0);
-                newLocalFileChange?.Invoke(_fileChanges);
-            }
-        }
-
         private bool fileChangeDetected; 
         public bool FileChangeDetected
         {
-            get => fileChangeDetected; 
-            set
-            {
-                fileChangeDetected = value;
-            }
+            get => fileChangeDetected;
+            set => fileChangeDetected = value; 
         }
-        public Action? ClearFiles; 
-        public Action<int>? newLocalFileChange;
+        private readonly object dictLock = new object();
+        public Action? ClearFiles;
         public Action? requestFetchPull;
+        public Action<int>? newLocalFileChange;
+        public Action<object, string, ObservableCollection<ProjectFile>>? IntegrityCheckFinished;
 
-        private VersionControlManager vcsManager;
         private Dictionary<string, ProjectFile> projectFilesDict;
         private Dictionary<string, ChangedFile> changedFilesDict;
-        //public FileSystemWatcher? fileSystemWatcher { get; set; }
-        //private DispatcherTimer changeNotifyTimer { get; set; } 
-        //private TimeSpan updateInterval { get; set; }
-
-        private SemaphoreSlim asyncControl { get; set; }
+        private SemaphoreSlim asyncControl;
         private ObservableCollection<ProjectFile> changedFileList;
         public ObservableCollection<ProjectFile> ChangedFileList
         {
-            get
-            {
-                if (changedFileList == null) changedFileList = new ObservableCollection<ProjectFile>();
-                return changedFileList;
-            }
-            set { changedFileList = value; }
+            get => changedFileList ??= new ObservableCollection<ProjectFile>();
+            set => changedFileList = value;
         }
-        private readonly object dictLock = new object();
-        public string VersionCheckLog { get; set; } 
+        private VersionControlManager vcsManager;
+
         public FileManager()
         {
             vcsManager = App.VcsManager;
@@ -89,30 +65,6 @@ namespace SimpleBinaryVCS.DataComponent
 
         public void ActivateFileWatcher(object obj)
         {
-            #region FileSystemWatcher Deprecated 
-            //fileSystemWatcher = new FileSystemWatcher();
-            //if (vcsManager.ProjectData.projectPath != null)
-            //    fileSystemWatcher.Path = vcsManager.ProjectData.projectPath;
-            //else
-            //{
-            //    System.Windows.MessageBox.Show("Has Invalid ProjectPath");
-            //    return;
-            //}
-            //fileSystemWatcher.IncludeSubdirectories = true;
-            //fileSystemWatcher.Created += OnFileCreated;
-            //fileSystemWatcher.Changed += OnFileChanged;
-            //fileSystemWatcher.Deleted += OnFileDeleted;
-            //fileSystemWatcher.EnableRaisingEvents = true;
-            //fileSystemWatcher.NotifyFilter =
-            //    NotifyFilters.Attributes |
-            //    NotifyFilters.CreationTime |
-            //    NotifyFilters.LastWrite |
-            //    NotifyFilters.FileName |
-            //    NotifyFilters.Size; 
-
-            //changeNotifyTimer.Interval = updateInterval;
-            //changeNotifyTimer.Tick += OnTimerTicked;
-            #endregion
             projectFilesDict.Clear(); 
             changedFilesDict.Clear();
             changedFileList.Clear();
@@ -127,7 +79,7 @@ namespace SimpleBinaryVCS.DataComponent
             foreach (ChangedFile file in changedFilesDict.Values)
             {
                 //compare the hash value, and if its the same, request to remove that file. 
-                if (projectFilesDict.TryGetValue(file.fileRelPath, out var correspondingFile))
+                if (projectFilesDict.TryGetValue(file.FileRelPath, out var correspondingFile))
                 {
                     if (correspondingFile.fileHash != file.FileHash)
                     {
@@ -143,6 +95,7 @@ namespace SimpleBinaryVCS.DataComponent
                 }
             }
         }
+
         /// <summary>
         /// Post Upload, Compute Hash value. 
         /// </summary>
@@ -180,11 +133,6 @@ namespace SimpleBinaryVCS.DataComponent
             {
                 asyncControl.Release();
             }
-        }
-
-        private void OnFileCreated(object sender, FileSystemEventArgs e)
-        {
-            return; 
         }
 
         public void RevertResponse(object obj)
@@ -243,7 +191,6 @@ namespace SimpleBinaryVCS.DataComponent
                     file.fileChangedState = FileChangedState.Deleted | FileChangedState.IntegrityChecked;
                     changedFileList.Add(file);
                 }
-                //Changed Files : Could Potentially run Async for the Md5 computation
                 foreach(string fileRelPath in intersectFiles)
                 {
                     string? fileHash = vcsManager.GetFileMD5CheckSum(vcsManager.ProjectData.projectPath, fileRelPath);
@@ -261,18 +208,12 @@ namespace SimpleBinaryVCS.DataComponent
                     }
                 }
                 fileIntegrityLog.AppendLine("Integrity Check Complete");
-                VersionCheckLog = fileIntegrityLog.ToString();
-
+                IntegrityCheckFinished?.Invoke(obj, fileIntegrityLog.ToString(), changedFileList);
             }
             catch (Exception Ex)
             {
                 System.Windows.MessageBox.Show($"{Ex.Message}. Couldn't Run File Integrity Check");
             }
-            var mainWindow = obj as WPF.Window;
-            IntegrityLogWindow logWindow = new IntegrityLogWindow(VersionCheckLog, changedFileList);
-            logWindow.Owner = mainWindow;
-            logWindow.WindowStartupLocation = WPF.WindowStartupLocation.CenterOwner;
-            logWindow.Show();
         }
 
         public async void RegisterNewFiles(string updateDirPath)
@@ -283,8 +224,9 @@ namespace SimpleBinaryVCS.DataComponent
                 filesFullPaths = Directory.GetFiles(updateDirPath, "*", SearchOption.AllDirectories);
 
             }
-            catch (Exception ex)
+            catch (Exception Ex)
             {
+                MessageBox.Show(Ex.Message);
                 filesFullPaths = null;
             }
             if (filesFullPaths == null)
@@ -292,11 +234,11 @@ namespace SimpleBinaryVCS.DataComponent
                 WPF.MessageBox.Show($"Couldn't get files from given Directory {updateDirPath}");
                 return;
             }
+
             try
             {
                 foreach (string fileAbsPath in filesFullPaths)
                 {
-                
                     var fileInfo = FileVersionInfo.GetVersionInfo(fileAbsPath);
                     ChangedFile newFile = new ChangedFile(
                         FileChangedState.None,
@@ -304,9 +246,9 @@ namespace SimpleBinaryVCS.DataComponent
                         Path.GetRelativePath(updateDirPath, fileAbsPath),
                         Path.GetFileName(fileAbsPath));
 
-                    if (!changedFilesDict.TryAdd(newFile.fileRelPath, newFile))
+                    if (!changedFilesDict.TryAdd(newFile.FileRelPath, newFile))
                     {
-                        WPF.MessageBox.Show($"Already Enlisted File {newFile.fileName}: for Update");
+                        WPF.MessageBox.Show($"Already Enlisted File {newFile.FileName}: for Update");
                     }
                     else continue; 
                 }
@@ -331,6 +273,37 @@ namespace SimpleBinaryVCS.DataComponent
     }
 }
 #region Deprecated 
+#region FileSystemWatcher Deprecated 
+//fileSystemWatcher = new FileSystemWatcher();
+//if (vcsManager.ProjectData.projectPath != null)
+//    fileSystemWatcher.Path = vcsManager.ProjectData.projectPath;
+//else
+//{
+//    System.Windows.MessageBox.Show("Has Invalid ProjectPath");
+//    return;
+//}
+//fileSystemWatcher.IncludeSubdirectories = true;
+//fileSystemWatcher.Created += OnFileCreated;
+//fileSystemWatcher.Changed += OnFileChanged;
+//fileSystemWatcher.Deleted += OnFileDeleted;
+//fileSystemWatcher.EnableRaisingEvents = true;
+//fileSystemWatcher.NotifyFilter =
+//    NotifyFilters.Attributes |
+//    NotifyFilters.CreationTime |
+//    NotifyFilters.LastWrite |
+//    NotifyFilters.FileName |
+//    NotifyFilters.Size; 
+
+//changeNotifyTimer.Interval = updateInterval;
+//changeNotifyTimer.Tick += OnTimerTicked;
+#endregion
+//public FileSystemWatcher? fileSystemWatcher { get; set; }
+//private DispatcherTimer changeNotifyTimer { get; set; } 
+//private TimeSpan updateInterval { get; set; }
+//private void OnFileCreated(object sender, FileSystemEventArgs e)
+//{
+//    return;
+//}
 //private void OnFileDeleted(object sender, FileSystemEventArgs e)
 //{
 //    try
