@@ -105,8 +105,8 @@ namespace SimpleBinaryVCS.Model
         {
             this.isNew = true;
             this.fileChangedState = fileChangedState; 
-            var fileInfo = FileVersionInfo.GetVersionInfo(changedFile.fileFullPath());
-            this.fileSize = new FileInfo(changedFile.fileFullPath()).Length;
+            var fileInfo = FileVersionInfo.GetVersionInfo(changedFile.FileAbsPath());
+            this.fileSize = new FileInfo(changedFile.FileAbsPath()).Length;
             this.fileBuildVersion = fileInfo.FileVersion;
             this.fileSrcPath = changedFile.fileSrcPath;
             this.fileName = changedFile.fileName;

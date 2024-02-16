@@ -1,20 +1,13 @@
-﻿using SimpleBinaryVCS.DataComponent;
-using SimpleBinaryVCS.Model;
-using System;
-using WinForms = System.Windows.Forms; 
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Input;
+﻿using MemoryPack;
 using Microsoft.TeamFoundation.MVVM;
-using Microsoft.TeamFoundation.Build.Client;
-using System.IO;
+using SimpleBinaryVCS.DataComponent;
+using SimpleBinaryVCS.Model;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
-using MemoryPack;
-using System.Runtime.CompilerServices;
-using SimpleBinaryVCS;
+using System.IO;
+using System.Text;
+using System.Windows.Input;
+using WinForms = System.Windows.Forms;
 
 namespace SimpleBinaryVCS.ViewModel
 {

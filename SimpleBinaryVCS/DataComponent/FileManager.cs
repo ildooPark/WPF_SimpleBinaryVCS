@@ -1,19 +1,10 @@
-﻿using Microsoft.TeamFoundation.Build.Client;
-using SimpleBinaryVCS.Model;
+﻿using SimpleBinaryVCS.Model;
 using SimpleBinaryVCS.View;
-using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
-using System.Drawing.Text;
 using System.IO;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using WPF = System.Windows;
-using System.Windows.Navigation;
-using System.Windows.Threading;
-using Microsoft.VisualBasic;
 
 namespace SimpleBinaryVCS.DataComponent
 {

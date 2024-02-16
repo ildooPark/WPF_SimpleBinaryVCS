@@ -1,19 +1,12 @@
 ﻿using MemoryPack;
 using Microsoft.TeamFoundation.MVVM;
-using Microsoft.TeamFoundation.VersionControl.Client;
 using SimpleBinaryVCS.DataComponent;
 using SimpleBinaryVCS.Model;
 using SimpleBinaryVCS.View;
-using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
-using System.Linq;
-using System.Runtime.Serialization;
-using System.Text;
-using System.Threading.Tasks;
-using WPF = System.Windows;
 using System.Windows.Input;
+using WPF = System.Windows;
 
 namespace SimpleBinaryVCS.ViewModel
 {
@@ -271,6 +264,7 @@ namespace SimpleBinaryVCS.ViewModel
             //Make new ProjectData for backup 
             if (App.VcsManager.ProjectData.projectPath == null) return;
             DirectoryInfo? parentDirectory = Directory.GetParent(vcsManager.ProjectData.projectPath);
+            if (parentDirectory != null) return;
             string backupSrcPath = $"{parentDirectory?.ToString()}\\Backup_{Path.GetFileName(vcsManager.ProjectData.projectPath)}\\Backup_{App.VcsManager.ProjectData.updatedVersion}";
             if (!File.Exists(backupSrcPath))
             {
@@ -299,7 +293,7 @@ namespace SimpleBinaryVCS.ViewModel
                 {
                     //if (file.fileChangedState == FileChangedState.Restored) continue;
                     ProjectFile newFile = new ProjectFile(file);
-                    string retrievablePath = backupManager.GetBackupPath(parentDirectory?.ToString(), vcsManager.ProjectData.projectName, file.deployedProjectVersion);
+                    string retrievablePath = backupManager.GetFileBackupPath(parentDirectory?.ToString(), vcsManager.ProjectData.projectName, file.deployedProjectVersion);
                     newFile.fileSrcPath = retrievablePath;
                     backUpData.DiffLog.Add(newFile);
                 }

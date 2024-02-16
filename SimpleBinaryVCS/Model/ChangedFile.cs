@@ -1,31 +1,36 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using SimpleBinaryVCS.DataComponent;
+using SimpleBinaryVCS.Interfaces;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using SimpleBinaryVCS.DataComponent;
 
 namespace SimpleBinaryVCS.Model
 {
-    public class ChangedFile
+    public class ChangedFile : IFile
     {
-        public FileChangedState fileChangedState;
-        public bool fileHashChecked;
-        public string fileSrcPath { get;set; }
-        public string fileRelPath {  get; set; }
-        public string fileName {  get; set; }
-        private string? fileHash; 
-        public string? FileHash 
+        private FileChangedState fileChangedState;
+        public FileChangedState State
         {
-            get => fileHash ??= ""; 
-            set
-            {
-                fileHash = value;
-                fileHashChecked = true; 
-            }
+            get => fileChangedState;
+            set => fileChangedState = value;
+        }
+        private string fileSrcPath { get;set; }
+        public string FileSrcPath { get => fileSrcPath; set => fileSrcPath = value; }
+
+        private string fileRelPath {  get; set; }
+        public string FileRelPath { get => fileRelPath; set => fileRelPath = value; }
+
+        private string fileName {  get; set; }
+        public string FileName { get => Path.GetFileName(fileSrcPath); }
+
+        private string? fileHash; 
+        public string FileHash 
+        {
+            get => fileHash ??= "";
+            set => fileHash = value; 
         }
         public DateTime changedTime {  get; set; }
+
+        public string FileAbsPath => $"{FileSrcPath}\\{FileRelPath}";
+
         /// <summary>
         /// Requires getting fileHash Value. 
         /// </summary>
@@ -40,19 +45,6 @@ namespace SimpleBinaryVCS.Model
             this.fileRelPath = fileRelPath;
             this.fileName = fileName;
             this.changedTime = DateTime.Now;
-            this.fileHashChecked = false;
-        }
-        public string fileFullPath()
-        {
-            try
-            {
-                return Path.Combine(fileSrcPath, fileRelPath);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Couldn't get File's Full Path {ex.Message}");
-                return "";
-            }
         }
     }
 }

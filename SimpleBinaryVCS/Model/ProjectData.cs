@@ -1,10 +1,6 @@
 ﻿using MemoryPack;
-using System;
-using System.Collections.Generic;
+using SimpleBinaryVCS.Interfaces;
 using System.Collections.ObjectModel;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace SimpleBinaryVCS.Model
 {
@@ -13,61 +9,37 @@ namespace SimpleBinaryVCS.Model
     {
         public string projectName { get; set; }
         public string projectPath { get; set; }
-        public string? updaterName {  get; set; }
+        public string updaterName { get; set; }
         public DateTime updatedTime { get; set; }
-        public string? updatedVersion {  get; set; }
+        public string updatedVersion { get; set; }
         public int revisionNumber { get; set; }
-        public string? updateLog { get; set; }
-        public string? changeLog { get; set; }
-        public int numberOfChanges {  get; set; }
-        private ObservableCollection<ProjectFile>? projectFiles; 
+        public string updateLog { get; set; }
+        public string changeLog { get; set; }
+        public int numberOfChanges { get; set; }
+        private ObservableCollection<ProjectFile> projectFiles; 
         public ObservableCollection<ProjectFile> ProjectFiles 
         { 
-            get
-            {
-                if (projectFiles == null)
-                {
-                    projectFiles = new ObservableCollection<ProjectFile>();
-                    return projectFiles;
-                }
-                else 
-                    return projectFiles;
-            }
-            set
-            { 
-                projectFiles = value; 
-            }
+            get => projectFiles ??= new ObservableCollection<ProjectFile>();
+            set => projectFiles = value; 
         }
-        private ObservableCollection<ProjectFile>? diffLog;
+        private ObservableCollection<ProjectFile> diffLog;
         public ObservableCollection<ProjectFile> DiffLog
         {
-            get
-            {
-                if (diffLog == null)
-                {
-                    diffLog = new ObservableCollection<ProjectFile>();
-                    return diffLog;
-                }
-                else
-                    return diffLog;
-            }
-            set
-            {
-                diffLog = value;
-            }
+            get => diffLog ??= new ObservableCollection<ProjectFile>();
+            set => diffLog = value;
         }
-        private List<ProjectData> projectDataList;
+        private List<ProjectData>? projectDataList;
         public List<ProjectData> ProjectDataList 
         { 
             get => projectDataList ??= (projectDataList = new List<ProjectData>());
-            set
-            {
-                projectDataList = value;
-            }
+            set => projectDataList = value; 
         }
+        public Dictionary<string, IFile> backupFiles;
 
         [MemoryPackConstructor]
-        public ProjectData() 
+#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
+        public ProjectData()
+#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         { 
         }
 
@@ -82,15 +54,15 @@ namespace SimpleBinaryVCS.Model
             this.updateLog = srcProjectData.updateLog;
             this.changeLog = srcProjectData.changeLog;
             this.numberOfChanges = srcProjectData.numberOfChanges;
-            this.ProjectFiles = new ObservableCollection<ProjectFile>();
+            this.projectFiles = new ObservableCollection<ProjectFile>();
 
             if (!isRevert)
             {
-                this.DiffLog = new ObservableCollection<ProjectFile>();
+                this.diffLog = new ObservableCollection<ProjectFile>();
             }
             else
             {
-                this.DiffLog = new ObservableCollection<ProjectFile>(srcProjectData.DiffLog);
+                this.diffLog = new ObservableCollection<ProjectFile>(srcProjectData.DiffLog);
             }
         }
 
@@ -115,7 +87,7 @@ namespace SimpleBinaryVCS.Model
             return 1; 
         }
 
-        public void RegisterProjectToDict(Dictionary<string, object> dict)
+        public void RegisterProjectInfo(Dictionary<string, object> dict)
         {
             dict.Add(nameof(this.projectName), this.projectName);
             dict.Add(nameof(this.projectPath), this.projectPath);

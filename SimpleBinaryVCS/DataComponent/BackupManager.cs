@@ -1,10 +1,4 @@
-﻿using SimpleBinaryVCS.Model;
-using System;
-using System.Text.Json;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using SimpleBinaryVCS.Interfaces;
 using System.IO;
 
 namespace SimpleBinaryVCS.DataComponent
@@ -15,27 +9,28 @@ namespace SimpleBinaryVCS.DataComponent
         // First tracks the json file in a given Path Directory 
         // if Json file not found, then set the bool to null 
 
-        private Dictionary<string, ProjectFile> projectFiles;
-        public Dictionary<string, ProjectFile> ProjectFiles { get => projectFiles; }
+        private Dictionary<string, IFile> backupFiles;
+        public Dictionary<string, IFile> BackupFiles { get => backupFiles; set => backupFiles = value; }
 
         public Action? RevertAction; 
         public BackupManager()
         {
-            projectFiles = new Dictionary<string, ProjectFile>();
+            backupFiles = new Dictionary<string, IFile>();
         }
 
         // Save BackUp 
-        private void SaveVersion()
-        {
-            string jsonFile = JsonSerializer.Serialize(projectFiles);
-            File.WriteAllText("testFile", jsonFile);
-        }
 
-        public string GetBackupPath(string parentPath, string projectName,  string projectVersion)
+        public string GetFileBackupPath(string parentPath, string projectName,  string projectVersion)
         {
             string backupPath = $"{parentPath}\\Backup_{Path.GetFileName(projectName)}\\Backup_{projectVersion}";
             return backupPath; 
         }
 
+        public void UpdateBackupData(IFile backupFile)
+        {
+            //Try Adding 
+            //Else, Update Backup Path Info 
+
+        }
     }
 }

@@ -1,13 +1,7 @@
 ﻿using SimpleBinaryVCS.Model;
-using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Security.Cryptography;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace SimpleBinaryVCS.DataComponent
 {
@@ -100,7 +94,7 @@ namespace SimpleBinaryVCS.DataComponent
                 {
                     MessageBox.Show("Failed to Initialize MD5 Async");
                 }
-                using (var srcStream = File.OpenRead(file.fileFullPath()))
+                using (var srcStream = File.OpenRead(file.FileAb))
                 {
                     srcHashBytes = await md5.ComputeHashAsync(srcStream);
                 }

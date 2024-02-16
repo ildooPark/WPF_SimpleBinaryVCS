@@ -62,7 +62,7 @@ namespace SimpleBinaryVCS.ViewModel
         public VersionCheckViewModel(ProjectData projectData)
         {
             _projectDataDetail = new Dictionary<string, object>();
-            projectData.RegisterProjectToDict(ProjectDataDetail);
+            projectData.RegisterProjectInfo(ProjectDataDetail);
             this.fileList = projectData.ProjectFiles;
             this.changeLog = projectData.changeLog ?? "Undefined";
             this.updateLog = projectData.updateLog ?? "Undefined";
