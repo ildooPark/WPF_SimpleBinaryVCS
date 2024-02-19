@@ -175,7 +175,7 @@ namespace SimpleBinaryVCS.ViewModel
         {
             if (obj is ProjectFile file)
             {
-                fileManager.RegisterNewfile(file, FileChangedState.Restored);
+                fileManager.RegisterNewfile(file, DataChangedState.Restored);
             }
         }
         private void Revert(object obj)
@@ -234,16 +234,15 @@ namespace SimpleBinaryVCS.ViewModel
 
                     Directory.CreateDirectory(newSrcPath);
 
-                    foreach (ProjectFile file in revertData.ProjectFiles)
+                    foreach (ProjectFile datum in revertData.ProjectFiles)
                     {
                         try
                         {
-                            string newFilePath = $"{newSrcPath}\\{file.fileRelPath}";
+                            string newFilePath = $"{newSrcPath}\\{datum.DataRelPath}";
                             if (!File.Exists(Path.GetDirectoryName(newFilePath) ?? "")) Directory.CreateDirectory(Path.GetDirectoryName(newFilePath) ?? "");
-                            File.Copy(file.fileFullPath(), newFilePath, true);
-                            ProjectFile newFile = new ProjectFile(file);
-                            newFile.fileSrcPath = newSrcPath;
-                            revertedData.ProjectFiles.Add(newFile);
+                            File.Copy(datum.DataAbsPath, newFilePath, true);
+                            ProjectFile newData = new ProjectFile(datum);
+                            revertedData.ProjectFiles.Add(newData);
                             
                         }
                         catch (Exception Ex)
@@ -281,16 +280,15 @@ namespace SimpleBinaryVCS.ViewModel
 
                 Directory.CreateDirectory(backupSrcPath);
 
-                foreach (ProjectFile file in vcsManager.CurrentProjectData.ProjectFiles)
+                foreach (ProjectFile data in vcsManager.CurrentProjectData.ProjectFiles)
                 {
                     try
                     {
-                        string newBackupFullPath = $"{backupSrcPath}\\{file.fileRelPath}";
+                        string newBackupFullPath = $"{backupSrcPath}\\{data.DataRelPath}";
                         if (!File.Exists(Path.GetDirectoryName(newBackupFullPath) ?? "")) 
                             Directory.CreateDirectory(Path.GetDirectoryName(newBackupFullPath) ?? "");
-                        File.Copy(file.fileFullPath(), newBackupFullPath, true);
-                        ProjectFile newFile = new ProjectFile(file);
-                        newFile.fileSrcPath = backupSrcPath;
+                        File.Copy(data.DataAbsPath, newBackupFullPath, true);
+                        ProjectFile newFile = new ProjectFile(data);
                         newFile.IsNew = false;
                         backUpData.ProjectFiles.Add(newFile);
                     }
@@ -303,7 +301,6 @@ namespace SimpleBinaryVCS.ViewModel
                 {
                     ProjectFile newFile = new ProjectFile(file);
                     string retrievablePath = backupManager.GetFileBackupPath(parentDirectory.ToString(), vcsManager.CurrentProjectData.ProjectName, file.DeployedProjectVersion);
-                    newFile.FileSrcPath = retrievablePath;
                     backUpData.ChangedFiles.Add(newFile);
                 }
                 backUpData.ProjectPath = backupSrcPath;

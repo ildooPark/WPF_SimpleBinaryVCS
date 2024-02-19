@@ -1,5 +1,4 @@
 ﻿using SimpleBinaryVCS.Model;
-using SimpleBinaryVCS.View;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
@@ -9,7 +8,7 @@ using WPF = System.Windows;
 namespace SimpleBinaryVCS.DataComponent
 {
     [Flags]
-    public enum FileChangedState
+    public enum DataChangedState
     {
         None = 0,
         Added = 1,
@@ -21,13 +20,6 @@ namespace SimpleBinaryVCS.DataComponent
     }
     public class FileManager
     {
-        // Dependent on UploadManager, and VcsManager 
-        private bool fileChangeDetected; 
-        public bool FileChangeDetected
-        {
-            get => fileChangeDetected;
-            set => fileChangeDetected = value; 
-        }
         private readonly object dictLock = new object();
         public Action? ClearFiles;
         public Action? requestFetchPull;
@@ -35,7 +27,7 @@ namespace SimpleBinaryVCS.DataComponent
         public Action<object, string, ObservableCollection<ProjectFile>>? IntegrityCheckFinished;
 
         private Dictionary<string, ProjectFile> projectFilesDict;
-        private Dictionary<string, TrackedFile> changedFilesDict;
+        private Dictionary<string, TrackedData> changedFilesDict;
         private SemaphoreSlim asyncControl;
         private ObservableCollection<ProjectFile> changedFileList;
         public ObservableCollection<ProjectFile> ChangedFileList
@@ -50,11 +42,11 @@ namespace SimpleBinaryVCS.DataComponent
             vcsManager = App.VcsManager;
             changedFileList = new ObservableCollection<ProjectFile>();
             projectFilesDict = new Dictionary<string, ProjectFile>();
-            changedFilesDict = new Dictionary<string, TrackedFile>();
+            changedFilesDict = new Dictionary<string, TrackedData>();
             //changeNotifyTimer = new DispatcherTimer();
             //updateInterval = TimeSpan.FromSeconds(15);
             asyncControl = new SemaphoreSlim(5); 
-            vcsManager.projectLoaded += ActivateFileWatcher;
+            vcsManager.projectLoaded += SetUpFileTracker;
             vcsManager.updateAction += UpdateResponse; 
         }
 
@@ -63,34 +55,34 @@ namespace SimpleBinaryVCS.DataComponent
             return;
         }
 
-        public void ActivateFileWatcher(object obj)
+        public void SetUpFileTracker(object obj)
         {
             projectFilesDict.Clear(); 
             changedFilesDict.Clear();
             changedFileList.Clear();
             foreach (ProjectFile file in vcsManager.CurrentProjectData.ProjectFiles)
             {
-                projectFilesDict.Add(file.fileRelPath, file);
+                projectFilesDict.Add(file.DataRelPath, file);
             }
         }
 
         private void UpdateChangedList()
         {
-            foreach (TrackedFile file in changedFilesDict.Values)
+            foreach (TrackedData file in changedFilesDict.Values)
             {
                 //compare the hash value, and if its the same, request to remove that file. 
-                if (projectFilesDict.TryGetValue(file.FileRelPath, out var correspondingFile))
+                if (projectFilesDict.TryGetValue(file.DataRelPath, out var correspondingFile))
                 {
-                    if (correspondingFile.fileHash != file.FileHash)
+                    if (correspondingFile.DataHash != file.DataHash)
                     {
-                        ProjectFile newFile = new ProjectFile(file, FileChangedState.Modified);
+                        ProjectFile newFile = new ProjectFile(file, DataChangedState.Modified);
                         changedFileList.Add(newFile);
                     }
                     else continue;
                 }
                 else
                 {
-                    ProjectFile newFile = new ProjectFile(file, FileChangedState.Added);
+                    ProjectFile newFile = new ProjectFile(file, DataChangedState.Added);
                     changedFileList.Add(newFile);
                 }
             }
@@ -104,7 +96,7 @@ namespace SimpleBinaryVCS.DataComponent
             try
             {
                 //Update changedFilesDict
-                foreach (TrackedFile file in changedFilesDict.Values)
+                foreach (TrackedData file in changedFilesDict.Values)
                 {
                     await asyncControl.WaitAsync();
                     await vcsManager.GetFileMD5CheckSumAsync(file);
@@ -118,7 +110,7 @@ namespace SimpleBinaryVCS.DataComponent
             
         }
 
-        private async Task GetChangedFileHashAsync(TrackedFile file)
+        private async Task GetChangedFileHashAsync(TrackedData file)
         {
             try
             {
@@ -145,6 +137,7 @@ namespace SimpleBinaryVCS.DataComponent
         {
             RunIntegrityCheck(obj);
         }
+
         /// <summary>
         /// Based on File's given relative path to the project, 
         /// runs File Integrity Test against recorded Project Version to Current Project Directory files.
@@ -158,29 +151,46 @@ namespace SimpleBinaryVCS.DataComponent
             {
                 StringBuilder fileIntegrityLog = new StringBuilder();
                 fileIntegrityLog.AppendLine($"Conducting Version Integrity Check on {vcsManager.CurrentProjectData.UpdatedVersion}");
+                
                 List<string> recordedFiles = new List<string>();
+                List<string> recordedDirs = new List<string>();
                 List<string> directoryFiles = new List<string>();
+                List<string> directoryDirs = new List<string>();
 
                 foreach (ProjectFile file in projectFilesDict.Values)
                 {
-                    recordedFiles.Add(file.fileRelPath);
+                    recordedFiles.Add(file.DataRelPath);
+                    string? relDirPath = Path.GetDirectoryName(file.DataRelPath); 
+                    if (relDirPath != null)
+                        recordedDirs.Add(relDirPath); 
                 }
+
                 string[]? rawFiles = Directory.GetFiles(vcsManager.CurrentProjectData.ProjectPath, "*", SearchOption.AllDirectories);
                 foreach (string absPathFile in rawFiles)
                 {
                     directoryFiles.Add(Path.GetRelativePath(vcsManager.CurrentProjectData.ProjectPath, absPathFile));
                 }
-                IEnumerable<string> newlyAddedFiles = directoryFiles.Except(recordedFiles);
+                
+                string[]? rawDirs = Directory.GetDirectories(vcsManager.CurrentProjectData.ProjectPath, "*", SearchOption.AllDirectories);
+                foreach (string absPathFile in rawFiles)
+                {
+                    directoryDirs.Add(Path.GetRelativePath(vcsManager.CurrentProjectData.ProjectPath, absPathFile));
+                }
+                
+                IEnumerable<string> addedFiles = directoryFiles.Except(recordedFiles);
+                IEnumerable<string> addedDirs = directoryDirs.Except(recordedDirs);
+
                 IEnumerable<string> deletedFiles = recordedFiles.Except(directoryFiles);
+                IEnumerable<string> deletedDirs = recordedDirs.Except(directoryDirs);
+
                 IEnumerable<string> intersectFiles = recordedFiles.Intersect(directoryFiles);
 
-                foreach (string fileRelPath in newlyAddedFiles)
+                foreach (string fileRelPath in addedFiles)
                 {
                     if (fileRelPath == "VersionLog.bin") continue; 
                     fileIntegrityLog.AppendLine($"{fileRelPath} has been Added");
-                    //Add to the ChangedFileList 
                     string? fileHash = vcsManager.GetFileMD5CheckSum(vcsManager.CurrentProjectData.ProjectPath, fileRelPath);
-                    ProjectFile file = new ProjectFile(vcsManager.CurrentProjectData.ProjectPath, fileRelPath, fileHash, FileChangedState.Added | FileChangedState.IntegrityChecked);
+                    ProjectFile file = new ProjectFile(vcsManager.CurrentProjectData.ProjectPath, fileRelPath, fileHash, DataChangedState.Added | DataChangedState.IntegrityChecked);
                     changedFileList.Add(file);
                 }
 
@@ -188,22 +198,22 @@ namespace SimpleBinaryVCS.DataComponent
                 {
                     fileIntegrityLog.AppendLine($"{fileRelPath} has been Deleted");
                     ProjectFile file = projectFilesDict[fileRelPath];
-                    file.fileState = FileChangedState.Deleted | FileChangedState.IntegrityChecked;
+                    file.DataState = DataChangedState.Deleted | DataChangedState.IntegrityChecked;
                     changedFileList.Add(file);
                 }
                 foreach(string fileRelPath in intersectFiles)
                 {
                     string? fileHash = vcsManager.GetFileMD5CheckSum(vcsManager.CurrentProjectData.ProjectPath, fileRelPath);
-                    if (projectFilesDict[fileRelPath].fileHash != fileHash)
+                    if (projectFilesDict[fileRelPath].DataHash != fileHash)
                     {
-                        fileIntegrityLog.AppendLine($"File {projectFilesDict[fileRelPath].fileName} on {fileRelPath} has been modified");
+                        fileIntegrityLog.AppendLine($"File {projectFilesDict[fileRelPath].DataName} on {fileRelPath} has been modified");
                         var fileVersionInfo = FileVersionInfo.GetVersionInfo(Path.Combine(vcsManager.CurrentProjectData.ProjectPath, fileRelPath));
 
                         ProjectFile file = new ProjectFile(projectFilesDict[fileRelPath]); 
-                        file.fileState = FileChangedState.Modified | FileChangedState.IntegrityChecked;
-                        file.fileHash = fileHash;
+                        file.DataState = DataChangedState.Modified | DataChangedState.IntegrityChecked;
+                        file.DataHash = fileHash;
                         file.IsNew = true;
-                        file.UpdatedTime = new FileInfo(file.fileFullPath()).LastAccessTime; 
+                        file.UpdatedTime = new FileInfo(file.DataAbsPath).LastAccessTime; 
                         changedFileList.Add(file);
                     }
                 }
@@ -240,15 +250,15 @@ namespace SimpleBinaryVCS.DataComponent
                 foreach (string fileAbsPath in filesFullPaths)
                 {
                     var fileInfo = FileVersionInfo.GetVersionInfo(fileAbsPath);
-                    TrackedFile newFile = new TrackedFile(
-                        FileChangedState.None,
+                    TrackedData newFile = new TrackedData(
+                        DataChangedState.None,
                         updateDirPath,
                         Path.GetRelativePath(updateDirPath, fileAbsPath),
                         Path.GetFileName(fileAbsPath));
 
-                    if (!changedFilesDict.TryAdd(newFile.FileRelPath, newFile))
+                    if (!changedFilesDict.TryAdd(newFile.DataRelPath, newFile))
                     {
-                        WPF.MessageBox.Show($"Already Enlisted File {newFile.FileName}: for Update");
+                        WPF.MessageBox.Show($"Already Enlisted File {newFile.DataName}: for Update");
                     }
                     else continue; 
                 }
@@ -263,11 +273,11 @@ namespace SimpleBinaryVCS.DataComponent
             changedFilesDict.Clear();
         }
 
-        public void RegisterNewfile(ProjectFile projectFile, FileChangedState state)
+        public void RegisterNewfile(ProjectFile projectFile, DataChangedState fileState)
         {
             ProjectFile newfile = new ProjectFile(projectFile);
             newfile.IsNew = true;
-            newfile.fileState = state;
+            newfile.DataState = fileState;
             changedFileList.Add(newfile);
         }
     }

@@ -1,12 +1,11 @@
 ﻿using MemoryPack;
 using SimpleBinaryVCS.Model;
-using WinForms = System.Windows.Forms;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
-using Microsoft.TeamFoundation.Build.Client;
+using WinForms = System.Windows.Forms;
 
 namespace SimpleBinaryVCS.DataComponent
 {
@@ -40,13 +39,15 @@ namespace SimpleBinaryVCS.DataComponent
         }
         public ProjectData? NewestProjectData { get; private set; }
         public ObservableCollection<ProjectData> ProjectDataList { get; private set; }
+#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         public VersionControlManager()
+#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         {
             currentProjectData = new ProjectData();
             ProjectDataList = new ObservableCollection<ProjectData>();
         }
 
-        #region MD5 CheckSum
+        #region Binary Comparision Through MD5 CheckSum
         /// <summary>
         /// Returns true if content is the same. 
         /// </summary>
@@ -99,7 +100,7 @@ namespace SimpleBinaryVCS.DataComponent
             md5.Dispose(); 
             return BitConverter.ToString(srcHashBytes).Replace("-", "");
         }
-        public async Task GetFileMD5CheckSumAsync(TrackedFile file)
+        public async Task GetFileMD5CheckSumAsync(TrackedData file)
         {
             try
             {
@@ -110,17 +111,17 @@ namespace SimpleBinaryVCS.DataComponent
                     MessageBox.Show("Failed to Initialize MD5 Async");
                     return;
                 }
-                using (var srcStream = File.OpenRead(file.FileAbsPath))
+                using (var srcStream = File.OpenRead(file.DataAbsPath))
                 {
                     srcHashBytes = await md5.ComputeHashAsync(srcStream);
                 }
                 string resultHash = BitConverter.ToString(srcHashBytes).Replace("-", "");
-                file.FileHash = resultHash;
+                file.DataHash = resultHash;
                 md5.Dispose();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error occured {ex.Message} \nwhile Computing hash async by this file {file.FileName}");
+                MessageBox.Show($"Error occured {ex.Message} \nwhile Computing hash async by this file {file.DataName}");
             }
         }
         public async Task<string?> GetFileMD5CheckSumAsync(string fileFullPath)
@@ -149,6 +150,7 @@ namespace SimpleBinaryVCS.DataComponent
             }
         }
         #endregion
+        #region Setup Project 
         public bool TryRetrieveProject(string projectPath)
         {
             var openFD = new WinForms.FolderBrowserDialog();
@@ -190,7 +192,7 @@ namespace SimpleBinaryVCS.DataComponent
                 if (result == DialogResult.Yes)
                 {
                     InitializeProject(openFD.SelectedPath);
-                    projectInitialized?.Invoke(currentProjectData);
+                    projectInitialized?.Invoke(CurrentProjectData);
                 }
                 else
                 {
@@ -220,14 +222,14 @@ namespace SimpleBinaryVCS.DataComponent
                     projectFilePath,
                     Path.GetRelativePath(projectFilePath, filePath),
                     fileInfo.FileVersion,
-                    FileChangedState.Added
+                    DataChangedState.Added
                     );
 
-                newFile.FileHash = GetFileMD5CheckSum(projectFilePath, filePath);
+                newFile.DataHash = GetFileMD5CheckSum(projectFilePath, filePath);
                 newFile.DeployedProjectVersion = newProjectData.UpdatedVersion;
                 newProjectData.ProjectFiles.Add(newFile);
                 newProjectData.ChangedFiles.Add(newFile);
-                changeLog.AppendLine($"Added {newFile.fileName}");
+                changeLog.AppendLine($"Added {newFile.dataName}");
             }
             newProjectData.UpdatedTime = DateTime.Now;
             newProjectData.ChangeLog = changeLog.ToString();
@@ -239,7 +241,9 @@ namespace SimpleBinaryVCS.DataComponent
             CurrentVersion = CurrentProjectData.UpdatedVersion;
             vcsManager.updateAction?.Invoke(projectFilePath);
         }
-        
+        #endregion
+        #region Version Management Tools
+
         private string GetprojectDataVersionName()
         {
             if (NewestProjectData == null || 
@@ -250,7 +254,7 @@ namespace SimpleBinaryVCS.DataComponent
             }
             return $"{Environment.MachineName}_{DateTime.Now.ToString("yyyy_MM_dd")}_v{++ProjectRepository.RevisionNumber}";
         }
-        public void CompareVersion(ProjectData srcData,  ProjectData dstData)
+        public void CompareVersion(ProjectData srcData, ProjectData dstData)
         {
             try
             {
@@ -258,7 +262,7 @@ namespace SimpleBinaryVCS.DataComponent
                 fileIntegrityLog.AppendLine($"Conducting Version Integrity Check on {CurrentProjectData.UpdatedVersion}");
                 List<string> recordedFiles = new List<string>();
                 List<string> directoryFiles = new List<string>();
-                
+
                 // Sort files, 
                 // Fitting to the SrcFiles, 
                 // Files which is not on the Dst 
@@ -275,7 +279,7 @@ namespace SimpleBinaryVCS.DataComponent
                     if (fileRelPath == "VersionLog.bin") continue;
                     fileIntegrityLog.AppendLine($"{fileRelPath} has been Added");
                     string? fileHash = GetFileMD5CheckSum(CurrentProjectData.ProjectPath, fileRelPath);
-                    ProjectFile file = new ProjectFile(CurrentProjectData.ProjectPath, fileRelPath, fileHash, FileChangedState.Added | FileChangedState.IntegrityChecked);
+                    ProjectFile file = new ProjectFile(CurrentProjectData.ProjectPath, fileRelPath, fileHash, DataChangedState.Added | DataChangedState.IntegrityChecked);
                     changedFileList.Add(file);
                 }
 
@@ -283,7 +287,7 @@ namespace SimpleBinaryVCS.DataComponent
                 {
                     fileIntegrityLog.AppendLine($"{fileRelPath} has been Deleted");
                     ProjectFile file = projectFilesDict[fileRelPath];
-                    file.fileState = FileChangedState.Deleted | FileChangedState.IntegrityChecked;
+                    file.dataState = DataChangedState.Deleted | DataChangedState.IntegrityChecked;
                     changedFileList.Add(file);
                 }
                 foreach (string fileRelPath in intersectFiles)
@@ -295,8 +299,8 @@ namespace SimpleBinaryVCS.DataComponent
                         var fileVersionInfo = FileVersionInfo.GetVersionInfo(Path.Combine(CurrentProjectData.ProjectPath, fileRelPath));
 
                         ProjectFile file = new ProjectFile(projectFilesDict[fileRelPath]);
-                        file.fileState = FileChangedState.Modified | FileChangedState.IntegrityChecked;
-                        file.fileHash = fileHash;
+                        file.dataState = DataChangedState.Modified | DataChangedState.IntegrityChecked;
+                        file.dataHash = fileHash;
                         file.IsNew = true;
                         file.UpdatedTime = new FileInfo(file.fileFullPath()).LastAccessTime;
                         changedFileList.Add(file);
@@ -310,14 +314,17 @@ namespace SimpleBinaryVCS.DataComponent
                 System.Windows.MessageBox.Show($"{Ex.Message}. Couldn't Run File Integrity Check");
             }
         }
+
+        #endregion
         /// <summary>
         /// Preceded by the backup of the current Project
         /// </summary>
         /// <param name="obj"></param>
-        private void UpdateProject(object obj)
+        private void UponUpdateRequest(object obj)
         {
-            //
-            
+            // 1. Make Physical changes to the files 
+            // 2. Make 
+            // 3. Call for new Fetch Action 
         }
         private void TryGetAllFiles(string directoryPath, out string[]? files)
         {
@@ -333,6 +340,7 @@ namespace SimpleBinaryVCS.DataComponent
         }
 
         #region Planned
+        #region Exports
         /// <summary>
         /// Input: Requested Project Data 
         /// Output: All the project files, including projectData meta file
@@ -348,6 +356,7 @@ namespace SimpleBinaryVCS.DataComponent
         {
 
         }
+        #endregion
         #endregion
     }
 }

@@ -26,12 +26,12 @@ namespace SimpleBinaryVCS.DataComponent
         }
 
         public Dictionary<string, ProjectFile> changedFileListDict;
-        private Queue<TrackedFile> changedFileListQueue;
+        private Queue<TrackedData> changedFileListQueue;
 
         public FileTrackManager()
         {
             changedFileList = new ObservableCollection<ProjectFile>();
-            changedFileListQueue = new Queue<TrackedFile>();
+            changedFileListQueue = new Queue<TrackedData>();
             changedFileListDict = new Dictionary<string, ProjectFile>();
         }
         

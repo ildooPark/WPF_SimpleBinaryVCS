@@ -1,6 +1,4 @@
 ﻿using MemoryPack;
-using SimpleBinaryVCS.Interfaces;
-using System.Collections;
 using System.Collections.ObjectModel;
 using System.IO;
 
@@ -73,9 +71,7 @@ namespace SimpleBinaryVCS.Model
                 MessageBox.Show("Invalid Comparison, ProjectData Cannot be Null");
                 return 0;
             }
-            if (x.revisionNumber.CompareTo(y.revisionNumber) == 0) 
-                return x.UpdatedTime.CompareTo(y.UpdatedTime);
-            return x.revisionNumber.CompareTo(y.revisionNumber);
+            return x.UpdatedTime.CompareTo(y.UpdatedTime);
         }
 
         public int CompareTo(ProjectData? other)
@@ -85,10 +81,7 @@ namespace SimpleBinaryVCS.Model
                 MessageBox.Show("Invalid Comparison, ProjectData Cannot be Null");
                 return 0;
             }
-            if (this.revisionNumber.CompareTo(other.revisionNumber) == 0)
-                return this.UpdatedTime.CompareTo(other.UpdatedTime);
-            if (this.revisionNumber > other.revisionNumber) return -1;
-            return 1; 
+            return this.UpdatedTime.CompareTo(other.UpdatedTime);
         }
 
         public void RegisterProjectInfo(Dictionary<string, object> dict)
@@ -102,17 +95,16 @@ namespace SimpleBinaryVCS.Model
             dict.Add(nameof(this.NumberOfChanges), this.NumberOfChanges);
         }
 
-        public List<string> GetProjectDirPaths()
+        public List<string> GetProjectRelDirs()
         {
-            LinkedList<ProjectData> nodeList = new LinkedList<ProjectData>(); 
             List<string> dirPaths = new List<string>();
             foreach (ProjectFile file in ProjectFiles)
             {
-
-                if (Path.GetDirectoryName(file.FileRelPath) == null || 
-                    Path.GetDirectoryName(file.FileRelPath) == string.Empty)
+                string? dirPath = Path.GetDirectoryName(file.DataRelPath); 
+                if (dirPath == null ||
+                    dirPath == string.Empty)
                     continue;
-                dirPaths.Add(Path.GetDirectoryName(file.FileRelPath));
+                dirPaths.Add(dirPath);
             }
             return dirPaths;
         }
@@ -122,7 +114,7 @@ namespace SimpleBinaryVCS.Model
             List<string> filePaths = new List<string>();
             foreach (ProjectFile file in ProjectFiles)
             {
-                filePaths.Add(file.FileRelPath);
+                filePaths.Add(file.DataRelPath);
             }
             return filePaths;
         }

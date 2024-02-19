@@ -246,46 +246,28 @@
                         </Style>
                     </ListView.ItemContainerStyle>
                 </ListView>
+
                 <StackPanel Grid.Row="2">
                     <StackPanel Orientation="Vertical">
-                        <!--#region --><!--<Button
-                        x:Name="UploadButton"
-                        Content="Upload Files" 
-                        Height="20"
-                        Margin="20, 5, 20, 0"
-                        Command="{Binding FileTrackVM.ConductUpload}"
-                        /> --><!--#endregion-->
                         <Button
-                         x:Name="ClearButton"
-                         Content="Clear New Files" 
-                         Height="20"
-                         Margin="20, 5, 20, 0"
-                         Command="{Binding FileTrackVM.ClearNewfiles}"
-                         />
-                        <!--<Button
-                         x:Name="RefreshButton"
-                         Content="Refresh" 
-                         Height="20"
-                         Margin="20, 5, 20, 0"
-                         Command="{Binding VcsVM.GetLocalChanges}"
-                         />-->
+                            x:Name="ClearButton"
+                            Content="Clear New Files" 
+                            Height="20"
+                            Command="{Binding FileTrackVM.ClearNewfiles}"
+                            />
                         <Button
-                         x:Name="UpdateButton"
-                         Content="Update" 
-                         Height="20"
-                         Margin="20, 5, 20, 0"
-                         Command="{Binding VcsVM.ConductUpdate}"
-                         />
+                            x:Name="StageButton"
+                            Content="Stage For Update" 
+                            Height="20"
+                            Command="{Binding VcsVM.ConductUpdate}"
+                            />
+                        <Button
+                            x:Name="UpdateButton"
+                            Content="Update" 
+                            Height="20"
+                            Command="{Binding VcsVM.ConductUpdate}"
+                            />
                     </StackPanel>
-                    <!--<StackPanel Orientation="Horizontal">
-                        <Label Name="LocalChanges"
-                               FontSize="9"
-                               FontStyle="Italic"
-                               Content="New Detected Local Changes"/>
-                        <Label Name="LocalChangesInt"
-                               FontSize="9"
-                               Content="{Binding FileTrackVM.DetectedFileChange}"/>
-                    </StackPanel>-->
                 </StackPanel>
             </Grid>
         </Grid>
@@ -333,20 +315,7 @@
                 Height="Auto" 
                 Command="{Binding FileTrackVM.CheckProjectIntegrity}"
                 Width="Auto" />
-            <!--<StackPanel  -->
-            <!-- Grid.Column="1"                                                                              -->
-            <!-- Orientation="Horizontal"                                                                     -->
-            <!-- >                                                                                            -->
-            <!-- <StackPanel Orientation="Vertical">                                                          -->
-            <!-- <Label Name="DiskUsage" HorizontalAlignment="Center" Content="Disk Usage Rate" Width="Auto"/>-->
-            <!-- <ProgressBar HorizontalAlignment="Center" Height="10" Width="100"/>                          -->
-            <!-- </StackPanel>                                                                                -->
-            <!--<Button                                                   -->
-            <!--    Name ="IntegrityCheckButton"                          -->
-            <!--    Content="Version Integrity Check"                     -->
-            <!--    HorizontalAlignment="Right"                           -->
-            <!--    Command="{Binding FileTrackVM.CheckProjectIntegrity}"/-->
-            <!--</StackPanel>-->
+
             <StackPanel 
                 Grid.Column="2"
                 Orientation="Horizontal" Grid.ColumnSpan="2"

@@ -1,7 +1,6 @@
 ﻿using SimpleBinaryVCS.Interfaces;
 using SimpleBinaryVCS.Model;
 using System.IO;
-using System.Runtime.CompilerServices;
 
 namespace SimpleBinaryVCS.DataComponent
 {
@@ -11,12 +10,12 @@ namespace SimpleBinaryVCS.DataComponent
         // First tracks the json file in a given Path Directory 
         // if Json file not found, then set the bool to null 
 
-        private Dictionary<string, IFile> backupFiles;
+        private Dictionary<string, IProjectData> backupFiles;
         /// <summary>
         /// key : file Hash Value 
         /// Value : IFile, which may include TrackedFiles, or ProjectFiles 
         /// </summary>
-        public Dictionary<string, IFile> BackupFiles { get => backupFiles; set => backupFiles = value; }
+        public Dictionary<string, IProjectData> BackupFiles { get => backupFiles; set => backupFiles = value; }
 
         public Action? RevertAction;
 
@@ -27,7 +26,6 @@ namespace SimpleBinaryVCS.DataComponent
             vcsManager = App.VcsManager; 
             fileManager = App.FileManager;
             backupFiles = vcsManager.ProjectRepository.BackupFiles;
-            backupFiles = new Dictionary<string, IFile>();
 
             vcsManager.projectInitialized += 
         }
@@ -60,7 +58,7 @@ namespace SimpleBinaryVCS.DataComponent
             return backupPath; 
         }
 
-        public void UpdateBackupData(IFile backupFile)
+        public void UpdateBackupData(IProjectData backupFile)
         {
             //Try Adding 
             //Else, Update Backup Path Info 

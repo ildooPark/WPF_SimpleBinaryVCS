@@ -1,19 +1,10 @@
-﻿using SimpleBinaryVCS.DataComponent;
+﻿using Microsoft.TeamFoundation.MVVM;
+using SimpleBinaryVCS.DataComponent;
 using SimpleBinaryVCS.Model;
-using Microsoft.TeamFoundation.MVVM;
-using WinForms = System.Windows.Forms;
-using WPF = System.Windows; 
-using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Input;
-using System.IO;
-using System.Diagnostics;
 using SimpleBinaryVCS.View;
-using System.Reflection.Metadata;
+using System.Collections.ObjectModel;
+using System.Windows.Input;
+using WPF = System.Windows;
 
 namespace SimpleBinaryVCS.ViewModel
 {
@@ -83,7 +74,7 @@ namespace SimpleBinaryVCS.ViewModel
             List<ProjectFile> clearList = new List<ProjectFile>();
             foreach (ProjectFile file in ChangedFileList)
             {
-                if ((file.fileState & FileChangedState.IntegrityChecked) == 0)
+                if ((file.dataState & DataChangedState.IntegrityChecked) == 0)
                 {
                     clearList.Add(file);
                 }

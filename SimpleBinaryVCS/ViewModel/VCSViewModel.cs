@@ -3,7 +3,6 @@ using Microsoft.TeamFoundation.MVVM;
 using SimpleBinaryVCS.DataComponent;
 using SimpleBinaryVCS.Model;
 using System.Collections.ObjectModel;
-using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Windows.Input;
@@ -184,7 +183,7 @@ namespace SimpleBinaryVCS.ViewModel
                 
                 int srcIndex = projectFiles.IndexOf(fileManager.ChangedFileList[i]);
                 //Integrity Version Check
-                if ((fileManager.ChangedFileList[i].fileState & FileChangedState.IntegrityChecked) != 0)
+                if ((fileManager.ChangedFileList[i].dataState & DataChangedState.IntegrityChecked) != 0)
                 {
                     RegisterFileChange(fileManager.ChangedFileList[i], srcIndex, changeLog);
                     continue;
@@ -219,11 +218,11 @@ namespace SimpleBinaryVCS.ViewModel
             if (fileIndex == -1)
             {
                 file.DeployedProjectVersion = ProjectData.UpdatedVersion;
-                file.fileSrcPath = ProjectData.ProjectPath;
+                file.dataSrcPath = ProjectData.ProjectPath;
                 vcsManager.CurrentProjectData.ProjectFiles.Add(file);
                 vcsManager.CurrentProjectData.ChangedFiles.Add(file);
                 ProjectData.NumberOfChanges++;
-                changeLog.AppendLine($"File {file.fileName} on {file.fileRelPath} has been {file.fileChangedState.ToString()}");
+                changeLog.AppendLine($"File {file.dataName} on {file.DataRelPath} has been {file.fileChangedState.ToString()}");
             }
             else
             {
@@ -231,10 +230,10 @@ namespace SimpleBinaryVCS.ViewModel
                 projectFiles[fileIndex].IsNew = false;
                 ProjectData.ChangedFiles.Add(file);
                 ProjectData.ChangedFiles.Add(projectFiles[fileIndex]);
-                file.fileSrcPath = projectFiles[fileIndex].fileSrcPath;
-                changeLog.AppendLine($"File {file.fileName} on {file.fileRelPath} has been {file.fileChangedState.ToString()}");
-                changeLog.AppendLine($"From : Build Version: {projectFiles[fileIndex].FileBuildVersion} Hash : {projectFiles[fileIndex].fileHash}");
-                changeLog.AppendLine($"To : Build Version: {file.FileBuildVersion} Hash : {file.fileHash}");
+                file.dataSrcPath = projectFiles[fileIndex].dataSrcPath;
+                changeLog.AppendLine($"File {file.dataName} on {file.DataRelPath} has been {file.fileChangedState.ToString()}");
+                changeLog.AppendLine($"From : Build Version: {projectFiles[fileIndex].BuildVersion} Hash : {projectFiles[fileIndex].dataHash}");
+                changeLog.AppendLine($"To : Build Version: {file.BuildVersion} Hash : {file.dataHash}");
                 projectFiles[fileIndex] = file;
                 ProjectData.NumberOfChanges++;
 
@@ -244,7 +243,7 @@ namespace SimpleBinaryVCS.ViewModel
 
         private void ReallocateFile(ProjectFile file)
         {
-            if (file.fileState == FileChangedState.Deleted)
+            if (file.dataState == DataChangedState.Deleted)
             {
                 try
                 {
@@ -267,7 +266,7 @@ namespace SimpleBinaryVCS.ViewModel
             }
             try
             {
-                string newFilePath = $"{ProjectData.ProjectPath}\\{file.fileRelPath}";
+                string newFilePath = $"{ProjectData.ProjectPath}\\{file.DataRelPath}";
 
                 if (!File.Exists(Path.GetDirectoryName(newFilePath)))
                 {
@@ -277,7 +276,7 @@ namespace SimpleBinaryVCS.ViewModel
                     }
                     catch (Exception Ex)
                     {
-                        MessageBox.Show($"{Ex.Message} \nNo Directory Needed for this new File {file.fileName}");
+                        MessageBox.Show($"{Ex.Message} \nNo Directory Needed for this new File {file.dataName}");
                     }
                 }
                 File.Copy(file.fileFullPath(), newFilePath, true);
