@@ -1,11 +1,10 @@
-﻿using Microsoft.TeamFoundation.MVVM;
-using SimpleBinaryVCS.DataComponent;
+﻿using SimpleBinaryVCS.DataComponent;
 using SimpleBinaryVCS.Model;
 using SimpleBinaryVCS.View;
 using System.Collections.ObjectModel;
 using System.Windows.Input;
 using WPF = System.Windows;
-
+using SimpleBinaryVCS.Utils;
 namespace SimpleBinaryVCS.ViewModel
 {
     public enum VMState

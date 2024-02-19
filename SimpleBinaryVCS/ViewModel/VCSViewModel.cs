@@ -1,7 +1,7 @@
 ﻿using MemoryPack;
-using Microsoft.TeamFoundation.MVVM;
 using SimpleBinaryVCS.DataComponent;
 using SimpleBinaryVCS.Model;
+using SimpleBinaryVCS.Utils;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Text;
@@ -218,11 +218,11 @@ namespace SimpleBinaryVCS.ViewModel
             if (fileIndex == -1)
             {
                 file.DeployedProjectVersion = ProjectData.UpdatedVersion;
-                file.dataSrcPath = ProjectData.ProjectPath;
+                //file.DataSrcPath = ProjectData.ProjectPath;
                 vcsManager.CurrentProjectData.ProjectFiles.Add(file);
                 vcsManager.CurrentProjectData.ChangedFiles.Add(file);
                 ProjectData.NumberOfChanges++;
-                changeLog.AppendLine($"File {file.dataName} on {file.DataRelPath} has been {file.fileChangedState.ToString()}");
+                changeLog.AppendLine($"File {file.DataName} on {file.DataRelPath} has been {file.DataState.ToString()}");
             }
             else
             {
@@ -230,10 +230,10 @@ namespace SimpleBinaryVCS.ViewModel
                 projectFiles[fileIndex].IsNew = false;
                 ProjectData.ChangedFiles.Add(file);
                 ProjectData.ChangedFiles.Add(projectFiles[fileIndex]);
-                file.dataSrcPath = projectFiles[fileIndex].dataSrcPath;
-                changeLog.AppendLine($"File {file.dataName} on {file.DataRelPath} has been {file.fileChangedState.ToString()}");
+                //file.DataSrcPath = projectFiles[fileIndex].DataSrcPath;
+                changeLog.AppendLine($"File {file.DataName} on {file.DataRelPath} has been {file.DataState.ToString()}");
                 changeLog.AppendLine($"From : Build Version: {projectFiles[fileIndex].BuildVersion} Hash : {projectFiles[fileIndex].dataHash}");
-                changeLog.AppendLine($"To : Build Version: {file.BuildVersion} Hash : {file.dataHash}");
+                changeLog.AppendLine($"To : Build Version: {file.BuildVersion} Hash : {file.DataHash}");
                 projectFiles[fileIndex] = file;
                 ProjectData.NumberOfChanges++;
 
@@ -243,24 +243,24 @@ namespace SimpleBinaryVCS.ViewModel
 
         private void ReallocateFile(ProjectFile file)
         {
-            if (file.dataState == DataChangedState.Deleted)
+            if (file.DataState == DataChangedState.Deleted)
             {
                 try
                 {
-                    if (File.Exists(file.fileFullPath()))
+                    if (File.Exists(file.DataAbsPath))
                     {
                         // Delete the file if it exists
-                        File.Delete(file.fileFullPath());
+                        File.Delete(file.DataAbsPath);
                     }
-                    else if (Directory.Exists(file.fileFullPath()))
+                    else if (Directory.Exists(file.DataAbsPath))
                     {
                         // Delete the directory if it exists
-                        Directory.Delete(file.fileFullPath(), true); // true for recursive deletion
+                        Directory.Delete(file.DataAbsPath, true); // true for recursive deletion
                     }
                 }
-                catch (Exception Ex)
+                catch (Exception ex)
                 {
-                    MessageBox.Show($"Line VCS 267: {Ex.Message}");
+                    MessageBox.Show($"Line VCS 267: {ex.Message}");
                 }
                 return; 
             }
@@ -274,16 +274,16 @@ namespace SimpleBinaryVCS.ViewModel
                     {
                         Directory.CreateDirectory(Path.GetDirectoryName(newFilePath) ?? "");
                     }
-                    catch (Exception Ex)
+                    catch (Exception ex)
                     {
-                        MessageBox.Show($"{Ex.Message} \nNo Directory Needed for this new File {file.dataName}");
+                        MessageBox.Show($"{ex.Message} \nNo Directory Needed for this new File {file.dataName}");
                     }
                 }
-                File.Copy(file.fileFullPath(), newFilePath, true);
+                File.Copy(file.DataAbsPath, newFilePath, true);
             }
-            catch (Exception Ex)
+            catch (Exception ex)
             {
-                MessageBox.Show($"Line VCS 290: {Ex.Message}");
+                MessageBox.Show($"Line VCS 290: {ex.Message}");
             }
         }
         
@@ -302,7 +302,7 @@ namespace SimpleBinaryVCS.ViewModel
             string projectDataBin;
             if (openFD.ShowDialog() == DialogResult.OK)
             {
-                vcsManager.mainProjectPath = openFD.SelectedPath;
+                vcsManager.currentProjectPath = openFD.SelectedPath;
                 ProjectData.ProjectPath = openFD.SelectedPath;
                 ProjectData.ProjectName = Path.GetFileName(openFD.SelectedPath);
             }

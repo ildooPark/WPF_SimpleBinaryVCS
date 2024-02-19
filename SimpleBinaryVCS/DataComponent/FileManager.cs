@@ -117,9 +117,9 @@ namespace SimpleBinaryVCS.DataComponent
                 await asyncControl.WaitAsync();
                 await vcsManager.GetFileMD5CheckSumAsync(file);
             }
-            catch (Exception Ex)
+            catch (Exception ex)
             {
-                MessageBox.Show(Ex.Message);
+                MessageBox.Show(ex.Message);
             }
             finally
             {
@@ -201,6 +201,7 @@ namespace SimpleBinaryVCS.DataComponent
                     file.DataState = DataChangedState.Deleted | DataChangedState.IntegrityChecked;
                     changedFileList.Add(file);
                 }
+
                 foreach(string fileRelPath in intersectFiles)
                 {
                     string? fileHash = vcsManager.GetFileMD5CheckSum(vcsManager.CurrentProjectData.ProjectPath, fileRelPath);
@@ -220,9 +221,9 @@ namespace SimpleBinaryVCS.DataComponent
                 fileIntegrityLog.AppendLine("Integrity Check Complete");
                 IntegrityCheckFinished?.Invoke(obj, fileIntegrityLog.ToString(), changedFileList);
             }
-            catch (Exception Ex)
+            catch (Exception ex)
             {
-                System.Windows.MessageBox.Show($"{Ex.Message}. Couldn't Run File Integrity Check");
+                System.Windows.MessageBox.Show($"{ex.Message}. Couldn't Run File Integrity Check");
             }
         }
 
@@ -234,9 +235,9 @@ namespace SimpleBinaryVCS.DataComponent
                 filesFullPaths = Directory.GetFiles(updateDirPath, "*", SearchOption.AllDirectories);
 
             }
-            catch (Exception Ex)
+            catch (Exception ex)
             {
-                MessageBox.Show(Ex.Message);
+                MessageBox.Show(ex.Message);
                 filesFullPaths = null;
             }
             if (filesFullPaths == null)
@@ -263,9 +264,9 @@ namespace SimpleBinaryVCS.DataComponent
                     else continue; 
                 }
             }
-            catch (Exception Ex)
+            catch (Exception ex)
             {
-                WPF.MessageBox.Show(Ex.Message);
+                WPF.MessageBox.Show(ex.Message);
                 return;
             }
             await UpdateHashFromChangedList();

@@ -1,8 +1,8 @@
 ﻿using MemoryPack;
-using Microsoft.TeamFoundation.MVVM;
 using SimpleBinaryVCS.DataComponent;
 using SimpleBinaryVCS.Model;
 using SimpleBinaryVCS.View;
+using SimpleBinaryVCS.Utils; 
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Windows.Input;
@@ -115,15 +115,14 @@ namespace SimpleBinaryVCS.ViewModel
         private void Fetch(object obj)
         {
             SelectedItem = null;
-            vcsManager.NewestProjectData = null; 
             importProjects.Clear(); 
             BackupProjectDataList.Clear();
             //Set up Current Project at Main 
-            if (vcsManager.mainProjectPath == null) return;
+            if (vcsManager.currentProjectPath == null) return;
             try
             {
-                DirectoryInfo? parentPath = Directory.GetParent(vcsManager.mainProjectPath);
-                string[] mainVersionLog = Directory.GetFiles(vcsManager.mainProjectPath, "VersionLog.*", SearchOption.AllDirectories);
+                DirectoryInfo? parentPath = Directory.GetParent(vcsManager.currentProjectPath);
+                string[] mainVersionLog = Directory.GetFiles(vcsManager.currentProjectPath, "VersionLog.*", SearchOption.AllDirectories);
                 ProjectData? mainProjectData = MemoryPackSerializer.Deserialize<ProjectData>(File.ReadAllBytes(mainVersionLog[0]));
                 if (mainProjectData == null) return;
                 vcsManager.CurrentProjectData = mainProjectData;
@@ -137,7 +136,6 @@ namespace SimpleBinaryVCS.ViewModel
                     if (data == null) continue;
                     importProjects.Enqueue(data, data);
                 }
-                vcsManager.NewestProjectData = importProjects.Dequeue();
                 BackupProjectDataList.Add(vcsManager.NewestProjectData);
                 int importProjectCount = importProjects.Count;
                 for (int i = 0; i < importProjectCount; i++)
@@ -145,9 +143,9 @@ namespace SimpleBinaryVCS.ViewModel
                     BackupProjectDataList.Add(importProjects.Dequeue());
                 }
             }
-            catch (Exception Ex)
+            catch (Exception ex)
             {
-                MessageBox.Show($"BUVM 150 {Ex.Message}");
+                MessageBox.Show($"BUVM 150 {ex.Message}");
             }
         }
 
@@ -194,7 +192,7 @@ namespace SimpleBinaryVCS.ViewModel
                 MakeBackUp(obj);
                 //1-2. Delete all the files in the current Directory 
                 //1-2. Compare Main with Revision Version 
-                DeleteAllInDirectory(vcsManager.mainProjectPath ?? "");
+                DeleteAllInDirectory(vcsManager.currentProjectPath ?? "");
                 //2. Transfer the ProjectData to Current
                 RevertBackupToMain(selectedItem);
                 //3. Set Selected ProjectData as Current Project Data 
@@ -220,12 +218,12 @@ namespace SimpleBinaryVCS.ViewModel
 
         private void RevertBackupToMain(ProjectData revertData)
         {
-            if (string.IsNullOrEmpty(vcsManager.mainProjectPath))
+            if (string.IsNullOrEmpty(vcsManager.currentProjectPath))
             {
                 MessageBox.Show("Main Project Path is Empty");
                 return;
             }
-            string newSrcPath = vcsManager.mainProjectPath;
+            string newSrcPath = vcsManager.currentProjectPath;
             try
             {
                 if (!File.Exists(newSrcPath))
@@ -245,9 +243,9 @@ namespace SimpleBinaryVCS.ViewModel
                             revertedData.ProjectFiles.Add(newData);
                             
                         }
-                        catch (Exception Ex)
+                        catch (Exception ex)
                         {
-                            MessageBox.Show($"Line BU 256: {Ex.Message}");
+                            MessageBox.Show($"Line BU 256: {ex.Message}");
                         }
                     }
                     revertedData.ProjectPath = newSrcPath;
@@ -256,9 +254,9 @@ namespace SimpleBinaryVCS.ViewModel
                 }
                 else return;
             }
-            catch (Exception Ex)
+            catch (Exception ex)
             {
-                MessageBox.Show($"BUVM RevertBackupToMain {Ex.Message}");
+                MessageBox.Show($"BUVM RevertBackupToMain {ex.Message}");
             }
             
         }
@@ -292,9 +290,9 @@ namespace SimpleBinaryVCS.ViewModel
                         newFile.IsNew = false;
                         backUpData.ProjectFiles.Add(newFile);
                     }
-                    catch (Exception Ex)
+                    catch (Exception ex)
                     {
-                        MessageBox.Show($"Line BU 263: {Ex.Message}");
+                        MessageBox.Show($"Line BU 263: {ex.Message}");
                     }
                 }
                 foreach (ProjectFile file in vcsManager.CurrentProjectData.ChangedFiles)

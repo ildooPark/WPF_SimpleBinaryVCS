@@ -44,6 +44,7 @@ namespace SimpleBinaryVCS.Model
             this.UpdaterName = srcProjectData.UpdaterName;
             this.UpdatedTime = srcProjectData.UpdatedTime;
             this.UpdatedVersion = srcProjectData.UpdatedVersion;
+            this.ConductedPC = srcProjectData.ConductedPC;
             this.UpdateLog = srcProjectData.UpdateLog;
             this.ChangeLog = srcProjectData.ChangeLog;
             this.NumberOfChanges = srcProjectData.NumberOfChanges;
@@ -95,7 +96,7 @@ namespace SimpleBinaryVCS.Model
             dict.Add(nameof(this.NumberOfChanges), this.NumberOfChanges);
         }
 
-        public List<string> GetProjectRelDirs()
+        public List<string> ProjectRelDirs()
         {
             List<string> dirPaths = new List<string>();
             foreach (ProjectFile file in ProjectFiles)
@@ -109,7 +110,7 @@ namespace SimpleBinaryVCS.Model
             return dirPaths;
         }
 
-        public List<string> GetProjectFileRelPaths()
+        public List<string> ProjectFileRelPaths()
         {
             List<string> filePaths = new List<string>();
             foreach (ProjectFile file in ProjectFiles)

@@ -38,7 +38,7 @@ namespace SimpleBinaryVCS.Model
         public string DataName => dataName;
 
         [MemoryPackIgnore]
-        public string DataAbsPath => Path.Combine(dataSrcPath,dataRelPath);
+        public string DataAbsPath => Path.Combine(DataSrcPath,dataRelPath);
 
         [MemoryPackIgnore]
         public DataChangedState DataState { get => dataState; set => dataState = value; }
@@ -98,7 +98,7 @@ namespace SimpleBinaryVCS.Model
             this.DataSize = srdData.DataSize;
             this.dataName = srdData.dataName;
             this.BuildVersion = srdData.BuildVersion;
-            this.dataSrcPath= srdData.dataSrcPath;
+            this.dataSrcPath = srdData.DataSrcPath;
             this.dataRelPath = srdData.DataRelPath;
             this.dataHash = srdData.dataHash;
             this.DeployedProjectVersion = srdData.DeployedProjectVersion;
@@ -162,6 +162,11 @@ namespace SimpleBinaryVCS.Model
         /// < returns ></ returns >
         public bool Equals(ProjectFile? other)
         {
+            if (other == null)
+            {
+                MessageBox.Show($"Presented ProjectFile is Null for comparision with {this.DataName}"); 
+                return false;
+            }
             //if (other?.fileRelPath == this.fileRelPath) 
             //    return other.fileHash == this.fileHash;
             return other.DataRelPath == this.DataRelPath;
