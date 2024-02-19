@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.TeamFoundation.Build.Client;
 
 namespace SimpleBinaryVCS.DataComponent
 {
@@ -15,8 +16,11 @@ namespace SimpleBinaryVCS.DataComponent
         public Action<object>? updateAction;
         public Action<object>? revertAction;
         public Action<object>? pullAction;
-        public Action<ProjectData>? projectLoadAction;
         public Action<object>? fetchAction;
+
+        public Action<ProjectData>? projectLoaded;
+        public Action<object>? projectInitialized;
+
         public Action? versionCheckFinished;
         private ProjectRepository projectRepository; 
         public ProjectRepository ProjectRepository
@@ -31,7 +35,7 @@ namespace SimpleBinaryVCS.DataComponent
             set
             {
                 currentProjectData = value;
-                projectLoadAction?.Invoke(currentProjectData);
+                projectLoaded?.Invoke(currentProjectData);
             }
         }
         public ProjectData? NewestProjectData { get; private set; }
@@ -186,6 +190,7 @@ namespace SimpleBinaryVCS.DataComponent
                 if (result == DialogResult.Yes)
                 {
                     InitializeProject(openFD.SelectedPath);
+                    projectInitialized?.Invoke(currentProjectData);
                 }
                 else
                 {
@@ -234,6 +239,7 @@ namespace SimpleBinaryVCS.DataComponent
             CurrentVersion = CurrentProjectData.UpdatedVersion;
             vcsManager.updateAction?.Invoke(projectFilePath);
         }
+        
         private string GetprojectDataVersionName()
         {
             if (NewestProjectData == null || 
@@ -304,6 +310,15 @@ namespace SimpleBinaryVCS.DataComponent
                 System.Windows.MessageBox.Show($"{Ex.Message}. Couldn't Run File Integrity Check");
             }
         }
+        /// <summary>
+        /// Preceded by the backup of the current Project
+        /// </summary>
+        /// <param name="obj"></param>
+        private void UpdateProject(object obj)
+        {
+            //
+            
+        }
         private void TryGetAllFiles(string directoryPath, out string[]? files)
         {
             try
@@ -316,5 +331,23 @@ namespace SimpleBinaryVCS.DataComponent
                 files = null;
             }
         }
+
+        #region Planned
+        /// <summary>
+        /// Input: Requested Project Data 
+        /// Output: All the project files, including projectData meta file
+        /// in a @.projectParentDir/Exports/ProjectVersion
+        /// </summary>
+        /// <param name="projectData"></param>
+        public void ExportProject(ProjectData projectData)
+        {
+            // Requests for all the registerd project files, 
+            // Copy paste to the 
+        }
+        public void ExportProjectRepo(ProjectRepository projectRepository)
+        {
+
+        }
+        #endregion
     }
 }

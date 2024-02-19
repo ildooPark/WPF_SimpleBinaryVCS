@@ -80,7 +80,7 @@
                 </DataGrid>
                 <DataGrid Grid.Row="2"
                     Name="DiffLog" 
-                    ItemsSource='{Binding BackupVM.SelectedItem.DiffLog}'
+                    ItemsSource='{Binding BackupVM.SelectedItem.ChangedFiles}'
                     BorderBrush="#cdcdcd"
                     ScrollViewer.CanContentScroll="True"
                     ScrollViewer.VerticalScrollBarVisibility="Auto"
@@ -90,11 +90,12 @@
                     AutoGenerateColumns="False"
                     >
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="Filename" Binding="{Binding fileName}" Width ="2*"/>
-                        <DataGridTextColumn Header="Version" Binding="{Binding fileSrcPath}" Width ="2*"/>
-                        <DataGridTextColumn Header="Build Version" Binding="{Binding fileBuildVersion}" Width ="2*"/>
-                        <DataGridTextColumn Header="Changed Date" Binding="{Binding updatedTime}" Width ="3*"/>
-                        <DataGridTextColumn Header="HashValue" Binding="{Binding fileHash}" Width ="1*"/>
+                        <DataGridTextColumn Header="Filename" Binding="{Binding FileName}" Width ="2*"/>
+                        <DataGridTextColumn Header="Version" Binding="{Binding FileSrcPath}" Width ="2*"/>
+                        <DataGridTextColumn Header="Build Version" Binding="{Binding FileBuildVersion}" Width ="2*"/>
+                        <DataGridTextColumn Header="Changed Date" Binding="{Binding UpdatedTime}" Width ="3*"/>
+                        <DataGridTextColumn Header="HashValue" Binding="{Binding FileHash}" Width ="1*"/>
+                        <DataGridTextColumn Header="ChangedState" Binding="{Binding FileState}" Width ="1*"/>
                         <DataGridTemplateColumn Header="Restore">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>

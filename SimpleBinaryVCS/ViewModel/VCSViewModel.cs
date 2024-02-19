@@ -117,7 +117,7 @@ namespace SimpleBinaryVCS.ViewModel
             fileManager = App.FileManager;
             backupManager = App.BackupManager;
             vcsManager.fetchAction += FetchResponse;
-            vcsManager.projectLoadAction += ProjectLoadResponse;
+            vcsManager.projectLoaded += ProjectLoadResponse;
             backupManager.RevertAction += RevertResponse;
             fileManager.newLocalFileChange += OnNewLocalFileChange;
             detectedFileChange = 0; 

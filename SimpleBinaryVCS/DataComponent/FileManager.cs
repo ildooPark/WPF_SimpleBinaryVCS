@@ -54,7 +54,7 @@ namespace SimpleBinaryVCS.DataComponent
             //changeNotifyTimer = new DispatcherTimer();
             //updateInterval = TimeSpan.FromSeconds(15);
             asyncControl = new SemaphoreSlim(5); 
-            vcsManager.projectLoadAction += ActivateFileWatcher;
+            vcsManager.projectLoaded += ActivateFileWatcher;
             vcsManager.updateAction += UpdateResponse; 
         }
 

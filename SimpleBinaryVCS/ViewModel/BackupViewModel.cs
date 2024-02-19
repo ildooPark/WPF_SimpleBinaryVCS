@@ -303,7 +303,7 @@ namespace SimpleBinaryVCS.ViewModel
                 {
                     ProjectFile newFile = new ProjectFile(file);
                     string retrievablePath = backupManager.GetFileBackupPath(parentDirectory.ToString(), vcsManager.CurrentProjectData.ProjectName, file.DeployedProjectVersion);
-                    newFile.fileSrcPath = retrievablePath;
+                    newFile.FileSrcPath = retrievablePath;
                     backUpData.ChangedFiles.Add(newFile);
                 }
                 backUpData.ProjectPath = backupSrcPath;
