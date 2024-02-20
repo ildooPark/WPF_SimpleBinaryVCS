@@ -1,4 +1,6 @@
-﻿using SimpleBinaryVCS.Model;
+﻿using SimpleBinaryVCS.Interfaces;
+using SimpleBinaryVCS.Model;
+using SimpleBinaryVCS.Utils;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
@@ -46,8 +48,8 @@ namespace SimpleBinaryVCS.DataComponent
             //changeNotifyTimer = new DispatcherTimer();
             //updateInterval = TimeSpan.FromSeconds(15);
             asyncControl = new SemaphoreSlim(5); 
-            vcsManager.projectLoaded += SetUpFileTracker;
-            vcsManager.updateAction += UpdateResponse; 
+            vcsManager.ProjectLoaded += SetUpFileTracker;
+            vcsManager.UpdateAction += UpdateResponse; 
         }
 
         private void UpdateResponse(object obj)
@@ -99,7 +101,7 @@ namespace SimpleBinaryVCS.DataComponent
                 foreach (TrackedData file in changedFilesDict.Values)
                 {
                     await asyncControl.WaitAsync();
-                    await vcsManager.GetFileMD5CheckSumAsync(file);
+                    await HashTool.GetFileMD5CheckSumAsync(file);
                     asyncControl.Release();
                 }
             }
@@ -115,7 +117,7 @@ namespace SimpleBinaryVCS.DataComponent
             try
             {
                 await asyncControl.WaitAsync();
-                await vcsManager.GetFileMD5CheckSumAsync(file);
+                await HashTool.GetFileMD5CheckSumAsync(file);
             }
             catch (Exception ex)
             {
@@ -189,7 +191,7 @@ namespace SimpleBinaryVCS.DataComponent
                 {
                     if (fileRelPath == "VersionLog.bin") continue; 
                     fileIntegrityLog.AppendLine($"{fileRelPath} has been Added");
-                    string? fileHash = vcsManager.GetFileMD5CheckSum(vcsManager.CurrentProjectData.ProjectPath, fileRelPath);
+                    string? fileHash = HashTool.GetFileMD5CheckSum(vcsManager.CurrentProjectData.ProjectPath, fileRelPath);
                     ProjectFile file = new ProjectFile(vcsManager.CurrentProjectData.ProjectPath, fileRelPath, fileHash, DataChangedState.Added | DataChangedState.IntegrityChecked);
                     changedFileList.Add(file);
                 }
@@ -204,7 +206,7 @@ namespace SimpleBinaryVCS.DataComponent
 
                 foreach(string fileRelPath in intersectFiles)
                 {
-                    string? fileHash = vcsManager.GetFileMD5CheckSum(vcsManager.CurrentProjectData.ProjectPath, fileRelPath);
+                    string? fileHash = HashTool.GetFileMD5CheckSum(vcsManager.CurrentProjectData.ProjectPath, fileRelPath);
                     if (projectFilesDict[fileRelPath].DataHash != fileHash)
                     {
                         fileIntegrityLog.AppendLine($"File {projectFilesDict[fileRelPath].DataName} on {fileRelPath} has been modified");
@@ -230,19 +232,21 @@ namespace SimpleBinaryVCS.DataComponent
         public async void RegisterNewFiles(string updateDirPath)
         {
             string[]? filesFullPaths;
+            string[]? dirsFullPaths;
             try
             {
                 filesFullPaths = Directory.GetFiles(updateDirPath, "*", SearchOption.AllDirectories);
-
+                dirsFullPaths = Directory.GetDirectories(updateDirPath, "*", SearchOption.AllDirectories);
             }
             catch (Exception ex)
             {
                 MessageBox.Show(ex.Message);
                 filesFullPaths = null;
+                dirsFullPaths = null;
             }
-            if (filesFullPaths == null)
+            if (filesFullPaths == null || dirsFullPaths == null)
             {
-                WPF.MessageBox.Show($"Couldn't get files from given Directory {updateDirPath}");
+                WPF.MessageBox.Show($"Couldn't get files or directories from given Directory {updateDirPath}");
                 return;
             }
 
@@ -252,6 +256,7 @@ namespace SimpleBinaryVCS.DataComponent
                 {
                     var fileInfo = FileVersionInfo.GetVersionInfo(fileAbsPath);
                     TrackedData newFile = new TrackedData(
+                        ProjectDataType.File,
                         DataChangedState.None,
                         updateDirPath,
                         Path.GetRelativePath(updateDirPath, fileAbsPath),
@@ -262,6 +267,10 @@ namespace SimpleBinaryVCS.DataComponent
                         WPF.MessageBox.Show($"Already Enlisted File {newFile.DataName}: for Update");
                     }
                     else continue; 
+                }
+                foreach (string dirAbsPath in dirsFullPaths)
+                {
+
                 }
             }
             catch (Exception ex)

@@ -29,22 +29,18 @@ namespace SimpleBinaryVCS.Model
         #endregion
         #region [MemoryPackIgnore]
         [MemoryPackIgnore]
+        public DataChangedState DataState { get => dataState; set => dataState = value; }
+        [MemoryPackIgnore]
+        public string DataName => dataName;
+        [MemoryPackIgnore]
         public string DataSrcPath => dataSrcPath;
 
         [MemoryPackIgnore]
         public string DataRelPath => dataRelPath;
-
-        [MemoryPackIgnore]
-        public string DataName => dataName;
-
-        [MemoryPackIgnore]
-        public string DataAbsPath => Path.Combine(DataSrcPath,dataRelPath);
-
-        [MemoryPackIgnore]
-        public DataChangedState DataState { get => dataState; set => dataState = value; }
-
         [MemoryPackIgnore]
         public string DataHash { get => dataHash; set => dataHash = value; }
+        [MemoryPackIgnore]
+        public string DataAbsPath => Path.Combine(dataSrcPath, dataRelPath);
         #endregion
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
@@ -91,19 +87,20 @@ namespace SimpleBinaryVCS.Model
         /// <summary>
         /// Deep Copy of ProjectFile
         /// </summary>
-        /// <param name="srdData">Copying File</param>
-        public ProjectFile(ProjectFile srdData)
+        /// <param name="srcData">Copying File</param>
+        public ProjectFile(ProjectFile srcData)
         {
-            this.IsNew = srdData.IsNew;
-            this.DataSize = srdData.DataSize;
-            this.dataName = srdData.dataName;
-            this.BuildVersion = srdData.BuildVersion;
-            this.dataSrcPath = srdData.DataSrcPath;
-            this.dataRelPath = srdData.DataRelPath;
-            this.dataHash = srdData.dataHash;
-            this.DeployedProjectVersion = srdData.DeployedProjectVersion;
-            this.UpdatedTime = srdData.UpdatedTime;
-            this.dataState = srdData.dataState;
+            this.IsNew = srcData.IsNew;
+            this.DataType = srcData.DataType;
+            this.DataSize = srcData.DataSize;
+            this.BuildVersion = srcData.BuildVersion;
+            this.DeployedProjectVersion = srcData.DeployedProjectVersion;
+            this.UpdatedTime = srcData.UpdatedTime;
+            this.dataState = srcData.DataState;
+            this.dataName = srcData.DataName;
+            this.dataSrcPath = srcData.DataSrcPath;
+            this.dataRelPath = srcData.DataRelPath;
+            this.dataHash = srcData.DataHash;
         }
 
         public ProjectFile(string fileSrcPath, string fileRelPath, string fileHash, DataChangedState state)
@@ -117,7 +114,7 @@ namespace SimpleBinaryVCS.Model
             this.dataSrcPath = fileSrcPath; 
             this.dataName = Path.GetFileName(fileFullPath);
             this.dataRelPath = fileRelPath;
-            this.dataHash= fileHash;
+            this.dataHash = fileHash;
             this.UpdatedTime = DateTime.Now;
             this.dataState = state;
         }
@@ -164,7 +161,7 @@ namespace SimpleBinaryVCS.Model
         {
             if (other == null)
             {
-                MessageBox.Show($"Presented ProjectFile is Null for comparision with {this.DataName}"); 
+                MessageBox.Show($"Presented ProjectFile is Null for comparision with {this.N}"); 
                 return false;
             }
             //if (other?.fileRelPath == this.fileRelPath) 

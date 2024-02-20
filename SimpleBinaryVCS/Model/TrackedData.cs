@@ -7,12 +7,13 @@ namespace SimpleBinaryVCS.Model
 
     public class TrackedData : IProjectData
     {
+        public ProjectDataType DataType { get; set; }
+
         private DataChangedState dataChangedState;
         public DataChangedState DataState{ get => dataChangedState; set => dataChangedState = value;}
 
         private readonly string dataSrcPath;
         public string DataSrcPath => dataSrcPath;
-
 
         private readonly string dataRelPath;
         public string DataRelPath => dataRelPath;
@@ -26,7 +27,6 @@ namespace SimpleBinaryVCS.Model
         public string DataHash { get => dataHash ??= ""; set => dataHash = value; }
 
         public DateTime ChangedTime { get; set; }
-        public ProjectDataType DataType { get; set; }
 
 
         /// <summary>

@@ -99,8 +99,8 @@ namespace SimpleBinaryVCS.ViewModel
         {
             importProjects = new PriorityQueue<ProjectData, ProjectData>(); 
             vcsManager = App.VcsManager;
-            vcsManager.updateAction += MakeBackUp;
-            vcsManager.fetchAction += Fetch;
+            vcsManager.UpdateAction += MakeBackUp;
+            vcsManager.FetchAction += Fetch;
             backupProjectDataList = vcsManager.ProjectDataList;
             fileManager = App.FileManager;
             backupManager = App.BackupManager;
@@ -118,11 +118,11 @@ namespace SimpleBinaryVCS.ViewModel
             importProjects.Clear(); 
             BackupProjectDataList.Clear();
             //Set up Current Project at Main 
-            if (vcsManager.currentProjectPath == null) return;
+            if (vcsManager.CurrentProjectPath == null) return;
             try
             {
-                DirectoryInfo? parentPath = Directory.GetParent(vcsManager.currentProjectPath);
-                string[] mainVersionLog = Directory.GetFiles(vcsManager.currentProjectPath, "VersionLog.*", SearchOption.AllDirectories);
+                DirectoryInfo? parentPath = Directory.GetParent(vcsManager.CurrentProjectPath);
+                string[] mainVersionLog = Directory.GetFiles(vcsManager.CurrentProjectPath, "VersionLog.*", SearchOption.AllDirectories);
                 ProjectData? mainProjectData = MemoryPackSerializer.Deserialize<ProjectData>(File.ReadAllBytes(mainVersionLog[0]));
                 if (mainProjectData == null) return;
                 vcsManager.CurrentProjectData = mainProjectData;
@@ -192,7 +192,7 @@ namespace SimpleBinaryVCS.ViewModel
                 MakeBackUp(obj);
                 //1-2. Delete all the files in the current Directory 
                 //1-2. Compare Main with Revision Version 
-                DeleteAllInDirectory(vcsManager.currentProjectPath ?? "");
+                DeleteAllInDirectory(vcsManager.CurrentProjectPath ?? "");
                 //2. Transfer the ProjectData to Current
                 RevertBackupToMain(selectedItem);
                 //3. Set Selected ProjectData as Current Project Data 
@@ -218,12 +218,12 @@ namespace SimpleBinaryVCS.ViewModel
 
         private void RevertBackupToMain(ProjectData revertData)
         {
-            if (string.IsNullOrEmpty(vcsManager.currentProjectPath))
+            if (string.IsNullOrEmpty(vcsManager.CurrentProjectPath))
             {
                 MessageBox.Show("Main Project Path is Empty");
                 return;
             }
-            string newSrcPath = vcsManager.currentProjectPath;
+            string newSrcPath = vcsManager.CurrentProjectPath;
             try
             {
                 if (!File.Exists(newSrcPath))

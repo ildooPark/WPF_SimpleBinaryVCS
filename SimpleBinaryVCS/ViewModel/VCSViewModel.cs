@@ -115,8 +115,8 @@ namespace SimpleBinaryVCS.ViewModel
             projectFiles = App.VcsManager.CurrentProjectData.ProjectFiles;
             fileManager = App.FileManager;
             backupManager = App.BackupManager;
-            vcsManager.fetchAction += FetchResponse;
-            vcsManager.projectLoaded += ProjectLoadResponse;
+            vcsManager.FetchAction += FetchResponse;
+            vcsManager.ProjectLoaded += ProjectLoadResponse;
             backupManager.RevertAction += RevertResponse;
             fileManager.newLocalFileChange += OnNewLocalFileChange;
             detectedFileChange = 0; 
@@ -209,7 +209,7 @@ namespace SimpleBinaryVCS.ViewModel
             fileManager.ChangedFileList.Clear();
             UpdaterName = null;
             UpdateLog = null;
-            vcsManager.updateAction?.Invoke(obj);
+            vcsManager.UpdateAction?.Invoke(obj);
             return;
         }
 
@@ -302,7 +302,7 @@ namespace SimpleBinaryVCS.ViewModel
             string projectDataBin;
             if (openFD.ShowDialog() == DialogResult.OK)
             {
-                vcsManager.currentProjectPath = openFD.SelectedPath;
+                vcsManager.CurrentProjectPath = openFD.SelectedPath;
                 ProjectData.ProjectPath = openFD.SelectedPath;
                 ProjectData.ProjectName = Path.GetFileName(openFD.SelectedPath);
             }
@@ -328,7 +328,7 @@ namespace SimpleBinaryVCS.ViewModel
                 {
                     MessageBox.Show(e.Message);
                 }
-                App.VcsManager.fetchAction?.Invoke(parameter); 
+                App.VcsManager.FetchAction?.Invoke(parameter); 
             }
             else
             {
@@ -400,14 +400,15 @@ namespace SimpleBinaryVCS.ViewModel
             CurrentVersion = ProjectData.UpdatedVersion ?? "Undefined";
         }
 
-        private void RevertResponse()
+        private void RevertResponse(object obj)
         {
             ProjectFiles = App.VcsManager.CurrentProjectData.ProjectFiles;
             ProjectData = ProjectData; 
         }
 
-        private void ProjectLoadResponse(ProjectData projectData)
+        private void ProjectLoadResponse(object projObj)
         {
+            if (projObj is not ProjectData projectData) return; 
             this.ProjectData = projectData;
         }
     }

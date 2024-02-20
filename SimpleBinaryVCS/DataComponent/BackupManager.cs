@@ -17,8 +17,8 @@ namespace SimpleBinaryVCS.DataComponent
         /// </summary>
         public Dictionary<string, IProjectData> BackupFiles { get => backupFiles; set => backupFiles = value; }
 
-        public Action? RevertAction;
-
+        public Action<object>? BackupAction;
+        public Action<object>? RevertAction;
         private VersionControlManager vcsManager; 
         private FileManager fileManager;
         public BackupManager()
@@ -27,7 +27,7 @@ namespace SimpleBinaryVCS.DataComponent
             fileManager = App.FileManager;
             backupFiles = vcsManager.ProjectRepository.BackupFiles;
 
-            vcsManager.projectInitialized += 
+            vcsManager.ProjectInitialized += MakeProjectBackup;
         }
 
         // Save BackUp 
@@ -36,8 +36,10 @@ namespace SimpleBinaryVCS.DataComponent
         /// By Default should Point to ProjectMain, Make backup of the ucrrent project main before applying new changes. 
         /// </summary>
         /// <param name="projectData">Should Point to ProjectMain</param>
-        public void MakeProjectBackup (ProjectData projectData)
+        public void MakeProjectBackup (object? projectObj)
         {
+            if (projectObj is not ProjectData projectData) return; 
+            
             // Get changed File List 
             // IF Modified : Try Register new Backup File  
             // IF Added : Skip

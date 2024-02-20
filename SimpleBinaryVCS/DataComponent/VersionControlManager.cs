@@ -1,9 +1,9 @@
 ﻿using MemoryPack;
 using SimpleBinaryVCS.Model;
+using SimpleBinaryVCS.Utils;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
-using System.Security.Cryptography;
 using System.Text;
 using WinForms = System.Windows.Forms;
 
@@ -11,16 +11,14 @@ namespace SimpleBinaryVCS.DataComponent
 {
     public class VersionControlManager
     {
-        public string? currentProjectPath {  get; set; }
-        public Action<object>? updateAction;
-        public Action<object>? revertAction;
-        public Action<object>? pullAction;
-        public Action<object>? fetchAction;
+        public string? CurrentProjectPath {  get; set; }
+        public Action<object>? UpdateAction;
+        public Action<object>? PullAction;
+        public Action<object>? FetchAction;
+        public Action<object>? ProjectLoaded;
+        public Action<object>? ProjectInitialized;
 
-        public Action<object>? projectLoaded;
-        public Action<object>? projectInitialized;
-
-        public Action? versionCheckFinished;
+        public Action? VersionCheckFinished;
         private ProjectRepository projectRepository; 
         public ProjectRepository ProjectRepository
         {
@@ -32,18 +30,23 @@ namespace SimpleBinaryVCS.DataComponent
                 CurrentProjectData = value.ProjectMain; 
             }
         }
+
         private ProjectData? currentProjectData; 
         public ProjectData CurrentProjectData 
         { 
-            get => currentProjectData ?? new ProjectData();
+            get => currentProjectData ??= new ProjectData();
             set
             {
-                currentProjectData = value;
-                projectLoaded?.Invoke(currentProjectData);
+                if (projectRepository == null) throw new ArgumentNullException(nameof(projectRepository));
+                projectRepository.ProjectMain = value;
+                currentProjectData = projectRepository.ProjectMain;
+                ProjectLoaded?.Invoke(currentProjectData);
             }
         }
+
         public ProjectData? NewestProjectData { get; private set; }
         public ObservableCollection<ProjectData> ProjectDataList { get; private set; }
+
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         public VersionControlManager()
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
@@ -51,109 +54,6 @@ namespace SimpleBinaryVCS.DataComponent
             ProjectDataList = new ObservableCollection<ProjectData>();
         }
 
-        #region Binary Comparision Through MD5 CheckSum
-        /// <summary>
-        /// Returns true if content is the same. 
-        /// </summary>
-        /// <param name="srcFile"></param>
-        /// <param name="dstFile"></param>
-        /// <param name="result">First is srcHash, Second is dstHash</param>
-        /// <returns></returns>
-        public bool TryCompareMD5CheckSum(string? srcFile, string? dstFile, out (string?, string?) result)
-        {
-            if (srcFile == null || dstFile == null)
-            {
-                result = (null, null); 
-                return false;
-            }
-            byte[] srcHashBytes, dstHashBytes;
-            using MD5 md5 = MD5.Create();
-            if (md5 == null)
-            {
-                MessageBox.Show("Failed to Initialize MD5");
-                result = (null, null);  
-                return false; 
-            }
-            using (var srcStream = File.OpenRead(srcFile))
-            {
-                srcHashBytes = md5.ComputeHash(srcStream);
-            }
-            using (var dstStream = File.OpenRead(dstFile))
-            {
-                dstHashBytes = md5.ComputeHash(dstStream);
-            }
-            string srcHashString = BitConverter.ToString(srcHashBytes).Replace("-", ""); 
-            string dstHashString = BitConverter.ToString(srcHashBytes).Replace("-", "");
-            result =  (srcHashString, dstHashString);
-            return srcHashString == dstHashString;
-        }
-        public string GetFileMD5CheckSum(string projectPath, string srcFileRelPath)
-        {
-            byte[] srcHashBytes;
-            string srcFileFullPath = Path.Combine(projectPath, srcFileRelPath);
-            using MD5 md5 = MD5.Create();
-            if (md5 == null)
-            {
-                MessageBox.Show($"Failed to Initialize MD5 for file {srcFileRelPath}");
-                return ""; 
-            }
-            using (var srcStream = File.OpenRead(srcFileFullPath))
-            {
-                srcHashBytes = md5.ComputeHash(srcStream);
-            }
-            md5.Dispose(); 
-            return BitConverter.ToString(srcHashBytes).Replace("-", "");
-        }
-        public async Task GetFileMD5CheckSumAsync(TrackedData file)
-        {
-            try
-            {
-                byte[] srcHashBytes;
-                using MD5 md5 = MD5.Create();
-                if (md5 == null)
-                {
-                    MessageBox.Show("Failed to Initialize MD5 Async");
-                    return;
-                }
-                using (var srcStream = File.OpenRead(file.DataAbsPath))
-                {
-                    srcHashBytes = await md5.ComputeHashAsync(srcStream);
-                }
-                string resultHash = BitConverter.ToString(srcHashBytes).Replace("-", "");
-                file.DataHash = resultHash;
-                md5.Dispose();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error occured {ex.Message} \nwhile Computing hash async by this file {file.DataName}");
-            }
-        }
-        public async Task<string?> GetFileMD5CheckSumAsync(string fileFullPath)
-        {
-            try
-            {
-                byte[] srcHashBytes;
-                using MD5 md5 = MD5.Create();
-                if (md5 == null)
-                {
-                    MessageBox.Show("Failed to Initialize MD5 Async");
-                    return null;
-                }
-                using (var srcStream = File.OpenRead(fileFullPath))
-                {
-                    srcHashBytes = await md5.ComputeHashAsync(srcStream);
-                }
-                string resultHash = BitConverter.ToString(srcHashBytes).Replace("-", "");
-                md5.Dispose();
-                return resultHash;
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error occured {ex.Message} \nwhile Computing hash async by this file {Path.GetFileName(fileFullPath)}");
-                return null;
-            }
-        }
-        #endregion
         #region Setup Project 
         public bool TryRetrieveProject(string projectPath)
         {
@@ -161,7 +61,7 @@ namespace SimpleBinaryVCS.DataComponent
             string projectDataBin;
             if (openFD.ShowDialog() == DialogResult.OK)
             {
-                currentProjectPath = openFD.SelectedPath;
+                CurrentProjectPath = openFD.SelectedPath;
             }
             else return false;
             openFD.Dispose();
@@ -185,7 +85,7 @@ namespace SimpleBinaryVCS.DataComponent
                 {
                     MessageBox.Show(e.Message);
                 }
-                fetchAction?.Invoke(projectPath);
+                FetchAction?.Invoke(projectPath);
             }
             else
             {
@@ -194,7 +94,7 @@ namespace SimpleBinaryVCS.DataComponent
                 if (result == DialogResult.Yes)
                 {
                     InitializeProject(openFD.SelectedPath);
-                    projectInitialized?.Invoke(CurrentProjectData);
+                    ProjectInitialized?.Invoke(CurrentProjectData);
                 }
                 else
                 {
@@ -230,7 +130,7 @@ namespace SimpleBinaryVCS.DataComponent
                     DataChangedState.Added
                     );
 
-                newFile.DataHash = GetFileMD5CheckSum(projectFilePath, filePath);
+                newFile.DataHash = HashTool.GetFileMD5CheckSum(projectFilePath, filePath);
                 newFile.DeployedProjectVersion = newProjectData.UpdatedVersion;
                 newProjectData.ProjectFiles.Add(newFile);
                 newProjectData.ChangedFiles.Add(newFile);
@@ -243,7 +143,7 @@ namespace SimpleBinaryVCS.DataComponent
             newProjectData.ProjectName = Path.GetFileName(projectFilePath);
             byte[] serializedFile = MemoryPackSerializer.Serialize(CurrentProjectData);
             File.WriteAllBytes($"{CurrentProjectData.ProjectPath}\\VersionLog.bin", serializedFile);
-            updateAction?.Invoke(newProjectData);
+            UpdateAction?.Invoke(newProjectData);
         }
         #endregion
         #region Version Management Tools
@@ -264,7 +164,7 @@ namespace SimpleBinaryVCS.DataComponent
         /// <param name="srcData"></param>
         /// <param name="dstData"></param>
         /// <param name="isRevert"> True if Reverting, else (Merge) false.</param>
-        public void CompareVersion(ProjectData srcData, ProjectData dstData, bool isRevert = true)
+        public List<ProjectFile> FindVersionDifferences(ProjectData srcData, ProjectData dstData, bool isRevert = true)
         {
             try
             {
@@ -272,80 +172,167 @@ namespace SimpleBinaryVCS.DataComponent
                 fileIntegrityLog.AppendLine($"Conducting Version Integrity Check on {CurrentProjectData.UpdatedVersion}");
                 List<string> recordedFiles = new List<string>();
                 List<string> directoryFiles = new List<string>();
-
-                // 
-                // Fitting to the SrcFiles, 
+                Dictionary<string, ProjectFile> srcDict = srcData.ProjectFilesDict;
+                Dictionary<string, ProjectFile> dstDict = dstData.ProjectFilesDict;
+                
                 // Files which is not on the Dst 
-                IEnumerable<string> filesToAdd = srcData.ProjectFileRelPaths().Except(dstData.ProjectFileRelPaths());
+                IEnumerable<string> filesToAdd = srcData.ProjectRelFilePathsList.Except(dstData.ProjectRelFilePathsList);
                 // Files which is not on the Src
-                IEnumerable<string> filesToDelete = dstData.ProjectFileRelPaths().Except(srcData.ProjectFileRelPaths());
+                IEnumerable<string> filesToDelete = dstData.ProjectRelFilePathsList.Except(srcData.ProjectRelFilePathsList);
                 // Directories which is not on the Src
-                IEnumerable<string> dirsToAdd = srcData.ProjectRelDirs().Except(dstData.ProjectRelDirs());
-                IEnumerable<string> dirsToDelete = dstData.ProjectRelDirs().Except(srcData.ProjectRelDirs());
+                IEnumerable<string> dirsToAdd = srcData.ProjectRelDirsList.Except(dstData.ProjectRelDirsList);
+                // Directories which is not on the Dst
+                IEnumerable<string> dirsToDelete = dstData.ProjectRelDirsList.Except(srcData.ProjectRelDirsList);
                 // Files to Overwrite
-                IEnumerable<string> intersectFiles = srcData.ProjectFileRelPaths().Intersect(dstData.ProjectFileRelPaths());
+                IEnumerable<string> intersectFiles = srcData.ProjectRelFilePathsList.Intersect(dstData.ProjectRelFilePathsList);
 
                 //1. Directories 
                 foreach (string dirRelPath in dirsToAdd)
                 {
                     if (dirRelPath == "VersionLog.bin") continue;
                     fileIntegrityLog.AppendLine($"{dirRelPath} has been Added");
-                    string? fileHash = GetFileMD5CheckSum(CurrentProjectData.ProjectPath, dirRelPath);
+                    string? fileHash = HashTool.GetFileMD5CheckSum(CurrentProjectData.ProjectPath, dirRelPath);
                     ProjectFile file = new ProjectFile(CurrentProjectData.ProjectPath, dirRelPath, fileHash, DataChangedState.Added | DataChangedState.IntegrityChecked);
-                    changedFileList.Add(file);
+                    dstData.ChangedFiles.Add(file);
                 }
 
                 foreach (string dirRelPath in dirsToDelete)
                 {
                     fileIntegrityLog.AppendLine($"{dirRelPath} has been Deleted");
-                    ProjectFile file = projectFilesDict[dirRelPath];
+                    ProjectFile file = dstDict[dirRelPath];
                     file.DataState = DataChangedState.Deleted | DataChangedState.IntegrityChecked;
-                    changedFileList.Add(file);
+                    dstData.ChangedFiles.Add(file);
                 }
                 //2. Files 
                 foreach (string fileRelPath in filesToAdd)
                 {
                     if (fileRelPath == "VersionLog.bin") continue;
                     fileIntegrityLog.AppendLine($"{fileRelPath} has been Added");
-                    string? fileHash = GetFileMD5CheckSum(CurrentProjectData.ProjectPath, fileRelPath);
+                    string? fileHash = HashTool.GetFileMD5CheckSum(CurrentProjectData.ProjectPath, fileRelPath);
                     ProjectFile file = new ProjectFile(CurrentProjectData.ProjectPath, fileRelPath, fileHash, DataChangedState.Added | DataChangedState.IntegrityChecked);
-                    changedFileList.Add(file);
+                    dstData.ChangedFiles.Add(file);
                 }
 
                 foreach (string fileRelPath in filesToDelete)
                 {
                     fileIntegrityLog.AppendLine($"{fileRelPath} has been Deleted");
                     ProjectFile file = projectFilesDict[fileRelPath];
-                    file.dataState = DataChangedState.Deleted | DataChangedState.IntegrityChecked;
-                    changedFileList.Add(file);
+                    file.DataState = DataChangedState.Deleted | DataChangedState.IntegrityChecked;
+                    dstData.ChangedFiles.Add(file);
                 }
                 //3. File Overwrite
-
+                Dictionary<string, ProjectFile> srcDict = srcData.ProjectFilesDict;
+                Dictionary<string, ProjectFile> dstDict = dstData.ProjectFilesDict;
                 foreach (string fileRelPath in intersectFiles)
                 {
-                    string? fileHash = GetFileMD5CheckSum(ProjectData.projectPath, fileRelPath);
-                    if (projectFilesDict[fileRelPath].fileHash != fileHash)
+                    if (srcDict[fileRelPath].DataHash != dstDict[fileRelPath].DataHash)
                     {
-                        fileIntegrityLog.AppendLine($"File {projectFilesDict[fileRelPath].fileName} on {fileRelPath} has been modified");
+                        fileIntegrityLog.AppendLine($"File {dstDict[fileRelPath].DataName} on {fileRelPath} has been modified");
                         var fileVersionInfo = FileVersionInfo.GetVersionInfo(Path.Combine(CurrentProjectData.ProjectPath, fileRelPath));
 
-                        ProjectFile file = new ProjectFile(projectFilesDict[fileRelPath]);
-                        file.dataState = DataChangedState.Modified | DataChangedState.IntegrityChecked;
-                        file.dataHash = fileHash;
+                        ProjectFile file = new ProjectFile(dstDict[fileRelPath]);
+                        file.DataState = DataChangedState.Modified | DataChangedState.IntegrityChecked;
+                        file.DataHash = srcDict[fileRelPath].DataHash;
                         file.IsNew = true;
-                        file.UpdatedTime = new FileInfo(file.fileFullPath()).LastAccessTime;
-                        changedFileList.Add(file);
+                        file.UpdatedTime = new FileInfo(file.DataAbsPath).LastAccessTime;
+                        dstData.ChangedFiles.Add(file);
                     }
                 }
                 fileIntegrityLog.AppendLine("Integrity Check Complete");
-                versionCheckFinished?.Invoke();
+                VersionCheckFinished?.Invoke();
             }
             catch (Exception ex)
             {
                 System.Windows.MessageBox.Show($"{ex.Message}. Couldn't Run File Integrity Check");
             }
         }
+        public void FindVersionDifferences(ProjectData srcData, ProjectData dstData, ObservableCollection<ProjectFile> changeList)
+        {
+            if (srcData == null  || dstData == null)
+            {
+                MessageBox.Show($"One or more project is set to null");
+                return;
+            }
+            try
+            {
+                StringBuilder fileIntegrityLog = new StringBuilder();
+                fileIntegrityLog.AppendLine($"Conducting Version Integrity Check on {CurrentProjectData.UpdatedVersion}");
+                Dictionary<string, ProjectFile> srcDict = srcData.ProjectFilesDict;
+                Dictionary<string, ProjectFile> dstDict = dstData.ProjectFilesDict;
 
+                List<string> recordedFiles = new List<string>();
+                List<string> directoryFiles = new List<string>();
+                // Fitting to the SrcFiles, 
+                // Files which is not on the Dst 
+                IEnumerable<string> filesToAdd = srcData.ProjectFileRelPathsList().Except(dstData.ProjectFileRelPathsList());
+                // Files which is not on the Src
+                IEnumerable<string> filesToDelete = dstData.ProjectFileRelPathsList().Except(srcData.ProjectFileRelPathsList());
+                // Directories which is not on the Src
+                IEnumerable<string> dirsToAdd = srcData.ProjectRelDirsList().Except(dstData.ProjectRelDirsList());
+                // Directories which is not on the Dst
+                IEnumerable<string> dirsToDelete = dstData.ProjectRelDirsList().Except(srcData.ProjectRelDirsList());
+                // Files to Overwrite
+                IEnumerable<string> intersectFiles = srcData.ProjectFileRelPathsList().Intersect(dstData.ProjectFileRelPathsList());
+
+                //1. Directories 
+                foreach (string dirRelPath in dirsToAdd)
+                {
+                    if (dirRelPath == "VersionLog.bin") continue;
+                    fileIntegrityLog.AppendLine($"{dirRelPath} has been Added");
+                    string? fileHash = HashTool.GetFileMD5CheckSum(CurrentProjectData.ProjectPath, dirRelPath);
+                    ProjectFile file = new ProjectFile(CurrentProjectData.ProjectPath, dirRelPath, fileHash, DataChangedState.Added | DataChangedState.IntegrityChecked);
+                    dstData.ChangedFiles.Add(file);
+                }
+
+                foreach (string dirRelPath in dirsToDelete)
+                {
+                    fileIntegrityLog.AppendLine($"{dirRelPath} has been Deleted");
+                    ProjectFile file = new ProjectFile(dstDict[dirRelPath]);
+                    file.DataState = DataChangedState.Deleted | DataChangedState.IntegrityChecked;
+                    changeList.Add(file);
+                }
+
+                foreach (string fileRelPath in filesToAdd)
+                {
+                    if (fileRelPath == "VersionLog.bin") continue;
+                    fileIntegrityLog.AppendLine($"{fileRelPath} has been Added");
+                    string? fileHash = HashTool.GetFileMD5CheckSum(CurrentProjectData.ProjectPath, fileRelPath);
+                    ProjectFile file = new ProjectFile(CurrentProjectData.ProjectPath, fileRelPath, fileHash, DataChangedState.Added | DataChangedState.IntegrityChecked);
+                    dstData.ChangedFiles.Add(file);
+                }
+
+                foreach (string fileRelPath in filesToDelete)
+                {
+                    fileIntegrityLog.AppendLine($"{fileRelPath} has been Deleted");
+                    ProjectFile file = new ProjectFile(dstDict[fileRelPath]);
+                    file.DataState = DataChangedState.Deleted | DataChangedState.IntegrityChecked;
+                    dstData.ChangedFiles.Add(file);
+                }
+                
+                foreach (string fileRelPath in intersectFiles)
+                {
+                    if (srcDict[fileRelPath].DataHash != dstDict[fileRelPath].DataHash)
+                    {
+                        fileIntegrityLog.AppendLine($"File {dstDict[fileRelPath].DataName} on {fileRelPath} has been modified");
+                        var fileVersionInfo = FileVersionInfo.GetVersionInfo(Path.Combine(CurrentProjectData.ProjectPath, fileRelPath));
+
+                        ProjectFile file = new ProjectFile(dstDict[fileRelPath]);
+                        file.DataState = DataChangedState.Modified | DataChangedState.IntegrityChecked;
+                        file.DataHash = srcDict[fileRelPath].DataHash;
+                        file.IsNew = true;
+                        file.UpdatedTime = new FileInfo(file.DataAbsPath).LastAccessTime;
+                        dstData.ChangedFiles.Add(file);
+                    }
+                }
+
+                fileIntegrityLog.AppendLine("Integrity Check Complete");
+                VersionCheckFinished?.Invoke();
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show($"{ex.Message}. Couldn't Run File Integrity Check");
+            }
+        }
         #endregion
         /// <summary>
         /// Preceded by the backup of the current Project
