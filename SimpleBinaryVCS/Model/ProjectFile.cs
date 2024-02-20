@@ -11,7 +11,7 @@ namespace SimpleBinaryVCS.Model
     {
         #region [MemoryPackInclude]
         public bool IsNew { get; set; }
-        public ProjectDataType DataType { get; private set; } = ProjectDataType.File; 
+        public ProjectDataType DataType { get; private set; }
         public long DataSize { get; set; }
         public string BuildVersion {  get; set; }
         public string DeployedProjectVersion { get; set; }
@@ -70,7 +70,7 @@ namespace SimpleBinaryVCS.Model
             this.dataState = changedState;
         }
 
-        public ProjectFile(bool IsNew, long FileSize, string FileName, string? FileBuildVersion, string FileSrcPath, string FileRelPath, string FileHash, string DeployedProjectVersion, DateTime updatedTime, DataChangedState fileState)
+        public ProjectFile(bool IsNew, long FileSize, string FileName, string? FileBuildVersion, string FileSrcPath, string FileRelPath, string FileHash, string DeployedProjectVersion, DateTime updatedTime, DataChangedState fileState, ProjectDataType dataType)
         {
             this.IsNew = IsNew;
             this.DataSize = FileSize;
@@ -82,6 +82,7 @@ namespace SimpleBinaryVCS.Model
             this.DeployedProjectVersion = DeployedProjectVersion;
             this.UpdatedTime = updatedTime; 
             this.dataState = fileState;
+            this.DataType = dataType;
         }
 
         /// <summary>
@@ -125,9 +126,10 @@ namespace SimpleBinaryVCS.Model
         /// <param name="changedFile"></param>
         public ProjectFile(TrackedData changedFile, DataChangedState fileChangedState)
         {
+            var fileInfo = FileVersionInfo.GetVersionInfo(changedFile.DataAbsPath);
             this.IsNew = true;
             this.dataState = fileChangedState; 
-            var fileInfo = FileVersionInfo.GetVersionInfo(changedFile.DataAbsPath);
+            this.DataType = changedFile.DataType;
             this.DataSize = new FileInfo(changedFile.DataAbsPath).Length;
             this.BuildVersion = fileInfo.FileVersion ?? "";
             this.DeployedProjectVersion = "";
@@ -161,7 +163,7 @@ namespace SimpleBinaryVCS.Model
         {
             if (other == null)
             {
-                MessageBox.Show($"Presented ProjectFile is Null for comparision with {this.N}"); 
+                MessageBox.Show($"Presented ProjectFile is Null for comparision with {this.DataName}"); 
                 return false;
             }
             //if (other?.fileRelPath == this.fileRelPath) 

@@ -1,5 +1,4 @@
-﻿using MemoryPack;
-using SimpleBinaryVCS.DataComponent;
+﻿using SimpleBinaryVCS.DataComponent;
 using SimpleBinaryVCS.Model;
 using SimpleBinaryVCS.Utils;
 using System.Collections.ObjectModel;
@@ -48,7 +47,7 @@ namespace SimpleBinaryVCS.ViewModel
         private string? projectName;
         public string ProjectName
         {
-            get => projectName ?? "";
+            get => projectName ?? "Undefined";
             set
             {
                 projectName = value ?? "Undefined";
@@ -75,15 +74,7 @@ namespace SimpleBinaryVCS.ViewModel
                 OnPropertyChanged("ProjectFiles");
             }
         }
-        private ICommand? getDeploySrcDir;
-        public ICommand GetDeploySrcDir
-        {
-            get
-            {
-                if (getDeploySrcDir == null) getDeploySrcDir = new RelayCommand(SetDeploySrcDirectory, CanSetDeployDir);
-                return getDeploySrcDir;
-            }
-        }
+        
 
         private ICommand? conductUpdate;
         public ICommand ConductUpdate
@@ -111,10 +102,10 @@ namespace SimpleBinaryVCS.ViewModel
         public VCSViewModel()
         {
             vcsManager = App.VcsManager;
-            projectData = App.VcsManager.CurrentProjectData; 
-            projectFiles = App.VcsManager.CurrentProjectData.ProjectFiles;
             fileManager = App.FileManager;
             backupManager = App.BackupManager;
+            projectData = vcsManager.MainProjectData; 
+            projectFiles = vcsManager.MainProjectData.ProjectFiles;
             vcsManager.FetchAction += FetchResponse;
             vcsManager.ProjectLoaded += ProjectLoadResponse;
             backupManager.RevertAction += RevertResponse;
@@ -135,34 +126,7 @@ namespace SimpleBinaryVCS.ViewModel
             return true;
         }
 
-        private bool CanSetDeployDir(object obj)
-        {
-            return true; 
-        }
-
-        private void SetDeploySrcDirectory(object obj)
-        {
-            try
-            {
-                string? updateDirPath; 
-                var openUpdateDir = new WinForms.FolderBrowserDialog();
-                if (openUpdateDir.ShowDialog() == DialogResult.OK)
-                {
-                    updateDirPath = openUpdateDir.SelectedPath;
-                    fileManager.RegisterNewFiles(updateDirPath);
-                }
-                else
-                {
-                    openUpdateDir.Dispose();
-                    return;
-                }
-                openUpdateDir.Dispose();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show(ex.Message);
-            }
-        }
+        
         private void UpdateProject(object obj)
         {
             if (updaterName == null || updateLog == null || updaterName == "" || updateLog == "")
@@ -172,45 +136,6 @@ namespace SimpleBinaryVCS.ViewModel
                 return;
             }
             if (fileManager.ChangedFileList.Count == 0 || fileManager == null) return;
-            //if (projectData.revisionNumber >= 1) vcsManager.updateAction?.Invoke(obj);
-            StringBuilder changeLog = new StringBuilder();
-            ProjectData.NumberOfChanges = 0;
-            ProjectData.UpdatedVersion = GetprojectDataVersionName();
-            ProjectData.ChangedFiles.Clear();
-
-            for (int i = 0; i < fileManager.ChangedFileList.Count; i++)
-            {
-                
-                int srcIndex = projectFiles.IndexOf(fileManager.ChangedFileList[i]);
-                //Integrity Version Check
-                if ((fileManager.ChangedFileList[i].dataState & DataChangedState.IntegrityChecked) != 0)
-                {
-                    RegisterFileChange(fileManager.ChangedFileList[i], srcIndex, changeLog);
-                    continue;
-                }
-                ReallocateFile(fileManager.ChangedFileList[i]);
-                RegisterFileChange(fileManager.ChangedFileList[i], srcIndex, changeLog);
-            }
-            //foreach (ProjectFile changedFile in fileManager.ChangedFileList)
-            if (ProjectData.NumberOfChanges <= 0)
-            {
-                MessageBox.Show("No new changes were made.");
-                fileManager.ChangedFileList.Clear();
-                return; 
-            }
-            //Copy Paste Uploaded File to the Project File Directory 
-            ProjectData.UpdatedTime = DateTime.Now;
-            ProjectData.UpdaterName = updaterName;
-            ProjectData.ChangeLog = changeLog.ToString(); 
-            ProjectData.UpdateLog = updateLog;
-            byte[] serializedFile = MemoryPackSerializer.Serialize(ProjectData);
-            File.WriteAllBytes($"{vcsManager.CurrentProjectData.ProjectPath}\\VersionLog.bin", serializedFile);
-            ProjectData = ProjectData; 
-            fileManager.ChangedFileList.Clear();
-            UpdaterName = null;
-            UpdateLog = null;
-            vcsManager.UpdateAction?.Invoke(obj);
-            return;
         }
 
         private void RegisterFileChange(ProjectFile file, int fileIndex, StringBuilder changeLog)
@@ -219,8 +144,8 @@ namespace SimpleBinaryVCS.ViewModel
             {
                 file.DeployedProjectVersion = ProjectData.UpdatedVersion;
                 //file.DataSrcPath = ProjectData.ProjectPath;
-                vcsManager.CurrentProjectData.ProjectFiles.Add(file);
-                vcsManager.CurrentProjectData.ChangedFiles.Add(file);
+                vcsManager.MainProjectData.ProjectFiles.Add(file);
+                vcsManager.MainProjectData.ChangedFiles.Add(file);
                 ProjectData.NumberOfChanges++;
                 changeLog.AppendLine($"File {file.DataName} on {file.DataRelPath} has been {file.DataState.ToString()}");
             }
@@ -232,13 +157,12 @@ namespace SimpleBinaryVCS.ViewModel
                 ProjectData.ChangedFiles.Add(projectFiles[fileIndex]);
                 //file.DataSrcPath = projectFiles[fileIndex].DataSrcPath;
                 changeLog.AppendLine($"File {file.DataName} on {file.DataRelPath} has been {file.DataState.ToString()}");
-                changeLog.AppendLine($"From : Build Version: {projectFiles[fileIndex].BuildVersion} Hash : {projectFiles[fileIndex].dataHash}");
+                changeLog.AppendLine($"From : Build Version: {projectFiles[fileIndex].BuildVersion} Hash : {projectFiles[fileIndex].DataHash}");
                 changeLog.AppendLine($"To : Build Version: {file.BuildVersion} Hash : {file.DataHash}");
                 projectFiles[fileIndex] = file;
                 ProjectData.NumberOfChanges++;
 
             }
-            //1. First set the new as false. 
         }
 
         private void ReallocateFile(ProjectFile file)
@@ -276,7 +200,7 @@ namespace SimpleBinaryVCS.ViewModel
                     }
                     catch (Exception ex)
                     {
-                        MessageBox.Show($"{ex.Message} \nNo Directory Needed for this new File {file.dataName}");
+                        MessageBox.Show($"{ex.Message} \nNo Directory Needed for this new File {file.DataName}");
                     }
                 }
                 File.Copy(file.DataAbsPath, newFilePath, true);
@@ -299,94 +223,32 @@ namespace SimpleBinaryVCS.ViewModel
         {
             if (projectFiles != null && projectFiles.Count != 0) projectFiles.Clear();
             var openFD = new WinForms.FolderBrowserDialog();
-            string projectDataBin;
+            string? projectPath;
             if (openFD.ShowDialog() == DialogResult.OK)
             {
-                vcsManager.CurrentProjectPath = openFD.SelectedPath;
-                ProjectData.ProjectPath = openFD.SelectedPath;
-                ProjectData.ProjectName = Path.GetFileName(openFD.SelectedPath);
+                projectPath = openFD.SelectedPath;
             }
             else return; 
-            openFD.Dispose(); 
-            //Get .bin VersionLog File 
-            string[] binFiles = Directory.GetFiles(openFD.SelectedPath, "VersionLog.*", SearchOption.AllDirectories);
-
-            if (binFiles.Length > 0)
-            {
-                projectDataBin = binFiles[0];
-                ProjectData? currentData;
-                try
-                {
-                    var stream = File.ReadAllBytes(projectDataBin);
-                    currentData = MemoryPackSerializer.Deserialize<ProjectData>(stream); 
-                    if (currentData != null)
-                    {
-                        ProjectData = currentData;
-                    }
-                }
-                catch (Exception e)
-                {
-                    MessageBox.Show(e.Message);
-                }
-                App.VcsManager.FetchAction?.Invoke(parameter); 
-            }
-            else
+            openFD.Dispose();
+            if (projectPath == null) return;
+            bool retrieveProjectResult = vcsManager.TryRetrieveProject(projectPath);
+            if (!retrieveProjectResult)
             {
                 var result = MessageBox.Show("VersionLog file not found!\n Initialize A New Project?",
-                    "Import Project", MessageBoxButtons.YesNo); 
+                    "Import Project", MessageBoxButtons.YesNo);
                 if (result == DialogResult.Yes)
                 {
-                    InitializeProject(openFD.SelectedPath);
+                    vcsManager.InitializeProject(openFD.SelectedPath);
                 }
                 else
                 {
-                    MessageBox.Show("Please Select Another Project Path"); 
-                    return; 
+                    MessageBox.Show("Please Select Another Project Path");
+                    return;
                 }
             }
-            //App.VcsManager.projectLoadAction?.Invoke(openFD.SelectedPath);
         }
 
-        //private void InitializeProject(string projectFilePath)
-        //{
-        //    StringBuilder changeLog = new StringBuilder();
-        //    string[]? newProjectFiles, newProjectDirectories; 
-        //    TryGetAllFiles(projectFilePath, out newProjectFiles, out newProjectDirectories);
-        //    if (newProjectFiles == null) return;
-        //    ProjectData.updatedVersion = GetprojectDataVersionName(); 
-
-        //    foreach (string filePath in newProjectFiles)
-        //    {
-        //        var fileInfo = FileVersionInfo.GetVersionInfo(filePath);
-        //        ProjectFile newFile = new ProjectFile
-        //            (
-        //            true,
-        //            new FileInfo(filePath).Length,
-        //            Path.GetFileName(filePath),
-        //            projectFilePath,
-        //            Path.GetRelativePath(projectFilePath, filePath),
-        //            fileInfo.FileVersion, 
-        //            FileChangedState.Added
-        //            );
-
-        //        newFile.fileHash = vcsManager.GetFileMD5CheckSum(projectFilePath, filePath);
-        //        newFile.deployedProjectVersion = ProjectData.updatedVersion;
-        //        ProjectFiles.Add(newFile);
-        //        vcsManager.ProjectData.DiffLog.Add(newFile);
-        //        changeLog.AppendLine($"Added {newFile.fileName}");
-        //    }
-        //    ProjectData.updatedTime = DateTime.Now;
-        //    ProjectData.changeLog = changeLog.ToString();
-        //    ProjectData.numberOfChanges = ProjectFiles.Count;
-        //    ProjectData.projectName = Path.GetFileName(projectFilePath);
-        //    byte[] serializedFile = MemoryPackSerializer.Serialize(ProjectData);
-        //    File.WriteAllBytes($"{ProjectData.projectPath}\\VersionLog.bin", serializedFile);
-        //    ProjectName = ProjectData.projectName;
-        //    CurrentVersion = ProjectData.updatedVersion;
-        //    vcsManager.updateAction?.Invoke(projectFilePath); 
-        //}
         #endregion
-        
 
         private void VersionIntegrityCheck(object obj)
         {
@@ -402,7 +264,7 @@ namespace SimpleBinaryVCS.ViewModel
 
         private void RevertResponse(object obj)
         {
-            ProjectFiles = App.VcsManager.CurrentProjectData.ProjectFiles;
+            ProjectFiles = App.VcsManager.MainProjectData.ProjectFiles;
             ProjectData = ProjectData; 
         }
 
@@ -415,6 +277,94 @@ namespace SimpleBinaryVCS.ViewModel
 }
 
 #region Deprecated Updates 
+//private void UpdateProject(object obj)
+//{
+//    if (updaterName == null || updateLog == null || updaterName == "" || updateLog == "")
+//    {
+//        var response = MessageBox.Show("Must Have both Deploy Version AND UpdaterName", "ok", MessageBoxButtons.OK);
+//        if (response == DialogResult.OK) return;
+//        return;
+//    }
+//    if (fileManager.ChangedFileList.Count == 0 || fileManager == null) return;
+//    //if (projectData.revisionNumber >= 1) vcsManager.updateAction?.Invoke(obj);
+//    StringBuilder changeLog = new StringBuilder();
+//    ProjectData.NumberOfChanges = 0;
+//    ProjectData.UpdatedVersion = GetprojectDataVersionName(ProjectData);
+//    ProjectData.ChangedFiles.Clear();
+
+//    for (int i = 0; i < fileManager.ChangedFileList.Count; i++)
+//    {
+
+//        int srcIndex = projectFiles.IndexOf(fileManager.ChangedFileList[i]);
+//        //Integrity Version Check
+//        if ((fileManager.ChangedFileList[i].DataState & DataChangedState.IntegrityChecked) != 0)
+//        {
+//            RegisterFileChange(fileManager.ChangedFileList[i], srcIndex, changeLog);
+//            continue;
+//        }
+//        ReallocateFile(fileManager.ChangedFileList[i]);
+//        RegisterFileChange(fileManager.ChangedFileList[i], srcIndex, changeLog);
+//    }
+//    //foreach (ProjectFile changedFile in fileManager.ChangedFileList)
+//    if (ProjectData.NumberOfChanges <= 0)
+//    {
+//        MessageBox.Show("No new changes were made.");
+//        fileManager.ChangedFileList.Clear();
+//        return;
+//    }
+//    //Copy Paste Uploaded File to the Project File Directory 
+//    ProjectData.UpdatedTime = DateTime.Now;
+//    ProjectData.UpdaterName = updaterName;
+//    ProjectData.ChangeLog = changeLog.ToString();
+//    ProjectData.UpdateLog = updateLog;
+//    byte[] serializedFile = MemoryPackSerializer.Serialize(ProjectData);
+//    File.WriteAllBytes($"{vcsManager.MainProjectData.ProjectPath}\\VersionLog.bin", serializedFile);
+//    ProjectData = ProjectData;
+//    fileManager.ChangedFileList.Clear();
+//    UpdaterName = null;
+//    UpdateLog = null;
+//    vcsManager.UpdateAction?.Invoke(obj);
+//    return;
+//}
+//private void InitializeProject(string projectFilePath)
+//{
+//    StringBuilder changeLog = new StringBuilder();
+//    string[]? newProjectFiles, newProjectDirectories; 
+//    TryGetAllFiles(projectFilePath, out newProjectFiles, out newProjectDirectories);
+//    if (newProjectFiles == null) return;
+//    ProjectData.updatedVersion = GetprojectDataVersionName(); 
+
+//    foreach (string filePath in newProjectFiles)
+//    {
+//        var fileInfo = FileVersionInfo.GetVersionInfo(filePath);
+//        ProjectFile newFile = new ProjectFile
+//            (
+//            true,
+//            new FileInfo(filePath).Length,
+//            Path.GetFileName(filePath),
+//            projectFilePath,
+//            Path.GetRelativePath(projectFilePath, filePath),
+//            fileInfo.FileVersion, 
+//            FileChangedState.Added
+//            );
+
+//        newFile.fileHash = vcsManager.GetFileMD5CheckSum(projectFilePath, filePath);
+//        newFile.deployedProjectVersion = ProjectData.updatedVersion;
+//        ProjectFiles.Add(newFile);
+//        vcsManager.ProjectData.DiffLog.Add(newFile);
+//        changeLog.AppendLine($"Added {newFile.fileName}");
+//    }
+//    ProjectData.updatedTime = DateTime.Now;
+//    ProjectData.changeLog = changeLog.ToString();
+//    ProjectData.numberOfChanges = ProjectFiles.Count;
+//    ProjectData.projectName = Path.GetFileName(projectFilePath);
+//    byte[] serializedFile = MemoryPackSerializer.Serialize(ProjectData);
+//    File.WriteAllBytes($"{ProjectData.projectPath}\\VersionLog.bin", serializedFile);
+//    ProjectName = ProjectData.projectName;
+//    CurrentVersion = ProjectData.updatedVersion;
+//    vcsManager.updateAction?.Invoke(projectFilePath); 
+//}
+
 //private void UpdateProject(object obj)
 //{
 //    if (updaterName == null || updateLog == null || updaterName == "" || updateLog == "")

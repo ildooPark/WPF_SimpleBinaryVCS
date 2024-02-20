@@ -1,8 +1,8 @@
 ﻿using MemoryPack;
 using SimpleBinaryVCS.DataComponent;
 using SimpleBinaryVCS.Model;
+using SimpleBinaryVCS.Utils;
 using SimpleBinaryVCS.View;
-using SimpleBinaryVCS.Utils; 
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Windows.Input;
@@ -17,23 +17,23 @@ namespace SimpleBinaryVCS.ViewModel
         /// is listed as the Newest Version. 
         /// </summary>
         private PriorityQueue<ProjectData, ProjectData> importProjects;
-        private ObservableCollection<ProjectData> backupProjectDataList;
+        private ObservableCollection<ProjectData>? backupProjectDataList;
         public ObservableCollection<ProjectData> BackupProjectDataList
         {
             get => backupProjectDataList ??= new ObservableCollection<ProjectData>();
             set
             {
                 backupProjectDataList = value;
-                OnPropertyChanged("BackupProjectDataList"); 
+                OnPropertyChanged("BackupProjectDataList");
             }
         }
-        private ProjectData? selectedItem; 
+        private ProjectData? selectedItem;
         public ProjectData? SelectedItem
         {
             get { return selectedItem; }
             set
             {
-                if (value == null) return; 
+                if (value == null) return;
                 selectedItem = value;
                 UpdaterName = value.UpdaterName;
                 UpdateLog = value.UpdateLog;
@@ -41,7 +41,7 @@ namespace SimpleBinaryVCS.ViewModel
                 OnPropertyChanged("SelectedItem");
             }
         }
-        private ICommand? fetchLogs; 
+        private ICommand? fetchLogs;
         public ICommand FetchLogs
         {
             get => fetchLogs ??= new RelayCommand(Fetch, CanFetch);
@@ -68,80 +68,60 @@ namespace SimpleBinaryVCS.ViewModel
             get => updaterName ??= "";
             set
             {
-                updaterName= value;
-                OnPropertyChanged("UpdaterName"); 
+                updaterName = value;
+                OnPropertyChanged("UpdaterName");
             }
         }
+
         public string UpdateLog
         {
             get => updateLog ??= "";
             set
             {
-                updateLog= value;
-                OnPropertyChanged("UpdateLog"); 
+                updateLog = value;
+                OnPropertyChanged("UpdateLog");
             }
         }
+
         private ObservableCollection<ProjectFile>? diffLog;
         public ObservableCollection<ProjectFile> DiffLog
         {
             get => diffLog ??= new ObservableCollection<ProjectFile>();
             set
             {
-                diffLog= value;
-                OnPropertyChanged("DiffLog"); 
+                diffLog = value;
+                OnPropertyChanged("DiffLog");
             }
         }
 
         private VersionControlManager vcsManager;
-        private BackupManager backupManager; 
-        private FileManager fileManager; 
+        private BackupManager backupManager;
+        private FileManager fileManager;
         public BackupViewModel()
         {
-            importProjects = new PriorityQueue<ProjectData, ProjectData>(); 
+            importProjects = new PriorityQueue<ProjectData, ProjectData>();
             vcsManager = App.VcsManager;
             vcsManager.UpdateAction += MakeBackUp;
             vcsManager.FetchAction += Fetch;
-            backupProjectDataList = vcsManager.ProjectDataList;
             fileManager = App.FileManager;
             backupManager = App.BackupManager;
         }
 
         private bool CanFetch(object obj)
         {
-            if (App.Current == null || vcsManager == null || vcsManager.CurrentProjectData.ProjectPath == null) return false;
+            if (App.Current == null || vcsManager.ProjectRepository == null) return false;
             return true;
         }
 
         private void Fetch(object obj)
         {
             SelectedItem = null;
-            importProjects.Clear(); 
             BackupProjectDataList.Clear();
             //Set up Current Project at Main 
-            if (vcsManager.CurrentProjectPath == null) return;
+            if (vcsManager.CurrentProjectPath == null || vcsManager.ProjectRepository == null) return;
             try
             {
-                DirectoryInfo? parentPath = Directory.GetParent(vcsManager.CurrentProjectPath);
-                string[] mainVersionLog = Directory.GetFiles(vcsManager.CurrentProjectPath, "VersionLog.*", SearchOption.AllDirectories);
-                ProjectData? mainProjectData = MemoryPackSerializer.Deserialize<ProjectData>(File.ReadAllBytes(mainVersionLog[0]));
-                if (mainProjectData == null) return;
-                vcsManager.CurrentProjectData = mainProjectData;
-                string[]? backupVersionLogs;
-                if (parentPath == null) return;
-                TryGetBackupLogs(parentPath.ToString(), out backupVersionLogs);
-                if (backupVersionLogs == null) return;
-                foreach (string version in backupVersionLogs)
-                {
-                    ProjectData? data = MemoryPackSerializer.Deserialize<ProjectData>(File.ReadAllBytes(version));
-                    if (data == null) continue;
-                    importProjects.Enqueue(data, data);
-                }
-                BackupProjectDataList.Add(vcsManager.NewestProjectData);
-                int importProjectCount = importProjects.Count;
-                for (int i = 0; i < importProjectCount; i++)
-                {
-                    BackupProjectDataList.Add(importProjects.Dequeue());
-                }
+                BackupProjectDataList = vcsManager.ProjectRepository.ObservableProjectList();
             }
             catch (Exception ex)
             {
@@ -151,11 +131,10 @@ namespace SimpleBinaryVCS.ViewModel
 
         private bool CanRevert(object obj)
         {
-            if (SelectedItem == null ||
-                vcsManager.CurrentProjectData.ProjectPath == null ||
-                SelectedItem == vcsManager.CurrentProjectData) return false;
+            if (SelectedItem == null || vcsManager.MainProjectData.ProjectPath == null) return false;
             return true;
         }
+
         private void OnViewFullLog(object obj)
         {
             if (SelectedItem == null)
@@ -169,6 +148,7 @@ namespace SimpleBinaryVCS.ViewModel
             logWindow.WindowStartupLocation = WPF.WindowStartupLocation.CenterOwner;
             logWindow.Show();
         }
+
         private void RestoreAFile(object obj)
         {
             if (obj is ProjectFile file)
@@ -176,6 +156,7 @@ namespace SimpleBinaryVCS.ViewModel
                 fileManager.RegisterNewfile(file, DataChangedState.Restored);
             }
         }
+
         private void Revert(object obj)
         {
             if (selectedItem == null)
@@ -268,17 +249,17 @@ namespace SimpleBinaryVCS.ViewModel
         private void MakeBackUp(object e)
         {
             //Make new ProjectData for backup 
-            if (App.VcsManager.CurrentProjectData.ProjectPath == null) return;
-            DirectoryInfo? parentDirectory = Directory.GetParent(vcsManager.CurrentProjectData.ProjectPath);
+            if (App.VcsManager.MainProjectData.ProjectPath == null) return;
+            DirectoryInfo? parentDirectory = Directory.GetParent(vcsManager.MainProjectData.ProjectPath);
             if (parentDirectory == null) return;
-            string backupSrcPath = $"{parentDirectory.ToString()}\\Backup_{Path.GetFileName(vcsManager.CurrentProjectData.ProjectPath)}\\Backup_{App.VcsManager.CurrentProjectData.UpdatedVersion}";
+            string backupSrcPath = $"{parentDirectory.ToString()}\\Backup_{Path.GetFileName(vcsManager.MainProjectData.ProjectPath)}\\Backup_{App.VcsManager.MainProjectData.UpdatedVersion}";
             if (!File.Exists(backupSrcPath))
             {
-                ProjectData backUpData = new ProjectData(vcsManager.CurrentProjectData);
+                ProjectData backUpData = new ProjectData(vcsManager.MainProjectData);
 
                 Directory.CreateDirectory(backupSrcPath);
 
-                foreach (ProjectFile data in vcsManager.CurrentProjectData.ProjectFiles)
+                foreach (ProjectFile data in vcsManager.MainProjectData.ProjectFiles)
                 {
                     try
                     {
@@ -295,10 +276,10 @@ namespace SimpleBinaryVCS.ViewModel
                         MessageBox.Show($"Line BU 263: {ex.Message}");
                     }
                 }
-                foreach (ProjectFile file in vcsManager.CurrentProjectData.ChangedFiles)
+                foreach (ProjectFile file in vcsManager.MainProjectData.ChangedFiles)
                 {
                     ProjectFile newFile = new ProjectFile(file);
-                    string retrievablePath = backupManager.GetFileBackupPath(parentDirectory.ToString(), vcsManager.CurrentProjectData.ProjectName, file.DeployedProjectVersion);
+                    string retrievablePath = backupManager.GetFileBackupPath(parentDirectory.ToString(), vcsManager.MainProjectData.ProjectName, file.DeployedProjectVersion);
                     backUpData.ChangedFiles.Add(newFile);
                 }
                 backUpData.ProjectPath = backupSrcPath;
@@ -333,7 +314,7 @@ namespace SimpleBinaryVCS.ViewModel
         {
             try
             {
-                VersionLogFiles = Directory.GetFiles($"{projectParentPath}\\Backup_{vcsManager.CurrentProjectData.ProjectName}", "VersionLog.*", SearchOption.AllDirectories);
+                VersionLogFiles = Directory.GetFiles($"{projectParentPath}\\Backup_{vcsManager.MainProjectData.ProjectName}", "VersionLog.*", SearchOption.AllDirectories);
                 return true;
             }
             catch (Exception ex)
@@ -345,3 +326,41 @@ namespace SimpleBinaryVCS.ViewModel
         }
     }
 }
+#region Deprecated 
+//private void Fetch(object obj)
+//{
+//    SelectedItem = null;
+//    importProjects.Clear();
+//    BackupProjectDataList.Clear();
+//    //Set up Current Project at Main 
+//    if (vcsManager.CurrentProjectPath == null || vcsManager.ProjectRepository == null) return;
+//    try
+//    {
+//        DirectoryInfo? parentPath = Directory.GetParent(vcsManager.CurrentProjectPath);
+//        string[] mainVersionLog = Directory.GetFiles(vcsManager.CurrentProjectPath, "VersionLog.*", SearchOption.AllDirectories);
+//        ProjectData? mainProjectData = MemoryPackSerializer.Deserialize<ProjectData>(File.ReadAllBytes(mainVersionLog[0]));
+//        if (mainProjectData == null) return;
+//        vcsManager.MainProjectData = mainProjectData;
+//        string[]? backupVersionLogs;
+//        if (parentPath == null) return;
+//        TryGetBackupLogs(parentPath.ToString(), out backupVersionLogs);
+//        if (backupVersionLogs == null) return;
+//        foreach (string version in backupVersionLogs)
+//        {
+//            ProjectData? data = MemoryPackSerializer.Deserialize<ProjectData>(File.ReadAllBytes(version));
+//            if (data == null) continue;
+//            importProjects.Enqueue(data, data);
+//        }
+//        BackupProjectDataList.Add(vcsManager.NewestProjectData);
+//        int importProjectCount = importProjects.Count;
+//        for (int i = 0; i < importProjectCount; i++)
+//        {
+//            BackupProjectDataList.Add(importProjects.Dequeue());
+//        }
+//    }
+//    catch (Exception ex)
+//    {
+//        MessageBox.Show($"BUVM 150 {ex.Message}");
+//    }
+//}
+#endregion

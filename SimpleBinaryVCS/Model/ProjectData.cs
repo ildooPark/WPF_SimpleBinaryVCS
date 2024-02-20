@@ -1,6 +1,8 @@
 ﻿using MemoryPack;
 using System.Collections.ObjectModel;
+using System.Drawing.Imaging;
 using System.IO;
+using System.Linq;
 
 namespace SimpleBinaryVCS.Model
 {
@@ -15,6 +17,7 @@ namespace SimpleBinaryVCS.Model
         public string UpdatedVersion { get; set; }
         public string UpdateLog { get; set; }
         public string ChangeLog { get; set; }
+        public int RevisionNumber { get; set; }
         public int NumberOfChanges { get; set; }
 
         private ObservableCollection<ProjectFile> projectFiles;
@@ -32,24 +35,15 @@ namespace SimpleBinaryVCS.Model
         }
         public Dictionary<string, ProjectFile> ProjectFilesDict => ProjectFiles.ToDictionary(item => item.DataRelPath, item => item);
 
-        public List<string> ProjectRelDirsList
-        {
-            get
-            {
-                List<string> dirPaths = new List<string>();
-                foreach (ProjectFile file in ProjectFiles)
-                {
-                    string? dirPath = Path.GetDirectoryName(file.DataRelPath);
-                    if (dirPath == null ||
-                        dirPath == string.Empty)
-                        continue;
-                    dirPaths.Add(dirPath);
-                }
-                return dirPaths;
-            }
-        }
+        public List<string> ProjectRelDirsList => ProjectFiles
+            .Where(file => file.DataType == Interfaces.ProjectDataType.Directory)
+            .Select(file => file.DataRelPath)
+            .ToList();
 
-        public List<string> ProjectRelFilePathsList => ProjectFiles.Select(file => file.DataRelPath).ToList();
+        public List<string> ProjectRelFilePathsList => ProjectFiles
+            .Where(file => file.DataType == Interfaces.ProjectDataType.File)
+            .Select(file => file.DataRelPath)
+            .ToList();
 
         [MemoryPackConstructor]
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
@@ -116,30 +110,5 @@ namespace SimpleBinaryVCS.Model
             dict.Add(nameof(this.UpdatedVersion), this.UpdatedVersion);
             dict.Add(nameof(this.NumberOfChanges), this.NumberOfChanges);
         }
-
-
-        //public List<string> ProjectRelDirsList()
-        //{
-        //    List<string> dirPaths = new List<string>();
-        //    foreach (ProjectFile file in ProjectFiles)
-        //    {
-        //        string? dirPath = Path.GetDirectoryName(file.DataRelPath); 
-        //        if (dirPath == null ||
-        //            dirPath == string.Empty)
-        //            continue;
-        //        dirPaths.Add(dirPath);
-        //    }
-        //    return dirPaths;
-        //}
-
-        //public List<string> ProjectFileRelPathsList()
-        //{
-        //    List<string> filePaths = new List<string>();
-        //    foreach (ProjectFile file in ProjectFiles)
-        //    {
-        //        filePaths.Add(file.DataRelPath);
-        //    }
-        //    return filePaths;
-        //}
     }
 }

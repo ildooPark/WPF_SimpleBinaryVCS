@@ -1,4 +1,6 @@
-﻿namespace SimpleBinaryVCS.ViewModel
+﻿using SimpleBinaryVCS.Interfaces;
+
+namespace SimpleBinaryVCS.ViewModel
 {
     public class MainViewModel : ViewModelBase
     {
@@ -13,6 +15,7 @@
             vcsVM = new VCSViewModel();
             fileTrackVM = new FileTrackViewModel();
             backupVM = new BackupViewModel();
+            App.AwakeModel();
         }
     }
 }

@@ -51,9 +51,16 @@ namespace SimpleBinaryVCS
                     fileManager = new FileManager();
                     return fileManager;
                 }
-                else
+                else 
                     return fileManager;
             }
+        }
+
+        public static void AwakeModel()
+        {
+            VcsManager.Awake(); 
+            BackupManager.Awake();
+            FileManager.Awake();
         }
     }
 }

@@ -1,4 +1,5 @@
 ﻿using MemoryPack;
+using SimpleBinaryVCS.Interfaces;
 using SimpleBinaryVCS.Model;
 using SimpleBinaryVCS.Utils;
 using System.Collections.ObjectModel;
@@ -9,9 +10,10 @@ using WinForms = System.Windows.Forms;
 
 namespace SimpleBinaryVCS.DataComponent
 {
-    public class VersionControlManager
+    public class VersionControlManager : IModel
     {
         public string? CurrentProjectPath {  get; set; }
+        public Action<object>? ResetAction;
         public Action<object>? UpdateAction;
         public Action<object>? PullAction;
         public Action<object>? FetchAction;
@@ -19,102 +21,91 @@ namespace SimpleBinaryVCS.DataComponent
         public Action<object>? ProjectInitialized;
 
         public Action? VersionCheckFinished;
-        private ProjectRepository projectRepository; 
+        private ProjectRepository? projectRepository; 
         public ProjectRepository ProjectRepository
         {
             get => projectRepository; 
             private set
             {
                 projectRepository = value;
+                mainProjectData = value.ProjectMain;
                 NewestProjectData = value.ProjectDataList.First();
-                CurrentProjectData = value.ProjectMain; 
             }
         }
 
-        private ProjectData? currentProjectData; 
-        public ProjectData CurrentProjectData 
+        private ProjectData? mainProjectData; 
+        public ProjectData MainProjectData 
         { 
-            get => currentProjectData ??= new ProjectData();
+            get => mainProjectData ??= new ProjectData();
             set
             {
                 if (projectRepository == null) throw new ArgumentNullException(nameof(projectRepository));
                 projectRepository.ProjectMain = value;
-                currentProjectData = projectRepository.ProjectMain;
-                ProjectLoaded?.Invoke(currentProjectData);
+                mainProjectData = projectRepository.ProjectMain;
+                ProjectLoaded?.Invoke(mainProjectData);
             }
         }
 
         public ProjectData? NewestProjectData { get; private set; }
-        public ObservableCollection<ProjectData> ProjectDataList { get; private set; }
+        private FileManager fileManager;
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         public VersionControlManager()
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         {
-            ProjectDataList = new ObservableCollection<ProjectData>();
+        }
+
+        public void Awake()
+        {
+            fileManager = App.FileManager;
         }
 
         #region Setup Project 
         public bool TryRetrieveProject(string projectPath)
         {
-            var openFD = new WinForms.FolderBrowserDialog();
-            string projectDataBin;
-            if (openFD.ShowDialog() == DialogResult.OK)
-            {
-                CurrentProjectPath = openFD.SelectedPath;
-            }
-            else return false;
-            openFD.Dispose();
-            //Get .bin VersionLog File 
-            string[] binFiles = Directory.GetFiles(ProjectRepository.ProjectPath, "VersionLog.*", SearchOption.AllDirectories);
+            string projectRepoBin;
+
+            CurrentProjectPath = projectPath;
+            string[] binFiles = Directory.GetFiles(CurrentProjectPath, "VersionLog.*", SearchOption.AllDirectories);
 
             if (binFiles.Length > 0)
             {
-                projectDataBin = binFiles[0];
-                ProjectRepository? projectRepo;
+                projectRepoBin = binFiles[0];
+                ProjectRepository? loadedProjectRepository;
                 try
                 {
-                    var stream = File.ReadAllBytes(projectDataBin);
-                    projectRepo = MemoryPackSerializer.Deserialize<ProjectRepository>(stream);
-                    if (projectRepo != null)
+                    var stream = File.ReadAllBytes(projectRepoBin);
+                    loadedProjectRepository = MemoryPackSerializer.Deserialize<ProjectRepository>(stream);
+                    if (loadedProjectRepository != null)
                     {
-                        CurrentProjectData = projectRepo.ProjectMain;
+                        ProjectRepository = loadedProjectRepository;
+                        MainProjectData = loadedProjectRepository.ProjectMain;
                     }
                 }
                 catch (Exception e)
                 {
                     MessageBox.Show(e.Message);
+                    return false;
                 }
                 FetchAction?.Invoke(projectPath);
+                return true;
             }
             else
             {
-                var result = MessageBox.Show("VersionLog file not found!\n Initialize A New Project?",
-                    "Import Project", MessageBoxButtons.YesNo);
-                if (result == DialogResult.Yes)
-                {
-                    InitializeProject(openFD.SelectedPath);
-                    ProjectInitialized?.Invoke(CurrentProjectData);
-                }
-                else
-                {
-                    MessageBox.Show("Please Select Another Project Path");
-                    return false;
-                }
+                return false;
             }
-            return true; 
         }
-        private void InitializeProject(string projectFilePath)
+        public void InitializeProject(string projectFilePath)
         {
             // Project Repository Setup 
             ProjectRepository newProjectRepo = new ProjectRepository(projectFilePath, Path.GetFileName(projectFilePath)); 
-
+            List<ProjectData> changedList = new List<ProjectData>();
             StringBuilder changeLog = new StringBuilder();
             TryGetAllFiles(projectFilePath, out string[]? newProjectFiles);
             if (newProjectFiles == null)
             { MessageBox.Show("Couldn't Get Project Files");  return; }
             ProjectData newProjectData = new ProjectData();
-            newProjectData.UpdatedVersion = GetprojectDataVersionName();
+            newProjectData.UpdatedVersion = GetProjectVersionName(newProjectData);
 
             foreach (string filePath in newProjectFiles)
             {
@@ -133,6 +124,7 @@ namespace SimpleBinaryVCS.DataComponent
                 newFile.DataHash = HashTool.GetFileMD5CheckSum(projectFilePath, filePath);
                 newFile.DeployedProjectVersion = newProjectData.UpdatedVersion;
                 newProjectData.ProjectFiles.Add(newFile);
+
                 newProjectData.ChangedFiles.Add(newFile);
                 changeLog.AppendLine($"Added {newFile.DataName}");
             }
@@ -141,35 +133,38 @@ namespace SimpleBinaryVCS.DataComponent
             newProjectData.ChangeLog = changeLog.ToString();
             newProjectData.NumberOfChanges = newProjectData.ProjectFiles.Count;
             newProjectData.ProjectName = Path.GetFileName(projectFilePath);
-            byte[] serializedFile = MemoryPackSerializer.Serialize(CurrentProjectData);
-            File.WriteAllBytes($"{CurrentProjectData.ProjectPath}\\VersionLog.bin", serializedFile);
-            UpdateAction?.Invoke(newProjectData);
+            byte[] serializedFile = MemoryPackSerializer.Serialize(MainProjectData);
+            File.WriteAllBytes($"{MainProjectData.ProjectPath}\\VersionLog.bin", serializedFile);
+            ProjectInitialized?.Invoke(MainProjectData);
+            
         }
         #endregion
         #region Version Management Tools
 
-        private string GetprojectDataVersionName()
+        private string GetProjectVersionName(ProjectData projData)
         {
             if (NewestProjectData == null || 
                 NewestProjectData.UpdatedVersion == null || 
                 ProjectRepository.UpdateCount == 0)
             {
-                return $"{Environment.MachineName}_{DateTime.Now.ToString("yyyy_MM_dd")}_{++ProjectRepository.UpdateCount}";
+                return $"{HashTool.GetUniqueComputerID(Environment.MachineName)}_{DateTime.Now.ToString("yyyy_MM_dd")}_{++ProjectRepository.UpdateCount}";
             }
-            return $"{Environment.MachineName}_{DateTime.Now.ToString("yyyy_MM_dd")}_v{++ProjectRepository.UpdateCount}";
+            return $"{HashTool.GetUniqueComputerID(Environment.MachineName)}_{DateTime.Now.ToString("yyyy_MM_dd")}_v{++ProjectRepository.UpdateCount}";
         }
+        
         /// <summary>
         /// Merging Src => Dst, Occurs in version Reversion or Merging from outer source. 
         /// </summary>
         /// <param name="srcData"></param>
         /// <param name="dstData"></param>
         /// <param name="isRevert"> True if Reverting, else (Merge) false.</param>
-        public List<ProjectFile> FindVersionDifferences(ProjectData srcData, ProjectData dstData, bool isRevert = true)
+        public List<ProjectFile>? FindVersionDifferences(ProjectData srcData, ProjectData dstData, bool isRevert = true)
         {
             try
             {
-                StringBuilder fileIntegrityLog = new StringBuilder();
-                fileIntegrityLog.AppendLine($"Conducting Version Integrity Check on {CurrentProjectData.UpdatedVersion}");
+                //StringBuilder fileIntegrityLog = new StringBuilder();
+                //fileIntegrityLog.AppendLine($"Conducting Version Integrity Check on {MainProjectData.UpdatedVersion}");
+                List <ProjectFile> diffLog = new List<ProjectFile> ();
                 List<string> recordedFiles = new List<string>();
                 List<string> directoryFiles = new List<string>();
                 Dictionary<string, ProjectFile> srcDict = srcData.ProjectFilesDict;
@@ -190,60 +185,59 @@ namespace SimpleBinaryVCS.DataComponent
                 foreach (string dirRelPath in dirsToAdd)
                 {
                     if (dirRelPath == "VersionLog.bin") continue;
-                    fileIntegrityLog.AppendLine($"{dirRelPath} has been Added");
-                    string? fileHash = HashTool.GetFileMD5CheckSum(CurrentProjectData.ProjectPath, dirRelPath);
-                    ProjectFile file = new ProjectFile(CurrentProjectData.ProjectPath, dirRelPath, fileHash, DataChangedState.Added | DataChangedState.IntegrityChecked);
-                    dstData.ChangedFiles.Add(file);
+                    //fileIntegrityLog.AppendLine($"{dirRelPath} has been Added");
+                    string? fileHash = HashTool.GetFileMD5CheckSum(MainProjectData.ProjectPath, dirRelPath);
+                    ProjectFile file = new ProjectFile(MainProjectData.ProjectPath, dirRelPath, fileHash, DataChangedState.Added | DataChangedState.IntegrityChecked);
+                    diffLog.Add(file);
                 }
 
                 foreach (string dirRelPath in dirsToDelete)
                 {
-                    fileIntegrityLog.AppendLine($"{dirRelPath} has been Deleted");
+                    //fileIntegrityLog.AppendLine($"{dirRelPath} has been Deleted");
                     ProjectFile file = dstDict[dirRelPath];
                     file.DataState = DataChangedState.Deleted | DataChangedState.IntegrityChecked;
-                    dstData.ChangedFiles.Add(file);
+                    diffLog.Add(file);
                 }
                 //2. Files 
                 foreach (string fileRelPath in filesToAdd)
                 {
                     if (fileRelPath == "VersionLog.bin") continue;
-                    fileIntegrityLog.AppendLine($"{fileRelPath} has been Added");
-                    string? fileHash = HashTool.GetFileMD5CheckSum(CurrentProjectData.ProjectPath, fileRelPath);
-                    ProjectFile file = new ProjectFile(CurrentProjectData.ProjectPath, fileRelPath, fileHash, DataChangedState.Added | DataChangedState.IntegrityChecked);
-                    dstData.ChangedFiles.Add(file);
+                    //fileIntegrityLog.AppendLine($"{fileRelPath} has been Added");
+                    string? fileHash = HashTool.GetFileMD5CheckSum(MainProjectData.ProjectPath, fileRelPath);
+                    ProjectFile file = new ProjectFile(MainProjectData.ProjectPath, fileRelPath, fileHash, DataChangedState.Added | DataChangedState.IntegrityChecked);
+                    diffLog.Add(file);
                 }
 
                 foreach (string fileRelPath in filesToDelete)
                 {
-                    fileIntegrityLog.AppendLine($"{fileRelPath} has been Deleted");
-                    ProjectFile file = projectFilesDict[fileRelPath];
+                    //fileIntegrityLog.AppendLine($"{fileRelPath} has been Deleted");
+                    ProjectFile file = dstDict[fileRelPath];
                     file.DataState = DataChangedState.Deleted | DataChangedState.IntegrityChecked;
-                    dstData.ChangedFiles.Add(file);
+                    diffLog.Add(file);
                 }
                 //3. File Overwrite
-                Dictionary<string, ProjectFile> srcDict = srcData.ProjectFilesDict;
-                Dictionary<string, ProjectFile> dstDict = dstData.ProjectFilesDict;
                 foreach (string fileRelPath in intersectFiles)
                 {
                     if (srcDict[fileRelPath].DataHash != dstDict[fileRelPath].DataHash)
                     {
-                        fileIntegrityLog.AppendLine($"File {dstDict[fileRelPath].DataName} on {fileRelPath} has been modified");
-                        var fileVersionInfo = FileVersionInfo.GetVersionInfo(Path.Combine(CurrentProjectData.ProjectPath, fileRelPath));
+                        //fileIntegrityLog.AppendLine($"File {dstDict[fileRelPath].DataName} on {fileRelPath} has been modified");
+                        var fileVersionInfo = FileVersionInfo.GetVersionInfo(Path.Combine(MainProjectData.ProjectPath, fileRelPath));
 
                         ProjectFile file = new ProjectFile(dstDict[fileRelPath]);
+                        file.IsNew = true;
                         file.DataState = DataChangedState.Modified | DataChangedState.IntegrityChecked;
                         file.DataHash = srcDict[fileRelPath].DataHash;
-                        file.IsNew = true;
                         file.UpdatedTime = new FileInfo(file.DataAbsPath).LastAccessTime;
-                        dstData.ChangedFiles.Add(file);
+                        diffLog.Add(file);
                     }
                 }
-                fileIntegrityLog.AppendLine("Integrity Check Complete");
-                VersionCheckFinished?.Invoke();
+                //fileIntegrityLog.AppendLine("Integrity Check Complete");
+                return diffLog;
             }
             catch (Exception ex)
             {
                 System.Windows.MessageBox.Show($"{ex.Message}. Couldn't Run File Integrity Check");
+                return null; 
             }
         }
         public void FindVersionDifferences(ProjectData srcData, ProjectData dstData, ObservableCollection<ProjectFile> changeList)
@@ -256,7 +250,7 @@ namespace SimpleBinaryVCS.DataComponent
             try
             {
                 StringBuilder fileIntegrityLog = new StringBuilder();
-                fileIntegrityLog.AppendLine($"Conducting Version Integrity Check on {CurrentProjectData.UpdatedVersion}");
+                fileIntegrityLog.AppendLine($"Conducting Version Integrity Check on {MainProjectData.UpdatedVersion}");
                 Dictionary<string, ProjectFile> srcDict = srcData.ProjectFilesDict;
                 Dictionary<string, ProjectFile> dstDict = dstData.ProjectFilesDict;
 
@@ -264,23 +258,23 @@ namespace SimpleBinaryVCS.DataComponent
                 List<string> directoryFiles = new List<string>();
                 // Fitting to the SrcFiles, 
                 // Files which is not on the Dst 
-                IEnumerable<string> filesToAdd = srcData.ProjectFileRelPathsList().Except(dstData.ProjectFileRelPathsList());
+                IEnumerable<string> filesToAdd = srcData.ProjectRelFilePathsList.Except(dstData.ProjectRelFilePathsList);
                 // Files which is not on the Src
-                IEnumerable<string> filesToDelete = dstData.ProjectFileRelPathsList().Except(srcData.ProjectFileRelPathsList());
+                IEnumerable<string> filesToDelete = dstData.ProjectRelFilePathsList.Except(srcData.ProjectRelFilePathsList);
                 // Directories which is not on the Src
-                IEnumerable<string> dirsToAdd = srcData.ProjectRelDirsList().Except(dstData.ProjectRelDirsList());
+                IEnumerable<string> dirsToAdd = srcData.ProjectRelDirsList.Except(dstData.ProjectRelDirsList);
                 // Directories which is not on the Dst
-                IEnumerable<string> dirsToDelete = dstData.ProjectRelDirsList().Except(srcData.ProjectRelDirsList());
+                IEnumerable<string> dirsToDelete = dstData.ProjectRelDirsList.Except(srcData.ProjectRelDirsList);
                 // Files to Overwrite
-                IEnumerable<string> intersectFiles = srcData.ProjectFileRelPathsList().Intersect(dstData.ProjectFileRelPathsList());
+                IEnumerable<string> intersectFiles = srcData.ProjectRelFilePathsList.Intersect(dstData.ProjectRelFilePathsList);
 
                 //1. Directories 
                 foreach (string dirRelPath in dirsToAdd)
                 {
                     if (dirRelPath == "VersionLog.bin") continue;
                     fileIntegrityLog.AppendLine($"{dirRelPath} has been Added");
-                    string? fileHash = HashTool.GetFileMD5CheckSum(CurrentProjectData.ProjectPath, dirRelPath);
-                    ProjectFile file = new ProjectFile(CurrentProjectData.ProjectPath, dirRelPath, fileHash, DataChangedState.Added | DataChangedState.IntegrityChecked);
+                    string? fileHash = HashTool.GetFileMD5CheckSum(MainProjectData.ProjectPath, dirRelPath);
+                    ProjectFile file = new ProjectFile(MainProjectData.ProjectPath, dirRelPath, fileHash, DataChangedState.Added | DataChangedState.IntegrityChecked);
                     dstData.ChangedFiles.Add(file);
                 }
 
@@ -296,8 +290,8 @@ namespace SimpleBinaryVCS.DataComponent
                 {
                     if (fileRelPath == "VersionLog.bin") continue;
                     fileIntegrityLog.AppendLine($"{fileRelPath} has been Added");
-                    string? fileHash = HashTool.GetFileMD5CheckSum(CurrentProjectData.ProjectPath, fileRelPath);
-                    ProjectFile file = new ProjectFile(CurrentProjectData.ProjectPath, fileRelPath, fileHash, DataChangedState.Added | DataChangedState.IntegrityChecked);
+                    string? fileHash = HashTool.GetFileMD5CheckSum(MainProjectData.ProjectPath, fileRelPath);
+                    ProjectFile file = new ProjectFile(MainProjectData.ProjectPath, fileRelPath, fileHash, DataChangedState.Added | DataChangedState.IntegrityChecked);
                     dstData.ChangedFiles.Add(file);
                 }
 
@@ -314,7 +308,7 @@ namespace SimpleBinaryVCS.DataComponent
                     if (srcDict[fileRelPath].DataHash != dstDict[fileRelPath].DataHash)
                     {
                         fileIntegrityLog.AppendLine($"File {dstDict[fileRelPath].DataName} on {fileRelPath} has been modified");
-                        var fileVersionInfo = FileVersionInfo.GetVersionInfo(Path.Combine(CurrentProjectData.ProjectPath, fileRelPath));
+                        var fileVersionInfo = FileVersionInfo.GetVersionInfo(Path.Combine(MainProjectData.ProjectPath, fileRelPath));
 
                         ProjectFile file = new ProjectFile(dstDict[fileRelPath]);
                         file.DataState = DataChangedState.Modified | DataChangedState.IntegrityChecked;
@@ -342,10 +336,15 @@ namespace SimpleBinaryVCS.DataComponent
         {
             // 0. Generate New Project
             ProjectData newProjectData = new ProjectData(ProjectRepository.ProjectMain);
+            // 1. Check for backup on the Current version, if none found, make one. 
 
-            // 1. Make Physical changes to the files 
-            // 2. Make 
-            // 3. Call for new Fetch Action 
+            // 2. Make Physical changes to the files 
+            IList<ProjectFile> changedList = fileManager.ChangedFileList.ToList();
+
+            // 3. Make Update, and backup for new version. 
+
+            // 4. Call for new Fetch Action 
+
         }
         private void TryGetAllFiles(string directoryPath, out string[]? files)
         {
@@ -358,6 +357,10 @@ namespace SimpleBinaryVCS.DataComponent
                 MessageBox.Show(ex.Message);
                 files = null;
             }
+        }
+        private void OnReset(object obj)
+        {
+
         }
 
         #region Planned

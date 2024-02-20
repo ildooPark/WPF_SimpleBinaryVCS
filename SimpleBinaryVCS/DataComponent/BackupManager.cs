@@ -4,7 +4,7 @@ using System.IO;
 
 namespace SimpleBinaryVCS.DataComponent
 {
-    public class BackupManager
+    public class BackupManager : IModel
     {
         // Keeps track of all the Project Files, 
         // First tracks the json file in a given Path Directory 
@@ -16,20 +16,24 @@ namespace SimpleBinaryVCS.DataComponent
         /// Value : IFile, which may include TrackedFiles, or ProjectFiles 
         /// </summary>
         public Dictionary<string, IProjectData> BackupFiles { get => backupFiles; set => backupFiles = value; }
-
+        private LinkedList<ProjectData> BackupProjectDataList;
         public Action<object>? BackupAction;
         public Action<object>? RevertAction;
         private VersionControlManager vcsManager; 
         private FileManager fileManager;
+#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         public BackupManager()
+#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         {
-            vcsManager = App.VcsManager; 
+            
+        }
+        public void Awake()
+        {
+            vcsManager = App.VcsManager;
             fileManager = App.FileManager;
-            backupFiles = vcsManager.ProjectRepository.BackupFiles;
-
+            vcsManager.FetchAction += FetchBackupList; 
             vcsManager.ProjectInitialized += MakeProjectBackup;
         }
-
         // Save BackUp 
 
         /// <summary>
@@ -60,7 +64,7 @@ namespace SimpleBinaryVCS.DataComponent
             return backupPath; 
         }
 
-        public void UpdateBackupData(IProjectData backupFile)
+        public void UpdateBackupData(ProjectData backupFile)
         {
             //Try Adding 
             //Else, Update Backup Path Info 
@@ -70,6 +74,12 @@ namespace SimpleBinaryVCS.DataComponent
         public void MakeProjectFullBackup(ProjectData projectData)
         {
 
+        }
+
+        private void FetchBackupList(object obj)
+        {
+            if (vcsManager.ProjectRepository.ProjectDataList == null) return;
+            BackupProjectDataList = vcsManager.ProjectRepository.ProjectDataList;
         }
         #endregion
     }
