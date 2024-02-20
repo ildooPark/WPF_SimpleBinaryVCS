@@ -1,8 +1,5 @@
 ﻿using SimpleBinaryVCS.DataComponent;
-using System.Configuration;
-using System.Data;
-using System.Windows;
-using WinFormsApp = System.Windows.Forms.Application; 
+using SimpleBinaryVCS.Model;
 
 namespace SimpleBinaryVCS
 {
@@ -11,18 +8,18 @@ namespace SimpleBinaryVCS
     /// </summary>
     public partial class App : System.Windows.Application
     {
-        private static VersionControlManager? vcsManager; 
-        public static VersionControlManager VcsManager
+        private static MetaDataManager? metaDataManager; 
+        public static MetaDataManager MetaDataManager
         {
             get
             {
-                if (vcsManager == null)
+                if (metaDataManager == null)
                 {
-                    vcsManager = new VersionControlManager();
-                    return vcsManager;
+                    metaDataManager = new MetaDataManager();
+                    return metaDataManager;
                 }
                 else
-                    return vcsManager;
+                    return metaDataManager;
             }
         }
 
@@ -58,7 +55,7 @@ namespace SimpleBinaryVCS
 
         public static void AwakeModel()
         {
-            VcsManager.Awake(); 
+            MetaDataManager.Awake(); 
             BackupManager.Awake();
             FileManager.Awake();
         }

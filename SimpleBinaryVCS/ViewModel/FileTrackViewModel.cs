@@ -46,22 +46,17 @@ namespace SimpleBinaryVCS.ViewModel
         private ICommand? checkProjectIntegrity; 
         public ICommand CheckProjectIntegrity
         {
-            get => checkProjectIntegrity ??= new RelayCommand(RunProjectVersionIntegrity, CanRunIntegrityTest);
+            get => checkProjectIntegrity ??= new RelayCommand(MainProjectIntegrityTest, CanRunIntegrityTest);
         }
         private ICommand? stageChanges;
         public ICommand StageChanges
         {
-            get => stageChanges ??= new RelayCommand(RunProjectVersionIntegrity, CanRunIntegrityTest);
+            get => stageChanges ??= new RelayCommand(MainProjectIntegrityTest, CanRunIntegrityTest);
         }
-        private int detectedFileChange;
-        public int DetectedFileChange
+        private ICommand? addForRestore;
+        public ICommand AddForRestore
         {
-            get { return detectedFileChange; }
-            set
-            {
-                detectedFileChange = value;
-                OnPropertyChanged("DetectedFileChange");
-            }
+            get => addForRestore ??= new RelayCommand(RestoreAFile, CanRestoreAFile);
         }
 
         private FileManager fileManager;
@@ -69,15 +64,11 @@ namespace SimpleBinaryVCS.ViewModel
         public FileTrackViewModel()
         {
             this.fileManager = App.FileManager;
-            this.fileManager.newLocalFileChange += OnNewLocalFileChange;
+            this.fileManager.UpdateChangedDataList += GetFileChanges;
             this.fileManager.IntegrityCheckFinished += OpenIntegrityLogWindow;
             this.currentState = VMState.Idle; 
         }
 
-        private void OnNewLocalFileChange(int numFile)
-        {
-            DetectedFileChange = numFile;
-        }
         private bool CanStageChanges(object obj) { return ChangedFileList.Count != 0; }
         private void StageNewChanges(object obj)
         {
@@ -118,7 +109,7 @@ namespace SimpleBinaryVCS.ViewModel
                 {
                     //Delete Project Repo and all the related subject. 
                     updateDirPath = openUpdateDir.SelectedPath;
-                    fileManager.RegisterNewData(updateDirPath);
+                    fileManager.MergeFromSrc(updateDirPath);
                 }
                 else
                 {
@@ -132,13 +123,28 @@ namespace SimpleBinaryVCS.ViewModel
                 MessageBox.Show(ex.Message);
             }
         }
+        private bool CanRestoreAFile(object? obj)
+        {
+            if (obj is ProjectFile projFile && 
+                projFile.IsDst && 
+                (projFile.DataState & DataChangedState.Modified) != 0) return true; 
+            else return false;
+        }
+
+        private void RestoreAFile(object? obj)
+        {
+            if (obj is ProjectFile file)
+            {
+                fileManager.RegisterNewfile(file, DataChangedState.Restored);
+            }
+        }
 
         private bool CanRunIntegrityTest(object parameter)
         {
             return currentState == VMState.Idle;
         }
 
-        private void RunProjectVersionIntegrity(object parameter)
+        private void MainProjectIntegrityTest(object parameter)
         {
             currentState = VMState.Calculating;
             fileManager.PerformIntegrityCheck(parameter);
@@ -155,22 +161,27 @@ namespace SimpleBinaryVCS.ViewModel
             logWindow.Show();
         }
 
-        private void GetFileChanges(ObservableCollection<ProjectFile> changedFileList)
+        private void GetFileChanges(object changedFileList)
         {
-            foreach (ProjectFile projectFile in changedFileList)
+            if (changedFileList is ObservableCollection<ProjectFile> projectFileList)
             {
-                IProjectData data = projectFile as IProjectData;
-                this.ChangedFileList.Add(data);
+                ChangedFileList.Clear();
+                foreach (ProjectFile projectFile in projectFileList)
+                {
+                    IProjectData data = projectFile as IProjectData;
+                    this.ChangedFileList.Add(data);
+                }
             }
-        }
-
-        private void GetFileChanges(ObservableCollection<TrackedData> changedFileList)
-        {
-            foreach (TrackedData trackedData in changedFileList)
+            else if (changedFileList is ObservableCollection<TrackedData> trackedDataList)
             {
-                IProjectData data = trackedData as IProjectData;
-                this.ChangedFileList.Add(data);
+                ChangedFileList.Clear();
+                foreach (TrackedData trackedData in trackedDataList)
+                {
+                    IProjectData data = trackedData as IProjectData;
+                    this.ChangedFileList.Add(data);
+                }
             }
+                return;
         }
     }
 }

@@ -10,7 +10,6 @@ namespace SimpleBinaryVCS.Model
     public partial class ProjectFile : IEquatable<ProjectFile>, IProjectData
     {
         #region [MemoryPackInclude]
-        public bool IsNew { get; set; }
         public ProjectDataType DataType { get; private set; }
         public long DataSize { get; set; }
         public string BuildVersion {  get; set; }
@@ -41,6 +40,8 @@ namespace SimpleBinaryVCS.Model
         public string DataHash { get => dataHash; set => dataHash = value; }
         [MemoryPackIgnore]
         public string DataAbsPath => Path.Combine(dataSrcPath, dataRelPath);
+        [MemoryPackIgnore]
+        public bool IsDst {  get; set; }
         #endregion
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
@@ -56,9 +57,8 @@ namespace SimpleBinaryVCS.Model
         /// <param name="fileName"></param>
         /// <param name="filePath"></param>
         /// <param name="fileVersion"></param>
-        public ProjectFile(bool isNew, long fileSize, string? fileVersion, string fileName, string fileSrcPath, string fileRelPath, DataChangedState changedState)
+        public ProjectFile(long fileSize, string? fileVersion, string fileName, string fileSrcPath, string fileRelPath, DataChangedState changedState)
         {
-            this.IsNew = isNew;
             this.DataSize = fileSize;
             this.BuildVersion = fileVersion ?? "";
             this.dataName = fileName;
@@ -70,9 +70,8 @@ namespace SimpleBinaryVCS.Model
             this.dataState = changedState;
         }
 
-        public ProjectFile(bool IsNew, long FileSize, string FileName, string? FileBuildVersion, string FileSrcPath, string FileRelPath, string FileHash, string DeployedProjectVersion, DateTime updatedTime, DataChangedState fileState, ProjectDataType dataType)
+        public ProjectFile(long FileSize, string FileName, string? FileBuildVersion, string FileSrcPath, string FileRelPath, string FileHash, string DeployedProjectVersion, DateTime updatedTime, DataChangedState fileState, ProjectDataType dataType)
         {
-            this.IsNew = IsNew;
             this.DataSize = FileSize;
             this.dataName = FileName;
             this.BuildVersion = FileBuildVersion ?? "";
@@ -91,7 +90,6 @@ namespace SimpleBinaryVCS.Model
         /// <param name="srcData">Copying File</param>
         public ProjectFile(ProjectFile srcData)
         {
-            this.IsNew = srcData.IsNew;
             this.DataType = srcData.DataType;
             this.DataSize = srcData.DataSize;
             this.BuildVersion = srcData.BuildVersion;
@@ -106,7 +104,6 @@ namespace SimpleBinaryVCS.Model
 
         public ProjectFile(string fileSrcPath, string fileRelPath, string fileHash, DataChangedState state)
         {
-            this.IsNew = true;
             string fileFullPath = Path.Combine(fileSrcPath, fileRelPath);
             var fileInfo = FileVersionInfo.GetVersionInfo(fileFullPath);
             this.DataSize = new FileInfo(fileFullPath).Length; 
@@ -127,7 +124,6 @@ namespace SimpleBinaryVCS.Model
         public ProjectFile(TrackedData changedFile, DataChangedState fileChangedState)
         {
             var fileInfo = FileVersionInfo.GetVersionInfo(changedFile.DataAbsPath);
-            this.IsNew = true;
             this.dataState = fileChangedState; 
             this.DataType = changedFile.DataType;
             this.DataSize = new FileInfo(changedFile.DataAbsPath).Length;

@@ -17,7 +17,7 @@ namespace SimpleBinaryVCS.Model
         public string UpdatedVersion { get; set; }
         public string UpdateLog { get; set; }
         public string ChangeLog { get; set; }
-        public int RevisionNumber { get; set; }
+        public int RevisionNumber { get; set; } = 0;
         public int NumberOfChanges { get; set; }
 
         private ObservableCollection<ProjectFile> projectFiles;
@@ -48,8 +48,16 @@ namespace SimpleBinaryVCS.Model
         [MemoryPackConstructor]
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         public ProjectData()
-#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         { 
+        }
+
+        public ProjectData(string projectPath)
+#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
+        {
+            this.ProjectPath = projectPath;
+            this.RevisionNumber = 1;
+            this.projectFiles = new ObservableCollection<ProjectFile>();
+            this.changedFiles = new ObservableCollection<ProjectFile>();
         }
 
         public ProjectData(ProjectData srcProjectData, bool isRevert = false)
@@ -63,6 +71,7 @@ namespace SimpleBinaryVCS.Model
             this.UpdateLog = srcProjectData.UpdateLog;
             this.ChangeLog = srcProjectData.ChangeLog;
             this.NumberOfChanges = srcProjectData.NumberOfChanges;
+            this.RevisionNumber = srcProjectData.RevisionNumber;
             this.projectFiles = new ObservableCollection<ProjectFile>();
             if (!isRevert)
             {

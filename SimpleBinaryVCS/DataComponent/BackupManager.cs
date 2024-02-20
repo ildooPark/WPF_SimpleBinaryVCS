@@ -16,11 +16,33 @@ namespace SimpleBinaryVCS.DataComponent
         /// Value : IFile, which may include TrackedFiles, or ProjectFiles 
         /// </summary>
         public Dictionary<string, IProjectData> BackupFiles { get => backupFiles; set => backupFiles = value; }
-        private LinkedList<ProjectData> BackupProjectDataList;
+        private LinkedList<ProjectData> backupProjectDataList;
         public Action<object>? BackupAction;
         public Action<object>? RevertAction;
-        private VersionControlManager vcsManager; 
+        private MetaDataManager metaDataManager; 
         private FileManager fileManager;
+        private ProjectMetaData projectRepository;
+        public ProjectMetaData ProjectRepository
+        {
+            get => projectRepository ?? throw new ArgumentNullException();
+            private set
+            {
+                projectRepository = value;
+                mainProjectData = value.ProjectMain;
+            }
+        }
+
+        private ProjectData? mainProjectData;
+        public ProjectData MainProjectData
+        {
+            get => mainProjectData ??= new ProjectData();
+            set
+            {
+                if (projectRepository == null) throw new ArgumentNullException(nameof(projectRepository));
+                projectRepository.ProjectMain = value;
+                mainProjectData = projectRepository.ProjectMain;
+            }
+        }
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         public BackupManager()
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
@@ -29,10 +51,10 @@ namespace SimpleBinaryVCS.DataComponent
         }
         public void Awake()
         {
-            vcsManager = App.VcsManager;
+            metaDataManager = App.MetaDataManager;
             fileManager = App.FileManager;
-            vcsManager.FetchAction += FetchBackupList; 
-            vcsManager.ProjectInitialized += MakeProjectBackup;
+            metaDataManager.FetchAction += FetchBackupProjectList;
+            metaDataManager.ProjectInitialized += MakeProjectBackup;
         }
         // Save BackUp 
 
@@ -44,6 +66,8 @@ namespace SimpleBinaryVCS.DataComponent
         {
             if (projectObj is not ProjectData projectData) return; 
             
+            // Check if Backup already exists 
+            bool hasBackup = backupProjectDataList.Contains(projectData);
             // Get changed File List 
             // IF Modified : Try Register new Backup File  
             // IF Added : Skip
@@ -56,7 +80,11 @@ namespace SimpleBinaryVCS.DataComponent
         {
 
         }
-
+        private void FetchBackupProjectList(object obj)
+        {
+            if (metaDataManager.ProjectMetaData == null || metaDataManager.ProjectMetaData.ProjectDataList == null) return;
+            backupProjectDataList = metaDataManager.ProjectMetaData.ProjectDataList;
+        }
 
         public string GetFileBackupPath(string parentPath, string projectName,  string projectVersion)
         {
@@ -64,11 +92,10 @@ namespace SimpleBinaryVCS.DataComponent
             return backupPath; 
         }
 
-        public void UpdateBackupData(ProjectData backupFile)
+        public void BackupProjectData(ProjectData backupFile)
         {
             //Try Adding 
             //Else, Update Backup Path Info 
-
         }
         #region Planned 
         public void MakeProjectFullBackup(ProjectData projectData)
@@ -76,11 +103,12 @@ namespace SimpleBinaryVCS.DataComponent
 
         }
 
-        private void FetchBackupList(object obj)
+        public void RevertProject(object projObj)
         {
-            if (vcsManager.ProjectRepository.ProjectDataList == null) return;
-            BackupProjectDataList = vcsManager.ProjectRepository.ProjectDataList;
+            if (projObj is not ProjectData projectData) return;
+            
         }
+        
         #endregion
     }
 }

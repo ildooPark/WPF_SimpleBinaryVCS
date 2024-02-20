@@ -1,12 +1,11 @@
 ﻿using MemoryPack;
 using SimpleBinaryVCS.Interfaces;
 using System.Collections.ObjectModel;
-using System.Reflection.Metadata;
 
 namespace SimpleBinaryVCS.Model
 {
     [MemoryPackable]
-    public partial class ProjectRepository
+    public partial class ProjectMetaData
     {
         public int UpdateCount { get; set; }
         public string ProjectName {  get; set; }
@@ -41,9 +40,10 @@ namespace SimpleBinaryVCS.Model
         #region Constructor 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         [MemoryPackConstructor]
-        public ProjectRepository() { }
-        public ProjectRepository(string projectName, string projectPath)
+        public ProjectMetaData() { }
+        public ProjectMetaData(string projectName, string projectPath)
         {
+            this.UpdateCount = 0;
             this.ProjectName = projectName;
             this.ProjectPath = projectPath;
             this.projectMain = new ProjectData();
