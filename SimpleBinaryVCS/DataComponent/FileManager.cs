@@ -21,7 +21,7 @@ namespace SimpleBinaryVCS.DataComponent
         Backup = 1 << 4,
         IntegrityChecked = 1 << 5
     }
-    public class FileManager : IModel
+    public class FileManager : IManager
     {
         private readonly object dictLock = new object();
         public Action? ClearFiles;
@@ -31,7 +31,7 @@ namespace SimpleBinaryVCS.DataComponent
         public Action<object, string, ObservableCollection<ProjectFile>>? IntegrityCheckFinished;
 
         private Dictionary<string, ProjectFile> projectFilesDict;
-        private Dictionary<string, TrackedData> changedFilesDict;
+        private Dictionary<string, TracedData> changedFilesDict;
         private SemaphoreSlim asyncControl;
         private ObservableCollection<ProjectFile> changedFileList;
         public ObservableCollection<ProjectFile> ChangedFileList
@@ -40,23 +40,55 @@ namespace SimpleBinaryVCS.DataComponent
             set => changedFileList = value;
         }
         private MetaDataManager metaDataManager;
-        private ProjectData currentProjectData;
+        private ProjectMetaData? ProjectMetaData
+        {
+            get
+            {
+                if (metaDataManager.ProjectMetaData == null)
+                {
+                    MessageBox.Show("Missing ProjectMetaData");
+                    return null;
+                }
+                return metaDataManager.ProjectMetaData;
+            }
+        }
+        private ProjectData? currentProjectData 
+        { 
+            get
+            {
+                if (ProjectMetaData == null)
+                {
+                    MessageBox.Show("Missing ProjectMetaData");
+                    return null;
+                }
+                return ProjectMetaData.ProjectMain;
+            }
+        }
+
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
-        public FileManager()
+public FileManager()
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         {
             changedFileList = new ObservableCollection<ProjectFile>();
             projectFilesDict = new Dictionary<string, ProjectFile>();
-            changedFilesDict = new Dictionary<string, TrackedData>();
+            changedFilesDict = new Dictionary<string, TracedData>();
             asyncControl = new SemaphoreSlim(5); 
-            
         }
 
         public void Awake()
         {
             metaDataManager = App.MetaDataManager;
-            metaDataManager.ProjectLoaded += SetUpFileTracker;
+            metaDataManager.ProjectLoaded += Start;
             metaDataManager.UpdateAction += UpdateResponse;
+        }
+        public void Start(object obj)
+        {
+            if (currentProjectData == null) return;
+
+            projectFilesDict.Clear();
+            changedFilesDict.Clear();
+            changedFileList.Clear();
+            projectFilesDict = currentProjectData.ProjectFilesDict;
         }
 
         private void UpdateResponse(object obj)
@@ -66,21 +98,12 @@ namespace SimpleBinaryVCS.DataComponent
 
         public void SetUpFileTracker(object projObj)
         {
-            if (projObj is not ProjectData projectData) return;
-
-            projectFilesDict.Clear(); 
-            changedFilesDict.Clear();
-            changedFileList.Clear();
-            currentProjectData = projectData; 
-            foreach (ProjectFile file in projectData.ProjectFiles)
-            {
-                projectFilesDict.Add(file.DataRelPath, file);
-            }
+            
         }
 
         private void UpdateChangedList()
         {
-            foreach (TrackedData file in changedFilesDict.Values)
+            foreach (TracedData file in changedFilesDict.Values)
             {
                 //compare the hash value, and if its the same, request to remove that file. 
                 if (projectFilesDict.TryGetValue(file.DataRelPath, out var correspondingFile))
@@ -108,7 +131,7 @@ namespace SimpleBinaryVCS.DataComponent
             try
             {
                 //Update changedFilesDict
-                foreach (TrackedData file in changedFilesDict.Values)
+                foreach (TracedData file in changedFilesDict.Values)
                 {
                     if (file.DataType == ProjectDataType.Directory) continue;
                     await asyncControl.WaitAsync();
@@ -123,7 +146,7 @@ namespace SimpleBinaryVCS.DataComponent
             
         }
 
-        private async Task GetChangedFileHashAsync(TrackedData file)
+        private async Task GetChangedFileHashAsync(TracedData file)
         {
             try
             {
@@ -249,18 +272,15 @@ namespace SimpleBinaryVCS.DataComponent
         /// <param name="srcData"></param>
         /// <param name="dstData"></param>
         /// <param name="isRevert"> True if Reverting, else (Merge) false.</param>
-        public List<ProjectFile>? FindVersionDifferences(ProjectData srcData, ProjectData dstData, bool isRevert = true)
+        public List<ChangedFile>? FindVersionDifferences(ProjectData srcData, ProjectData dstData, bool isRevert = true)
         {
             try
             {
-                //StringBuilder fileIntegrityLog = new StringBuilder();
-                //fileIntegrityLog.AppendLine($"Conducting Version Integrity Check on {dstData.UpdatedVersion}");
-                List<ProjectFile> diffLog = new List<ProjectFile>();
+                List<ChangedFile> diffLog = new List<ProjectFile>();
                 List<string> recordedFiles = new List<string>();
                 List<string> directoryFiles = new List<string>();
                 Dictionary<string, ProjectFile> srcDict = srcData.ProjectFilesDict;
                 Dictionary<string, ProjectFile> dstDict = dstData.ProjectFilesDict;
-
                 // Files which is not on the Dst 
                 IEnumerable<string> filesToAdd = srcData.ProjectRelFilePathsList.Except(dstData.ProjectRelFilePathsList);
                 // Files which is not on the Src
@@ -275,53 +295,39 @@ namespace SimpleBinaryVCS.DataComponent
                 //1. Directories 
                 foreach (string dirRelPath in dirsToAdd)
                 {
-                    if (dirRelPath == "VersionLog.bin") continue;
-                    //fileIntegrityLog.AppendLine($"{dirRelPath} has been Added");
-                    string? fileHash = HashTool.GetFileMD5CheckSum(dstData.ProjectPath, dirRelPath);
-                    ProjectFile file = new ProjectFile(dstData.ProjectPath, dirRelPath, fileHash, DataChangedState.Added | DataChangedState.IntegrityChecked);
-                    diffLog.Add(file);
+                    ProjectFile file = new ProjectFile(srcDict[dirRelPath], DataChangedState.Added);
+                    ChangedFile newChnage = new ChangedFile(file);
+                    diffLog.Add(newChnage);
                 }
 
                 foreach (string dirRelPath in dirsToDelete)
                 {
-                    //fileIntegrityLog.AppendLine($"{dirRelPath} has been Deleted");
-                    ProjectFile file = dstDict[dirRelPath];
-                    file.DataState = DataChangedState.Deleted | DataChangedState.IntegrityChecked;
-                    diffLog.Add(file);
+                    ProjectFile file = new ProjectFile(dstDict[dirRelPath], DataChangedState.Deleted);
+                    diffLog.Add(new ChangedFile(file));
                 }
                 //2. Files 
                 foreach (string fileRelPath in filesToAdd)
                 {
-                    if (fileRelPath == "VersionLog.bin") continue;
-                    //fileIntegrityLog.AppendLine($"{fileRelPath} has been Added");
-                    string? fileHash = HashTool.GetFileMD5CheckSum(dstData.ProjectPath, fileRelPath);
-                    ProjectFile file = new ProjectFile(dstData.ProjectPath, fileRelPath, fileHash, DataChangedState.Added | DataChangedState.IntegrityChecked);
-                    diffLog.Add(file);
+                    ProjectFile file = new ProjectFile(srcDict[fileRelPath], DataChangedState.Added);
+                    diffLog.Add(new ChangedFile(file));
                 }
 
                 foreach (string fileRelPath in filesToDelete)
                 {
-                    //fileIntegrityLog.AppendLine($"{fileRelPath} has been Deleted");
-                    ProjectFile file = dstDict[fileRelPath];
-                    file.DataState = DataChangedState.Deleted | DataChangedState.IntegrityChecked;
-                    diffLog.Add(file);
+                    ProjectFile file = new ProjectFile(dstDict[fileRelPath], DataChangedState.Deleted);
+                    diffLog.Add(new ChangedFile(file));
                 }
-                //3. File Overwrite
+
                 foreach (string fileRelPath in intersectFiles)
                 {
                     if (srcDict[fileRelPath].DataHash != dstDict[fileRelPath].DataHash)
                     {
-                        //fileIntegrityLog.AppendLine($"File {dstDict[fileRelPath].DataName} on {fileRelPath} has been modified");
-                        var fileVersionInfo = FileVersionInfo.GetVersionInfo(Path.Combine(dstData.ProjectPath, fileRelPath));
-
-                        ProjectFile file = new ProjectFile(dstDict[fileRelPath]);
-                        file.DataState = DataChangedState.Modified | DataChangedState.IntegrityChecked;
-                        file.DataHash = srcDict[fileRelPath].DataHash;
-                        file.UpdatedTime = new FileInfo(file.DataAbsPath).LastAccessTime;
-                        diffLog.Add(file);
+                        ProjectFile srcFile = new ProjectFile(srcDict[fileRelPath]);
+                        ProjectFile dstFile = new ProjectFile(dstDict[fileRelPath], DataChangedState.Modified);
+                        diffLog.Add(new ChangedFile(srcFile, dstFile));
                     }
                 }
-                //fileIntegrityLog.AppendLine("Integrity Check Complete");
+
                 UpdateChangedDataList?.Invoke(diffLog);
                 return diffLog;
             }
@@ -347,7 +353,7 @@ namespace SimpleBinaryVCS.DataComponent
 
                 List<string> recordedFiles = new List<string>();
                 List<string> directoryFiles = new List<string>();
-                // Fitting to the SrcFiles, 
+
                 // Files which is not on the Dst 
                 IEnumerable<string> filesToAdd = srcData.ProjectRelFilePathsList.Except(dstData.ProjectRelFilePathsList);
                 // Files which is not on the Src
@@ -359,53 +365,41 @@ namespace SimpleBinaryVCS.DataComponent
                 // Files to Overwrite
                 IEnumerable<string> intersectFiles = srcData.ProjectRelFilePathsList.Intersect(dstData.ProjectRelFilePathsList);
 
-                //1. Directories 
                 foreach (string dirRelPath in dirsToAdd)
                 {
-                    if (dirRelPath == "VersionLog.bin") continue;
-                    fileIntegrityLog.AppendLine($"{dirRelPath} has been Added");
-                    string? fileHash = HashTool.GetFileMD5CheckSum(dstData.ProjectPath, dirRelPath);
-                    ProjectFile file = new ProjectFile(dstData.ProjectPath, dirRelPath, fileHash, DataChangedState.Added | DataChangedState.IntegrityChecked);
-                    dstData.ChangedFiles.Add(file);
+                    ProjectFile dstFile = new ProjectFile(srcDict[dirRelPath], DataChangedState.Added);
+                    ChangedFile newChange = new ChangedFile(dstFile);
+                    dstData.ChangedFiles.Add(newChange);
                 }
 
                 foreach (string dirRelPath in dirsToDelete)
                 {
-                    fileIntegrityLog.AppendLine($"{dirRelPath} has been Deleted");
-                    ProjectFile file = new ProjectFile(dstDict[dirRelPath]);
-                    file.DataState = DataChangedState.Deleted | DataChangedState.IntegrityChecked;
-                    changeList.Add(file);
+                    ProjectFile dstFile = new ProjectFile(dstDict[dirRelPath], DataChangedState.Deleted);
+                    changeList.Add(dstFile);
                 }
 
                 foreach (string fileRelPath in filesToAdd)
                 {
-                    if (fileRelPath == "VersionLog.bin") continue;
-                    fileIntegrityLog.AppendLine($"{fileRelPath} has been Added");
-                    string? fileHash = HashTool.GetFileMD5CheckSum(dstData.ProjectPath, fileRelPath);
-                    ProjectFile file = new ProjectFile(dstData.ProjectPath, fileRelPath, fileHash, DataChangedState.Added | DataChangedState.IntegrityChecked);
-                    dstData.ChangedFiles.Add(file);
+                    ProjectFile dstFile = new ProjectFile(srcDict[fileRelPath], DataChangedState.Added | DataChangedState.IntegrityChecked);
+                    ChangedFile newChange = new ChangedFile(dstFile); 
+                    dstData.ChangedFiles.Add(newChange);
                 }
 
                 foreach (string fileRelPath in filesToDelete)
                 {
-                    fileIntegrityLog.AppendLine($"{fileRelPath} has been Deleted");
-                    ProjectFile file = new ProjectFile(dstDict[fileRelPath]);
-                    file.DataState = DataChangedState.Deleted | DataChangedState.IntegrityChecked;
-                    dstData.ChangedFiles.Add(file);
+                    ProjectFile dstFile = new ProjectFile(dstDict[fileRelPath], DataChangedState.Deleted);
+                    ChangedFile newChange = new ChangedFile(dstFile);
+                    dstData.ChangedFiles.Add(newChange);
                 }
 
                 foreach (string fileRelPath in intersectFiles)
                 {
                     if (srcDict[fileRelPath].DataHash != dstDict[fileRelPath].DataHash)
                     {
-                        fileIntegrityLog.AppendLine($"File {dstDict[fileRelPath].DataName} on {fileRelPath} has been modified");
-                        var fileVersionInfo = FileVersionInfo.GetVersionInfo(Path.Combine(dstData.ProjectPath, fileRelPath));
-
-                        ProjectFile file = new ProjectFile(dstDict[fileRelPath]);
-                        file.DataState = DataChangedState.Modified | DataChangedState.IntegrityChecked;
-                        file.DataHash = srcDict[fileRelPath].DataHash;
-                        file.UpdatedTime = new FileInfo(file.DataAbsPath).LastAccessTime;
-                        dstData.ChangedFiles.Add(file);
+                        ProjectFile dstFile = new ProjectFile(srcDict[fileRelPath], DataChangedState.Modified);
+                        ProjectFile srcFile = new ProjectFile(srcDict[fileRelPath]);
+                        ChangedFile newChange = new ChangedFile(srcFile, dstFile);
+                        dstData.ChangedFiles.Add(newChange);
                     }
                 }
 
@@ -469,7 +463,7 @@ namespace SimpleBinaryVCS.DataComponent
             {
                 foreach (string fileAbsPath in filesFullPaths)
                 {
-                    TrackedData newFile = new TrackedData(
+                    TracedData newFile = new TracedData(
                         ProjectDataType.File,
                         DataChangedState.None,
                         updateDirPath,
@@ -484,7 +478,7 @@ namespace SimpleBinaryVCS.DataComponent
                 }
                 foreach (string dirAbsPath in dirsFullPaths)
                 {
-                    TrackedData newFile = new TrackedData(
+                    TracedData newFile = new TracedData(
                         ProjectDataType.Directory,
                         DataChangedState.None,
                         updateDirPath,
@@ -518,6 +512,7 @@ namespace SimpleBinaryVCS.DataComponent
             newfile.DataState = fileState;
             changedFileList.Add(newfile);
         }
+
 
     }
 }

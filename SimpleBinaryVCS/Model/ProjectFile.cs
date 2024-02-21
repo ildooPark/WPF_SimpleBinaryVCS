@@ -25,6 +25,7 @@ namespace SimpleBinaryVCS.Model
         private string dataRelPath;
         [MemoryPackInclude]
         private string dataHash;
+        public bool IsDstFile { get; set; }
         #endregion
         #region [MemoryPackIgnore]
         [MemoryPackIgnore]
@@ -37,11 +38,9 @@ namespace SimpleBinaryVCS.Model
         [MemoryPackIgnore]
         public string DataRelPath => dataRelPath;
         [MemoryPackIgnore]
-        public string DataHash { get => dataHash; set => dataHash = value; }
+        public string DataHash { get => dataHash ?? ""; set => dataHash = value; }
         [MemoryPackIgnore]
         public string DataAbsPath => Path.Combine(dataSrcPath, dataRelPath);
-        [MemoryPackIgnore]
-        public bool IsDst {  get; set; }
         #endregion
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
@@ -102,6 +101,20 @@ namespace SimpleBinaryVCS.Model
             this.dataHash = srcData.DataHash;
         }
 
+        public ProjectFile(ProjectFile srcData, DataChangedState state)
+        {
+            this.DataType = srcData.DataType;
+            this.DataSize = srcData.DataSize;
+            this.BuildVersion = srcData.BuildVersion;
+            this.DeployedProjectVersion = srcData.DeployedProjectVersion;
+            this.UpdatedTime = DateTime.Now;
+            this.dataState = state;
+            this.dataName = srcData.DataName;
+            this.dataSrcPath = srcData.DataSrcPath;
+            this.dataRelPath = srcData.DataRelPath;
+            this.dataHash = srcData.DataHash;
+        }
+
         public ProjectFile(string fileSrcPath, string fileRelPath, string fileHash, DataChangedState state)
         {
             string fileFullPath = Path.Combine(fileSrcPath, fileRelPath);
@@ -121,7 +134,7 @@ namespace SimpleBinaryVCS.Model
         /// using ChangedFile Class, converts to ProjectFile, Sets isNew to true
         /// </summary>
         /// <param name="changedFile"></param>
-        public ProjectFile(TrackedData changedFile, DataChangedState fileChangedState)
+        public ProjectFile(TracedData changedFile, DataChangedState fileChangedState)
         {
             var fileInfo = FileVersionInfo.GetVersionInfo(changedFile.DataAbsPath);
             this.dataState = fileChangedState; 
@@ -133,7 +146,7 @@ namespace SimpleBinaryVCS.Model
             this.dataName = changedFile.DataName;
             this.dataRelPath = changedFile.DataRelPath;
             this.dataHash = changedFile.DataHash;
-            this.UpdatedTime = changedFile.ChangedTime;
+            this.UpdatedTime = changedFile.UpdatedTime;
         }
         /// <summary>
         /// First compares fileVersion, then the updatedTime; 

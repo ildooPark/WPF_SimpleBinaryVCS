@@ -16,7 +16,6 @@ namespace SimpleBinaryVCS.ViewModel
         /// Aligns all the project in order, such that version with the highest revision number 
         /// is listed as the Newest Version. 
         /// </summary>
-        private PriorityQueue<ProjectData, ProjectData> importProjects;
         private ObservableCollection<ProjectData>? backupProjectDataList;
         public ObservableCollection<ProjectData> BackupProjectDataList
         {
@@ -37,14 +36,14 @@ namespace SimpleBinaryVCS.ViewModel
                 selectedItem = value;
                 UpdaterName = value.UpdaterName;
                 UpdateLog = value.UpdateLog;
-                DiffLog = value.ChangedFiles;
+                DiffLog = value.ChangedProjectFileObservable;
                 OnPropertyChanged("SelectedItem");
             }
         }
-        private ICommand? fetchLogs;
-        public ICommand FetchLogs
+        private ICommand? fetchBackup;
+        public ICommand FetchBackup
         {
-            get => fetchLogs ??= new RelayCommand(Fetch, CanFetch);
+            get => fetchBackup ??= new RelayCommand(Fetch, CanFetch);
         }
         private ICommand? checkoutBackup;
         public ICommand CheckoutBackup
@@ -95,10 +94,10 @@ namespace SimpleBinaryVCS.ViewModel
         private FileManager fileManager;
         public BackupViewModel()
         {
-            importProjects = new PriorityQueue<ProjectData, ProjectData>();
             metaDataManager = App.MetaDataManager;
+            backupManager = App.BackupManager;
             metaDataManager.UpdateAction += MakeBackUp;
-            metaDataManager.FetchAction += Fetch;
+            backupManager.FetchAction += Fetch;
             fileManager = App.FileManager;
             backupManager = App.BackupManager;
         }
@@ -112,23 +111,14 @@ namespace SimpleBinaryVCS.ViewModel
         private void Fetch(object obj)
         {
             SelectedItem = null;
-            BackupProjectDataList.Clear();
             //Set up Current Project at Main 
             if (metaDataManager.CurrentProjectPath == null || metaDataManager.ProjectMetaData == null) return;
-            try
-            {
-                BackupProjectDataList = metaDataManager.ProjectMetaData.ObservableProjectList();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"BUVM 150 {ex.Message}");
-            }
+            backupManager.FetchBackupProjectList(obj);
         }
-
-        private bool CanRevert(object obj)
+        private void ReceiveFetch(object backupListObj)
         {
-            if (SelectedItem == null || metaDataManager.MainProjectData.ProjectPath == null) return false;
-            return true;
+            if (backupListObj is not ObservableCollection<ProjectData> backupList) return;
+            backupProjectDataList = backupList;
         }
 
         private void OnViewFullLog(object obj)
@@ -144,6 +134,11 @@ namespace SimpleBinaryVCS.ViewModel
             logWindow.WindowStartupLocation = WPF.WindowStartupLocation.CenterOwner;
             logWindow.Show();
         }
+        private bool CanRevert(object obj)
+        {
+            if (SelectedItem == null || metaDataManager.MainProjectData.ProjectPath == null) return false;
+            return true;
+        }
 
         private void Revert(object obj)
         {
@@ -156,6 +151,7 @@ namespace SimpleBinaryVCS.ViewModel
                 MessageBoxButtons.YesNo); 
             if (response == DialogResult.Yes)
             {
+                backupManager.RevertProject(selectedItem);
                 //1. Backup Current Project Version 
                 //1-1. Check for current project's backup
                 MakeBackUp(obj);
@@ -184,7 +180,6 @@ namespace SimpleBinaryVCS.ViewModel
                 MessageBox.Show($"Error: {ex.Message}\n Couldn't Delete files in a Given Directory");
             }
         }
-
         private void RevertBackupToMain(ProjectData revertData)
         {
             if (string.IsNullOrEmpty(metaDataManager.CurrentProjectPath))
@@ -243,7 +238,7 @@ namespace SimpleBinaryVCS.ViewModel
             string backupSrcPath = $"{parentDirectory.ToString()}\\Backup_{Path.GetFileName(metaDataManager.MainProjectData.ProjectPath)}\\Backup_{App.MetaDataManager.MainProjectData.UpdatedVersion}";
             if (!File.Exists(backupSrcPath))
             {
-                ProjectData backUpData = new ProjectData(metaDataManager.MainProjectData);
+                ProjectData backUpData = new ProjectData(metaDataManager.MainProjectData, true);
 
                 Directory.CreateDirectory(backupSrcPath);
 
@@ -267,7 +262,7 @@ namespace SimpleBinaryVCS.ViewModel
                 {
                     ProjectFile newFile = new ProjectFile(file);
                     string retrievablePath = backupManager.GetFileBackupPath(parentDirectory.ToString(), metaDataManager.MainProjectData.ProjectName, file.DeployedProjectVersion);
-                    backUpData.ChangedFiles.Add(newFile);
+                    backUpData.ChangedFiles.Add( newFile);
                 }
                 backUpData.ProjectPath = backupSrcPath;
                 byte[] serializedFile = MemoryPackSerializer.Serialize(backUpData);
@@ -275,7 +270,6 @@ namespace SimpleBinaryVCS.ViewModel
             }
             else return;
         }
-
         private void CloneDirectory(string root, string dest)
         {
             string newFilePath; 

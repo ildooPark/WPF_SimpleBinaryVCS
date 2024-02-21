@@ -126,7 +126,7 @@ namespace SimpleBinaryVCS.ViewModel
         private bool CanRestoreAFile(object? obj)
         {
             if (obj is ProjectFile projFile && 
-                projFile.IsDst && 
+                projFile.IsDstFile && 
                 (projFile.DataState & DataChangedState.Modified) != 0) return true; 
             else return false;
         }
@@ -172,10 +172,10 @@ namespace SimpleBinaryVCS.ViewModel
                     this.ChangedFileList.Add(data);
                 }
             }
-            else if (changedFileList is ObservableCollection<TrackedData> trackedDataList)
+            else if (changedFileList is ObservableCollection<TracedData> trackedDataList)
             {
                 ChangedFileList.Clear();
-                foreach (TrackedData trackedData in trackedDataList)
+                foreach (TracedData trackedData in trackedDataList)
                 {
                     IProjectData data = trackedData as IProjectData;
                     this.ChangedFileList.Add(data);

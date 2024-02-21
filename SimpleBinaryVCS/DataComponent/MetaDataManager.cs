@@ -2,20 +2,18 @@
 using SimpleBinaryVCS.Interfaces;
 using SimpleBinaryVCS.Model;
 using SimpleBinaryVCS.Utils;
-using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
 
 namespace SimpleBinaryVCS.DataComponent
 {
-    public class MetaDataManager : IModel
+    public class MetaDataManager : IManager
     {
         public string? CurrentProjectPath {  get; set; }
         public Action<object>? ResetAction;
         public Action<object>? UpdateAction;
         public Action<object>? PullAction;
-        public Action<object>? FetchAction;
         public Action<object>? ProjectLoaded;
         public Action<object>? ProjectInitialized;
 
@@ -59,6 +57,10 @@ namespace SimpleBinaryVCS.DataComponent
             backupManager = App.BackupManager;
             fileManager = App.FileManager;
         }
+        private void OnReset(object obj)
+        {
+
+        }
 
         #region Setup Project 
         public bool TryRetrieveProject(string projectPath)
@@ -80,6 +82,7 @@ namespace SimpleBinaryVCS.DataComponent
                     {
                         ProjectMetaData = loadedProjectMetaData;
                         MainProjectData = loadedProjectMetaData.ProjectMain;
+                        ProjectLoaded?.Invoke(MainProjectData);
                     }
                 }
                 catch (Exception e)
@@ -87,7 +90,6 @@ namespace SimpleBinaryVCS.DataComponent
                     MessageBox.Show(e.Message);
                     return false;
                 }
-                FetchAction?.Invoke(projectPath);
                 return true;
             }
             else
@@ -98,45 +100,52 @@ namespace SimpleBinaryVCS.DataComponent
 
         public void InitializeProject(string projectPath)
         {
-            // Project Repository Setup 
-            ProjectMetaData newProjectRepo = new ProjectMetaData(projectPath, Path.GetFileName(projectPath)); 
-            StringBuilder changeLog = new StringBuilder();
-            TryGetAllFiles(projectPath, out string[]? newProjectFiles);
-            if (newProjectFiles == null)
-            { MessageBox.Show("Couldn't Get Project Files");  return; }
-            ProjectData newProjectData = new ProjectData(projectPath);
-            newProjectData.ConductedPC = HashTool.GetUniqueComputerID(Environment.MachineName);
-            newProjectData.UpdatedVersion = GetProjectVersionName(newProjectData);
-
-            foreach (string filePath in newProjectFiles)
+            try
             {
-                var fileInfo = FileVersionInfo.GetVersionInfo(filePath);
-                ProjectFile newFile = new ProjectFile
-                    (
-                    new FileInfo(filePath).Length,
-                    Path.GetFileName(filePath),
-                    projectPath,
-                    Path.GetRelativePath(projectPath, filePath),
-                    fileInfo.FileVersion,
-                    DataChangedState.Added
-                    );
+                // Project Repository Setup 
+                ProjectMetaData newProjectRepo = new ProjectMetaData(projectPath, Path.GetFileName(projectPath));
+                StringBuilder changeLog = new StringBuilder();
+                TryGetAllFiles(projectPath, out string[]? newProjectFiles);
+                if (newProjectFiles == null)
+                { MessageBox.Show("Couldn't Get Project Files"); return; }
+                ProjectData newProjectData = new ProjectData(projectPath);
+                newProjectData.ConductedPC = HashTool.GetUniqueComputerID(Environment.MachineName);
+                newProjectData.UpdatedVersion = GetProjectVersionName(newProjectData);
 
-                newFile.DataHash = HashTool.GetFileMD5CheckSum(projectPath, filePath);
-                newFile.DeployedProjectVersion = newProjectData.UpdatedVersion;
-                newProjectData.ProjectFiles.Add(newFile);
+                foreach (string filePath in newProjectFiles)
+                {
+                    var fileInfo = FileVersionInfo.GetVersionInfo(filePath);
+                    ProjectFile newFile = new ProjectFile
+                        (
+                        new FileInfo(filePath).Length,
+                        Path.GetFileName(filePath),
+                        projectPath,
+                        Path.GetRelativePath(projectPath, filePath),
+                        fileInfo.FileVersion,
+                        DataChangedState.Added
+                        );
 
-                newProjectData.ChangedFiles.Add(newFile);
-                changeLog.AppendLine($"Added {newFile.DataName}");
+                    newFile.DataHash = HashTool.GetFileMD5CheckSum(projectPath, filePath);
+                    newFile.DeployedProjectVersion = newProjectData.UpdatedVersion;
+                    newProjectData.ProjectFiles.Add(newFile);
+                    newProjectData.ChangedFiles.Add(new ChangedFile(new ProjectFile(newFile)));
+
+                    changeLog.AppendLine($"Added {newFile.DataName}");
+                }
+
+                newProjectData.UpdatedTime = DateTime.Now;
+                newProjectData.ChangeLog = changeLog.ToString();
+                newProjectData.NumberOfChanges = newProjectData.ProjectFiles.Count;
+                newProjectData.ProjectName = Path.GetFileName(projectPath);
+                byte[] serializedFile = MemoryPackSerializer.Serialize(newProjectData);
+                File.WriteAllBytes($"{newProjectData.ProjectPath}\\ProjectMetaData.bin", serializedFile);
+                ProjectInitialized?.Invoke(MainProjectData);
             }
-
-            newProjectData.UpdatedTime = DateTime.Now;
-            newProjectData.ChangeLog = changeLog.ToString();
-            newProjectData.NumberOfChanges = newProjectData.ProjectFiles.Count;
-            newProjectData.ProjectName = Path.GetFileName(projectPath);
-            byte[] serializedFile = MemoryPackSerializer.Serialize(newProjectData);
-            File.WriteAllBytes($"{newProjectData.ProjectPath}\\ProjectMetaData.bin", serializedFile);
-            ProjectInitialized?.Invoke(MainProjectData);
-            
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+                return;
+            }
         }
         #endregion
         #region Version Management Tools
@@ -152,32 +161,7 @@ namespace SimpleBinaryVCS.DataComponent
         
         
         #endregion
-        /// <summary>
-        /// Preceded by the backup of the current Project
-        /// </summary>
-        /// <param name="obj"></param>
-        private void UponUpdateRequest(object obj)
-        {
-            if (ProjectMetaData == null)
-            {
-                MessageBox.Show("MetaData is Missing"); return;
-            }
-            // 0. Generate New Project
-            ProjectData newProjectData = new ProjectData(ProjectMetaData.ProjectMain);
-            // 1. Check for backup on the Current version, if none found, make one. 
-            bool hasBackup = ProjectMetaData.ProjectDataList.Contains(newProjectData);
-            if (!hasBackup)
-            {
-                backupManager.MakeProjectBackup(ProjectMetaData.ProjectMain);
-            }
-            // 2. Make Physical changes to the files 
-            IList<ProjectFile> changedList = fileManager.ChangedFileList.ToList();
-
-            // 3. Make Update, and backup for new version. 
-
-            // 4. Call for new Fetch Action 
-
-        }
+        
         private void TryGetAllFiles(string directoryPath, out string[]? files)
         {
             try
@@ -190,10 +174,7 @@ namespace SimpleBinaryVCS.DataComponent
                 files = null;
             }
         }
-        private void OnReset(object obj)
-        {
 
-        }
 
         #region Planned
         #region Exports
@@ -211,6 +192,11 @@ namespace SimpleBinaryVCS.DataComponent
         public void ExportProjectRepo(ProjectMetaData projectRepository)
         {
 
+        }
+
+        public void Start(object obj)
+        {
+            throw new NotImplementedException();
         }
         #endregion
         #endregion

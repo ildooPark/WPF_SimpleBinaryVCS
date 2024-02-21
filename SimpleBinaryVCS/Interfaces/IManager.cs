@@ -6,8 +6,9 @@ using System.Threading.Tasks;
 
 namespace SimpleBinaryVCS.Interfaces
 {
-    public interface IModel
+    public interface IManager
     {
         public void Awake();
+        public void Start(object obj);
     }
 }

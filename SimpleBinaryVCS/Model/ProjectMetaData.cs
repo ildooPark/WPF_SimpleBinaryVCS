@@ -52,14 +52,6 @@ namespace SimpleBinaryVCS.Model
         }
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         #endregion
-        public ObservableCollection<ProjectData> ObservableProjectList()
-        {
-            ObservableCollection<ProjectData> dataList = new ObservableCollection<ProjectData>();
-            foreach (ProjectData pd in ProjectDataList)
-            {
-                dataList.Add(pd);
-            }
-            return dataList;
-        }
+        
     }
 }

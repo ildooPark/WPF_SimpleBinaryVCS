@@ -15,7 +15,7 @@ namespace SimpleBinaryVCS.ViewModel
             metaDataVM = new MetaDataViewModel();
             fileTrackVM = new FileTrackViewModel();
             backupVM = new BackupViewModel();
-            App.AwakeModel();
+            App.AwakeManagers();
         }
     }
 }

@@ -1,8 +1,5 @@
 ﻿using MemoryPack;
 using System.Collections.ObjectModel;
-using System.Drawing.Imaging;
-using System.IO;
-using System.Linq;
 
 namespace SimpleBinaryVCS.Model
 {
@@ -27,12 +24,16 @@ namespace SimpleBinaryVCS.Model
             set => projectFiles = value;
         }
 
-        private ObservableCollection<ProjectFile> changedFiles;
-        public ObservableCollection<ProjectFile> ChangedFiles
+        private List<ChangedFile> changedFiles;
+        public List<ChangedFile> ChangedFiles
         {
-            get => changedFiles ??= new ObservableCollection<ProjectFile>();
+            get => changedFiles ??= new List<ChangedFile>();
             set => changedFiles = value;
         }
+        /// <summary>
+        /// Key : Data Relative Path 
+        /// Value : ProjectFile
+        /// </summary>
         public Dictionary<string, ProjectFile> ProjectFilesDict => ProjectFiles.ToDictionary(item => item.DataRelPath, item => item);
 
         public List<string> ProjectRelDirsList => ProjectFiles
@@ -45,6 +46,36 @@ namespace SimpleBinaryVCS.Model
             .Select(file => file.DataRelPath)
             .ToList();
 
+        //public List<ProjectFile> ChangedDstFileList => ChangedFiles
+        //    .Select(changes => changes.DstFile)
+        //    .Where(file => file != null)
+        //    .ToList();
+        public List<ProjectFile> ChangedDstFileList
+        {
+            get
+            {
+                List<ProjectFile> changedDstFileList = new List<ProjectFile>();
+                foreach (ChangedFile changes in ChangedFiles)
+                {
+                    if (changes.DstFile != null) changedDstFileList.Add(changes.DstFile);
+                }
+                return changedDstFileList;
+            }
+        }
+
+        public ObservableCollection<ProjectFile> ChangedProjectFileObservable
+        {
+            get
+            {
+                ObservableCollection<ProjectFile> changedFilesObservable = new ObservableCollection<ProjectFile>();
+                foreach (ChangedFile changes in ChangedFiles)
+                {
+                    if (changes.DstFile != null) changedFilesObservable.Add(changes.DstFile);
+                    if (changes.SrcFile != null) changedFilesObservable.Add(changes.SrcFile);
+                }
+                return changedFilesObservable;
+            }
+        }
         [MemoryPackConstructor]
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         public ProjectData()
@@ -57,7 +88,7 @@ namespace SimpleBinaryVCS.Model
             this.ProjectPath = projectPath;
             this.RevisionNumber = 1;
             this.projectFiles = new ObservableCollection<ProjectFile>();
-            this.changedFiles = new ObservableCollection<ProjectFile>();
+            this.changedFiles = new List<ChangedFile>();
         }
 
         public ProjectData(ProjectData srcProjectData, bool isRevert = false)
@@ -75,11 +106,11 @@ namespace SimpleBinaryVCS.Model
             this.projectFiles = new ObservableCollection<ProjectFile>();
             if (!isRevert)
             {
-                this.changedFiles = new ObservableCollection<ProjectFile>();
+                this.changedFiles = new List<ChangedFile>();
             }
             else
             {
-                this.changedFiles = new ObservableCollection<ProjectFile>(srcProjectData.ChangedFiles);
+                this.changedFiles = new List<ChangedFile>(srcProjectData.ChangedFiles);
             }
         }
 

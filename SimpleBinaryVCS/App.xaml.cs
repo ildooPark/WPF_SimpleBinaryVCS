@@ -23,6 +23,12 @@ namespace SimpleBinaryVCS
             }
         }
 
+        private static UpdateManager? updateManager;
+        public static UpdateManager UpdateManager
+        {
+            get => updateManager ??= new UpdateManager();
+        }
+
         private static BackupManager? backupManager;
         public static BackupManager BackupManager
         {
@@ -53,9 +59,10 @@ namespace SimpleBinaryVCS
             }
         }
 
-        public static void AwakeModel()
+        public static void AwakeManagers()
         {
             MetaDataManager.Awake(); 
+            UpdateManager.Awake();
             BackupManager.Awake();
             FileManager.Awake();
         }

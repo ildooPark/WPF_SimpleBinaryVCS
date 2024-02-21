@@ -298,7 +298,7 @@
                     Content="Fetch" 
                     HorizontalAlignment="Left"
                     Height="Auto" 
-                    Command="{Binding BackupVM.FetchLogs}"
+                    Command="{Binding BackupVM.FetchBackup}"
                     Width="Auto" />
                 <Button
                     x:Name="FullLogButton" 
@@ -308,7 +308,8 @@
                     Command="{Binding BackupVM.ViewFullLog}"
                     Width="Auto" />
             </StackPanel>
-            <Button Grid.Column="1"
+            
+<Button Grid.Column="1"
                 x:Name="IntegrityCheckButton" 
                 Content="Version Integrity Check" 
                 HorizontalAlignment="Center"

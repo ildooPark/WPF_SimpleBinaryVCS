@@ -11,6 +11,7 @@ namespace SimpleBinaryVCS.Interfaces
     {
         ProjectDataType DataType { get; }
         public DataChangedState DataState { get; set; }
+        public DateTime UpdatedTime { get; set; }
         public string DataName { get; }
         public string DataRelPath { get; }
         public string DataSrcPath { get; }

@@ -1,28 +1,27 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using MemoryPack;
 
 namespace SimpleBinaryVCS.Model
 {
-    public class ChangedFile
+    [MemoryPackable]
+    public partial class ChangedFile
     {
         public ProjectFile? SrcFile;
         public ProjectFile? DstFile;
 
+        [MemoryPackConstructor]
+        public ChangedFile() { }
         public ChangedFile(ProjectFile DstFile)
         {
             this.SrcFile = null;
             this.DstFile = DstFile;
-            DstFile.IsDst = true; 
+            DstFile.IsDstFile = true; 
         }
         public ChangedFile(ProjectFile SrcFile,  ProjectFile DstFile)
         {
             this.SrcFile = SrcFile;
-            SrcFile.IsDst = false; 
+            SrcFile.IsDstFile = false; 
             this.DstFile = DstFile;
-            DstFile.IsDst = true;
+            DstFile.IsDstFile = true;
         }
     }
 }

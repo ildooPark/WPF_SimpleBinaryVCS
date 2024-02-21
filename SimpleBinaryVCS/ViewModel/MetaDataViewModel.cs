@@ -11,10 +11,10 @@ namespace SimpleBinaryVCS.ViewModel
 {
     public class MetaDataViewModel : ViewModelBase
     {
-        private ProjectData projectData; 
-        public ProjectData ProjectData
+        private ProjectData? projectData; 
+        public ProjectData? ProjectData
         {
-            get { return projectData; }
+            get => projectData ?? null;
             set
             {
                 projectData = value;
@@ -24,26 +24,39 @@ namespace SimpleBinaryVCS.ViewModel
             }
         }
 
+        private ObservableCollection<ProjectFile>? projectFiles;
+        public ObservableCollection<ProjectFile>? ProjectFiles
+        {
+            get => projectFiles;
+            set
+            {
+                projectFiles = value;
+                OnPropertyChanged("ProjectFiles");
+            }
+        }
+
         private string? updaterName;
         public string? UpdaterName
         {
-            get => updaterName ?? "";
+            get => updaterName ?? "Undefined";
             set
             {
                 updaterName = value;
                 OnPropertyChanged("UpdaterName");
             }
         }
+
         private string? updateLog;
         public string? UpdateLog
         {
-            get => updateLog ?? "";
+            get => updateLog ?? "Undefined";
             set
             {
                 updateLog = value;
                 OnPropertyChanged("UpdateLog");
             }
         }
+
         private string? projectName;
         public string ProjectName
         {
@@ -54,6 +67,7 @@ namespace SimpleBinaryVCS.ViewModel
                 OnPropertyChanged("ProjectName");
             }
         }
+
         private string? currentVersion;
         public string CurrentVersion
         {
@@ -64,24 +78,13 @@ namespace SimpleBinaryVCS.ViewModel
                 OnPropertyChanged("CurrentVersion");
             }
         }
-        private ObservableCollection<ProjectFile> projectFiles;
-        public ObservableCollection<ProjectFile> ProjectFiles
-        {
-            get => projectFiles;
-            set
-            {
-                projectFiles = value;
-                OnPropertyChanged("ProjectFiles");
-            }
-        }
-        
 
         private ICommand? conductUpdate;
         public ICommand ConductUpdate
         {
             get
             {
-                if (conductUpdate == null) conductUpdate = new RelayCommand(UpdateProject, CanUpdateProject);
+                if (conductUpdate == null) conductUpdate = new RelayCommand(Update, CanUpdate);
                 return conductUpdate; 
             }
         }
@@ -95,31 +98,36 @@ namespace SimpleBinaryVCS.ViewModel
                 return getProject;
             }
         }
+
         private MetaDataManager metaDataManager;
         private FileManager fileManager; 
         private BackupManager backupManager;
+        private UpdateManager updateManager;
 
+#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         public MetaDataViewModel()
+#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         {
             metaDataManager = App.MetaDataManager;
             fileManager = App.FileManager;
             backupManager = App.BackupManager;
-            projectData = metaDataManager.MainProjectData; 
-            projectFiles = metaDataManager.MainProjectData.ProjectFiles;
-            metaDataManager.FetchAction += FetchResponse;
+            updateManager = App.UpdateManager;
+
+            metaDataManager.ResetAction += ProjectLoadResponse;
             metaDataManager.ProjectLoaded += ProjectLoadResponse;
+            updateManager.UpdateAction += UpdateResponse;
             backupManager.RevertAction += RevertResponse;
         }
 
         #region Update Version 
-        private bool CanUpdateProject(object obj)
+        private bool CanUpdate(object obj)
         {
             if (projectFiles == null || fileManager.ChangedFileList.Count == 0) return false;
             if (ProjectData.ProjectPath == null || updaterName == null || updateLog == null) return false;
             return true;
         }
         
-        private void UpdateProject(object obj)
+        private void Update(object obj)
         {
             if (updaterName == null || updateLog == null || updaterName == "" || updateLog == "")
             {
@@ -243,22 +251,25 @@ namespace SimpleBinaryVCS.ViewModel
 
         #endregion
 
-        private void VersionIntegrityCheck(object obj)
+        private void VersionIntegrityCheck(object projObj)
         {
             // After Revert Changes, 
             // Any Detected Changes should be enlisted to the FileManager.DetectedFileChanges for the Push
         }
 
-        private void FetchResponse(object parameter)
+        private void UpdateResponse(object projObj)
         {
+            if (projObj is not ProjectData projectData) return;
+            ProjectData = projectData;
             ProjectName = ProjectData.ProjectName ?? "Undefined";
             CurrentVersion = ProjectData.UpdatedVersion ?? "Undefined";
         }
 
-        private void RevertResponse(object obj)
+        private void RevertResponse(object projObj)
         {
-            ProjectFiles = App.MetaDataManager.MainProjectData.ProjectFiles;
-            ProjectData = ProjectData; 
+            if (projObj is not ProjectData projectData) return;
+            ProjectData = projectData;
+            ProjectFiles = projectData.ProjectFiles;
         }
 
         private void ProjectLoadResponse(object projObj)
