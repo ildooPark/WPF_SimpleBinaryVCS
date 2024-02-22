@@ -34,22 +34,19 @@ namespace SimpleBinaryVCS.Model
         /// Key : Data Relative Path 
         /// Value : ProjectFile
         /// </summary>
+        [MemoryPackIgnore]
         public Dictionary<string, ProjectFile> ProjectFilesDict => ProjectFiles.ToDictionary(item => item.DataRelPath, item => item);
-
+        [MemoryPackIgnore]
         public List<string> ProjectRelDirsList => ProjectFiles
             .Where(file => file.DataType == Interfaces.ProjectDataType.Directory)
             .Select(file => file.DataRelPath)
             .ToList();
-
+        [MemoryPackIgnore]
         public List<string> ProjectRelFilePathsList => ProjectFiles
             .Where(file => file.DataType == Interfaces.ProjectDataType.File)
             .Select(file => file.DataRelPath)
             .ToList();
-
-        //public List<ProjectFile> ChangedDstFileList => ChangedFiles
-        //    .Select(changes => changes.DstFile)
-        //    .Where(file => file != null)
-        //    .ToList();
+        [MemoryPackIgnore]
         public List<ProjectFile> ChangedDstFileList
         {
             get
@@ -62,7 +59,7 @@ namespace SimpleBinaryVCS.Model
                 return changedDstFileList;
             }
         }
-
+        [MemoryPackIgnore]
         public ObservableCollection<ProjectFile> ChangedProjectFileObservable
         {
             get
@@ -149,6 +146,19 @@ namespace SimpleBinaryVCS.Model
             dict.Add(nameof(this.UpdatedTime), this.UpdatedTime);
             dict.Add(nameof(this.UpdatedVersion), this.UpdatedVersion);
             dict.Add(nameof(this.NumberOfChanges), this.NumberOfChanges);
+        }
+
+        public void SetProjectFilesSrcPath()
+        {
+            if (ProjectPath == null)
+            {
+                MessageBox.Show("Project Path is Null, Couldn't Set Source Data Path for all Project Files");
+                return;
+            }
+            foreach (ProjectFile file in projectFiles)
+            {
+                file.DataSrcPath = ProjectPath;
+            }
         }
     }
 }

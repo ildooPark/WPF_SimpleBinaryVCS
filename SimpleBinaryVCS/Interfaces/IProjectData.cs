@@ -14,7 +14,7 @@ namespace SimpleBinaryVCS.Interfaces
         public DateTime UpdatedTime { get; set; }
         public string DataName { get; }
         public string DataRelPath { get; }
-        public string DataSrcPath { get; }
+        public string DataSrcPath { get; set; }
         public string DataAbsPath { get; }
         public string DataHash { get; set; }
     }

@@ -2,8 +2,6 @@
 using SimpleBinaryVCS.Model;
 using SimpleBinaryVCS.Utils;
 using System.Collections.ObjectModel;
-using System.IO;
-using System.Text;
 using System.Windows.Input;
 using WinForms = System.Windows.Forms;
 
@@ -18,9 +16,9 @@ namespace SimpleBinaryVCS.ViewModel
             set
             {
                 projectData = value;
-                ProjectFiles = value.ProjectFiles;
-                ProjectName = value.ProjectName ?? "Undefined";
-                CurrentVersion = value.UpdatedVersion ?? "Undefined"; 
+                ProjectFiles = value?.ProjectFiles;
+                ProjectName = value?.ProjectName ?? "Undefined";
+                CurrentVersion = value?.UpdatedVersion ?? "Undefined"; 
             }
         }
 
@@ -123,7 +121,7 @@ namespace SimpleBinaryVCS.ViewModel
         private bool CanUpdate(object obj)
         {
             if (projectFiles == null || fileManager.ChangedFileList.Count == 0) return false;
-            if (ProjectData.ProjectPath == null || updaterName == null || updateLog == null) return false;
+            if (ProjectData?.ProjectPath == null || updaterName == null || updateLog == null) return false;
             return true;
         }
         
@@ -137,84 +135,9 @@ namespace SimpleBinaryVCS.ViewModel
             }
             if (fileManager.ChangedFileList.Count == 0 || fileManager == null) return;
             
-            
-            //If there's ProjectData on SrcDir 
-
-            //Else 
 
         }
 
-        private void RegisterFileChange(ProjectFile file, int fileIndex, StringBuilder changeLog)
-        {
-            if (fileIndex == -1)
-            {
-                file.DeployedProjectVersion = ProjectData.UpdatedVersion;
-                metaDataManager.MainProjectData.ProjectFiles.Add(file);
-                metaDataManager.MainProjectData.ChangedFiles.Add(file);
-                ProjectData.NumberOfChanges++;
-                changeLog.AppendLine($"File {file.DataName} on {file.DataRelPath} has been {file.DataState.ToString()}");
-            }
-            else
-            {
-                file.DeployedProjectVersion = ProjectData.UpdatedVersion;
-                ProjectData.ChangedFiles.Add(file);
-                ProjectData.ChangedFiles.Add(projectFiles[fileIndex]);
-                changeLog.AppendLine($"File {file.DataName} on {file.DataRelPath} has been {file.DataState.ToString()}");
-                changeLog.AppendLine($"From : Build Version: {projectFiles[fileIndex].BuildVersion} Hash : {projectFiles[fileIndex].DataHash}");
-                changeLog.AppendLine($"To : Build Version: {file.BuildVersion} Hash : {file.DataHash}");
-                projectFiles[fileIndex] = file;
-                ProjectData.NumberOfChanges++;
-            }
-        }
-
-        private void ReallocateFile(ProjectFile file)
-        {
-            if (file.DataState == DataChangedState.Deleted)
-            {
-                try
-                {
-                    if (File.Exists(file.DataAbsPath))
-                    {
-                        // Delete the file if it exists
-                        File.Delete(file.DataAbsPath);
-                    }
-                    else if (Directory.Exists(file.DataAbsPath))
-                    {
-                        // Delete the directory if it exists
-                        Directory.Delete(file.DataAbsPath, true); // true for recursive deletion
-                    }
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Line VCS 267: {ex.Message}");
-                }
-                return; 
-            }
-            try
-            {
-                string newFilePath = $"{ProjectData.ProjectPath}\\{file.DataRelPath}";
-
-                if (!File.Exists(Path.GetDirectoryName(newFilePath)))
-                {
-                    try
-                    {
-                        Directory.CreateDirectory(Path.GetDirectoryName(newFilePath) ?? "");
-                    }
-                    catch (Exception ex)
-                    {
-                        MessageBox.Show($"{ex.Message} \nNo Directory Needed for this new File {file.DataName}");
-                    }
-                }
-                File.Copy(file.DataAbsPath, newFilePath, true);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Line VCS 290: {ex.Message}");
-            }
-        }
-        #endregion
-
-        #region Retrieving VersionLogs 
         private bool CanRetrieveProject(object parameter)
         {
             return true;
@@ -229,7 +152,7 @@ namespace SimpleBinaryVCS.ViewModel
             {
                 projectPath = openFD.SelectedPath;
             }
-            else return; 
+            else return;
             openFD.Dispose();
             if (projectPath == null) return;
             bool retrieveProjectResult = metaDataManager.TryRetrieveProject(projectPath);
@@ -248,9 +171,9 @@ namespace SimpleBinaryVCS.ViewModel
                 }
             }
         }
-
         #endregion
 
+        #region Receiving Model Callbacks
         private void VersionIntegrityCheck(object projObj)
         {
             // After Revert Changes, 
@@ -268,8 +191,7 @@ namespace SimpleBinaryVCS.ViewModel
         private void RevertResponse(object projObj)
         {
             if (projObj is not ProjectData projectData) return;
-            ProjectData = projectData;
-            ProjectFiles = projectData.ProjectFiles;
+            this.ProjectData = projectData;
         }
 
         private void ProjectLoadResponse(object projObj)
@@ -277,10 +199,56 @@ namespace SimpleBinaryVCS.ViewModel
             if (projObj is not ProjectData projectData) return; 
             this.ProjectData = projectData;
         }
+        #endregion
+
     }
 }
-
 #region Deprecated Updates 
+//private void ReallocateFile(ProjectFile file)
+//{
+//    if (file.DataState == DataChangedState.Deleted)
+//    {
+//        try
+//        {
+//            if (File.Exists(file.DataAbsPath))
+//            {
+//                // Delete the file if it exists
+//                File.Delete(file.DataAbsPath);
+//            }
+//            else if (Directory.Exists(file.DataAbsPath))
+//            {
+//                // Delete the directory if it exists
+//                Directory.Delete(file.DataAbsPath, true); // true for recursive deletion
+//            }
+//        }
+//        catch (Exception ex)
+//        {
+//            MessageBox.Show($"Line VCS 267: {ex.Message}");
+//        }
+//        return;
+//    }
+//    try
+//    {
+//        string newFilePath = $"{ProjectData.ProjectPath}\\{file.DataRelPath}";
+
+//        if (!File.Exists(Path.GetDirectoryName(newFilePath)))
+//        {
+//            try
+//            {
+//                Directory.CreateDirectory(Path.GetDirectoryName(newFilePath) ?? "");
+//            }
+//            catch (Exception ex)
+//            {
+//                MessageBox.Show($"{ex.Message} \nNo Directory Needed for this new File {file.DataName}");
+//            }
+//        }
+//        File.Copy(file.DataAbsPath, newFilePath, true);
+//    }
+//    catch (Exception ex)
+//    {
+//        MessageBox.Show($"Line VCS 290: {ex.Message}");
+//    }
+//}
 //private void UpdateProject(object obj)
 //{
 //    if (updaterName == null || updateLog == null || updaterName == "" || updateLog == "")

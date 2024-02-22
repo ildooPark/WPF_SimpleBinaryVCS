@@ -64,7 +64,7 @@ namespace SimpleBinaryVCS.Utils
             md5.Dispose();
             return BitConverter.ToString(srcHashBytes).Replace("-", "");
         }
-        public static async Task GetFileMD5CheckSumAsync(TracedData file)
+        public static async Task GetFileMD5CheckSumAsync(ProjectFile file)
         {
             try
             {

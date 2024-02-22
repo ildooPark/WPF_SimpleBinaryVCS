@@ -1,6 +1,7 @@
 ﻿using MemoryPack;
 using SimpleBinaryVCS.Interfaces;
 using SimpleBinaryVCS.Model;
+using SimpleBinaryVCS.Utils;
 using System.Collections.ObjectModel;
 using System.IO;
 
@@ -8,17 +9,21 @@ namespace SimpleBinaryVCS.DataComponent
 {
     public class BackupManager : IManager
     {
-
-        private ProjectMetaData? ProjectMetaData
+        private ProjectMetaData? projectMetaData;
+        public ProjectMetaData? ProjectMetaData
         {
             get
             {
-                if (metaDataManager.ProjectMetaData == null)
+                if (projectMetaData == null)
                 {
-                    MessageBox.Show("Missing ProjectMetaData");
+                    MessageBox.Show("Missing ProjectMetaData on BackupManager");
                     return null;
                 }
-                return metaDataManager.ProjectMetaData;
+                return projectMetaData;
+            }
+            private set
+            {
+                projectMetaData = value;
             }
         }
 
@@ -26,18 +31,7 @@ namespace SimpleBinaryVCS.DataComponent
         /// key : file Hash Value 
         /// Value : IFile, which may include TrackedFiles, or ProjectFiles 
         /// </summary>
-        public Dictionary<string, IProjectData>? BackupFiles
-        {
-            get
-            {
-                if (metaDataManager.ProjectMetaData == null)
-                {
-                    MessageBox.Show("Missing ProjectMetaData");
-                    return null;
-                }
-                return metaDataManager.ProjectMetaData.BackupFiles;
-            }
-        }
+        public Dictionary<string, IProjectData>? BackupFiles => ProjectMetaData?.BackupFiles;
 
         private LinkedList<ProjectData>? backupProjectDataList => ProjectMetaData?.ProjectDataList;
         public ObservableCollection<ProjectData>? ProjectBackupListObservable
@@ -57,50 +51,69 @@ namespace SimpleBinaryVCS.DataComponent
         public Action<object>? BackupAction;
         public Action<object>? RevertAction;
         public Action<object>? FetchAction; 
-        private MetaDataManager metaDataManager; 
         private FileManager fileManager;
-
+        private FileHandlerTool fileHandlerTool;
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         public BackupManager()
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         {
-            
+            fileHandlerTool = new FileHandlerTool();
         }
         public void Awake()
         {
-            metaDataManager = App.MetaDataManager;
             fileManager = App.FileManager;
-            metaDataManager.ProjectInitialized += MakeProjectBackup;
         }
+        public void Start(object obj)
+        {
+        }
+
         // Save BackUp 
 
         /// <summary>
         /// By Default should Point to ProjectMain, Make backup of the ucrrent project main before applying new changes. 
         /// </summary>
         /// <param name="projectData">Should Point to ProjectMain</param>
-        public void MakeProjectBackup (object? projectObj)
+        public void BackupProject (object? projectObj)
         {
-            if (projectObj is not ProjectData projectData) return; 
-            
+            if (projectObj is not ProjectData newMainProject) return;
+            if (projectMetaData == null || backupProjectDataList == null || BackupFiles == null) return;
             // Check if Backup already exists 
-            bool hasBackup = backupProjectDataList.Contains(projectData);
+            bool hasBackup = backupProjectDataList.Contains(newMainProject);
+            if (!hasBackup)
+            {
+                RegisterBackupFiles(newMainProject);
+            }
+
             // Get changed File List 
             // IF Modified : Try Register new Backup File  
             // IF Added : Skip
             // IF Deleted : Erase from the projectFiles List 
             // IF Restored: 
-
-        }
-
-        private void MakeBackupFile(ProjectData projectData, ProjectFile file)
-        {
-
-        }
-        public void FetchBackupProjectList(object obj)
-        {
-            if (metaDataManager.ProjectMetaData == null || metaDataManager.ProjectMetaData.ProjectDataList == null) return;
+            byte[] serializedFile = MemoryPackSerializer.Serialize(ProjectMetaData);
+            //        File.WriteAllBytes($"{backUpData.ProjectPath}\\VersionLog.bin", serializedFile);
+            newMainProject.ChangedFiles.Clear();
             FetchAction?.Invoke(ProjectBackupListObservable);
         }
+        public void SetProjectMetaData(object metaDataObj)
+        {
+            if (metaDataObj is not ProjectMetaData projectMetaData) return;
+            if (projectMetaData == null) return;
+            this.projectMetaData = projectMetaData;
+        }
+
+        private void RegisterBackupFiles(ProjectData projectData)
+        {
+            if (BackupFiles == null) return;
+
+            foreach (ProjectFile file in projectData.ChangedDstFileList)
+            {
+                if (!BackupFiles.TryAdd(file.DataHash, file))
+                {
+
+                }
+            }
+        }
+
 
         public string GetFileBackupPath(string parentPath, string projectName,  string projectVersion)
         {
@@ -113,59 +126,27 @@ namespace SimpleBinaryVCS.DataComponent
             //Try Adding 
             //Else, Update Backup Path Info 
         }
-        #region Planned 
-        public void MakeProjectFullBackup(ProjectData projectData)
+        #region Link To View Model 
+        public void FetchBackupProjectList(object obj)
         {
-
-        }
-
-        public void FetchBackup()
-        {
-            
+            if (projectMetaData == null || projectMetaData.ProjectDataList == null) return;
+            FetchAction?.Invoke(ProjectBackupListObservable);
         }
 
         public void RevertProject(ProjectData revertingProjectData)
         {
             try
             {
-                List<ChangedFile>? diff = fileManager.FindVersionDifferences(revertingProjectData, ProjectMetaData?.ProjectMain);
                 ProjectData revertedData = new ProjectData(revertingProjectData, true);
-
-                foreach (ProjectFile file in revertingProjectData.ProjectFiles)
-                {
-                    try
-                    {
-                        string newFilePath = $"{newSrcPath}\\{file.DataRelPath}";
-                        if (!File.Exists(Path.GetDirectoryName(newFilePath) ?? "")) Directory.CreateDirectory(Path.GetDirectoryName(newFilePath) ?? "");
-                        File.Copy(file.DataAbsPath, newFilePath, true);
-                        ProjectFile newData = new ProjectFile(file);
-                        revertedData.ProjectFiles.Add(newData);
-
-                    }
-                    catch (Exception ex)
-                    {
-                        MessageBox.Show($"Line BU 256: {ex.Message}");
-                    }
-                }
-                revertedData.ProjectPath = newSrcPath;
-                byte[] serializedFile = MemoryPackSerializer.Serialize(revertedData);
-                File.WriteAllBytes($"{revertedData.ProjectPath}\\VersionLog.bin", serializedFile);
+                List<ChangedFile>? FileDifferences = fileManager.FindVersionDifferences(revertingProjectData, ProjectMetaData?.ProjectMain);
+                fileHandlerTool.ApplyFileChanges(FileDifferences);
+                RevertAction?.Invoke(revertingProjectData);
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"BUVM RevertBackupToMain {ex.Message}");
             }
         }
-
-        private void AmmendFileDifferences(List<ProjectFile> fileDifferences)
-        {
-
-        }
-        public void Start(object obj)
-        {
-            
-        }
-
         #endregion
     }
 }

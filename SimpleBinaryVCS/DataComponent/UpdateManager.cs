@@ -1,67 +1,105 @@
 ﻿using SimpleBinaryVCS.Interfaces;
 using SimpleBinaryVCS.Model;
+using SimpleBinaryVCS.Utils;
 using System.Text;
 
 namespace SimpleBinaryVCS.DataComponent
 {
     public class UpdateManager : IManager
     {
-        private ProjectMetaData? ProjectMetaData
+        private ProjectData? projectMain; 
+        public ProjectData? ProjectMain
         {
             get
             {
-                if (metaDataManager.ProjectMetaData == null)
+                if (projectMain == null)
                 {
-                    MessageBox.Show("Missing ProjectMetaData");
-                    return null;
+                    MessageBox.Show("Project Main Not Set for Update Manager");
+                    return null; 
                 }
-                return metaDataManager.ProjectMetaData;
+                return projectMain;
+            }
+            private set
+            {
+                projectMain = value; 
             }
         }
+        private ProjectData? SrcProjectData { get; set; }
+        private List<ChangedFile>? projectFileChanges;
+        public List<ChangedFile>? ProjectFileChanges
+        {
+            get
+            {
+                if (projectFileChanges == null)
+                {
+                    MessageBox.Show("FileChangesList Not Set for Update Manager");
+                    return null;
+                }
+                return projectFileChanges;
+            }
+            private set 
+            { 
+                projectFileChanges = value; 
+            }
+        }
+
         public Action<object>? UpdateAction;
-        private MetaDataManager metaDataManager;
         private FileManager fileManager;
-        private BackupManager backupManager;
         private StringBuilder changeLog;
+        private FileHandlerTool fileHandlerTool;
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         public UpdateManager() 
         { 
             changeLog = new StringBuilder();
+            fileHandlerTool = new FileHandlerTool();
         }
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         
         public void Awake()
         {
-            metaDataManager = App.MetaDataManager;
-            backupManager = App.BackupManager;
             fileManager = App.FileManager;
-            metaDataManager.ProjectLoaded += Start;
+            fileManager.SrcProjectDeployed += 
+            fileManager.UpdateChanges += ProjectChangesForUpdate;
         }
 
         public void Start(object obj)
         {
+            if (obj is not ProjectData loadedProject)
+            {
+                MessageBox.Show("Invalid Parameter has entered on Update Manager");
+                return;
+            }
+            ProjectMain = loadedProject;
+            SrcProjectData = null; 
+            projectFileChanges?.Clear();
             changeLog.Clear();
+        }
+        private void RegisterSrcProject(object srcProjDataObj)
+        {
+            if (srcProjDataObj is not ProjectData srcProjectData) 
+            {
+                return;
+            }
+            this.SrcProjectData = srcProjectData;
+        }
+        private void ProjectChangesForUpdate(object fileChangeListObj)
+        {
+            if (fileChangeListObj is not List<ChangedFile> fileChangesList) return;
         }
 
         public void UpdateProjectMain()
         {
-            if (ProjectMetaData == null)
+            if (ProjectMain == null || ProjectFileChanges == null)
             {
-                MessageBox.Show("MetaData is Missing"); return;
+                MessageBox.Show("Project Data on Update Manager is Missing"); return;
             }
             // 0. Generate New Project
-            ProjectData newProjectData = new ProjectData(ProjectMetaData.ProjectMain);
-            // 1. Check for backup on the Current version, if none found, make one. 
-            bool hasBackup = ProjectMetaData.ProjectDataList.Contains(newProjectData);
-            if (!hasBackup)
-            {
-                backupManager.MakeProjectBackup(ProjectMetaData.ProjectMain);
-            }
+            ProjectData newProjectData = new ProjectData(ProjectMain);
+            newProjectData.ChangedFiles = ProjectFileChanges;
             // 2. Make Physical changes to the files 
-            IList<ProjectFile> changedList = fileManager.ChangedFileList.ToList();
-
+            fileHandlerTool.ApplyFileChanges(ProjectFileChanges);
             // 3. Make Update, and backup for new version. 
-
+            UpdateAction?.Invoke(newProjectData);
             // 4. Call for new Fetch on BackupProject List
         }
 

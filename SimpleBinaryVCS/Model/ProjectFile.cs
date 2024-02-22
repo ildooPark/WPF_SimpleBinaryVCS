@@ -33,8 +33,7 @@ namespace SimpleBinaryVCS.Model
         [MemoryPackIgnore]
         public string DataName => dataName;
         [MemoryPackIgnore]
-        public string DataSrcPath => dataSrcPath;
-
+        public string DataSrcPath { get => dataSrcPath; set => dataSrcPath = value; }
         [MemoryPackIgnore]
         public string DataRelPath => dataRelPath;
         [MemoryPackIgnore]
@@ -69,18 +68,19 @@ namespace SimpleBinaryVCS.Model
             this.dataState = changedState;
         }
 
-        public ProjectFile(long FileSize, string FileName, string? FileBuildVersion, string FileSrcPath, string FileRelPath, string FileHash, string DeployedProjectVersion, DateTime updatedTime, DataChangedState fileState, ProjectDataType dataType)
+        public ProjectFile(ProjectDataType DataType, long DataSize, string? BuildVersion, string? DeployedProjectVersion, 
+            DateTime? UpdateTime, DataChangedState DataState, string DataName, string DataSrcPath, string DataRelPath, string? DataHash)
         {
-            this.DataSize = FileSize;
-            this.dataName = FileName;
-            this.BuildVersion = FileBuildVersion ?? "";
-            this.dataSrcPath = FileSrcPath;
-            this.dataRelPath = FileRelPath;
-            this.dataHash = FileHash;
-            this.DeployedProjectVersion = DeployedProjectVersion;
-            this.UpdatedTime = updatedTime; 
-            this.dataState = fileState;
-            this.DataType = dataType;
+            this.DataType = DataType;
+            this.DataSize = DataSize;
+            this.BuildVersion = BuildVersion ?? "";
+            this.DeployedProjectVersion = DeployedProjectVersion ?? "";
+            this.UpdatedTime = UpdateTime ?? DateTime.MinValue;
+            this.DataState = DataState;
+            this.dataName = DataName;
+            this.dataSrcPath = DataSrcPath;
+            this.dataRelPath= DataRelPath;
+            this.dataHash = dataHash ?? "";
         }
 
         /// <summary>
@@ -115,6 +115,20 @@ namespace SimpleBinaryVCS.Model
             this.dataHash = srcData.DataHash;
         }
 
+        public ProjectFile(ProjectFile srcData, DataChangedState state, string dataSrcPath)
+        {
+            this.DataType = srcData.DataType;
+            this.DataSize = srcData.DataSize;
+            this.BuildVersion = srcData.BuildVersion;
+            this.DeployedProjectVersion = srcData.DeployedProjectVersion;
+            this.UpdatedTime = DateTime.Now;
+            this.dataState = state;
+            this.dataName = srcData.DataName;
+            this.dataSrcPath = dataSrcPath;
+            this.dataRelPath = srcData.DataRelPath;
+            this.dataHash = srcData.DataHash;
+        }
+
         public ProjectFile(string fileSrcPath, string fileRelPath, string fileHash, DataChangedState state)
         {
             string fileFullPath = Path.Combine(fileSrcPath, fileRelPath);
@@ -130,24 +144,6 @@ namespace SimpleBinaryVCS.Model
             this.dataState = state;
         }
 
-        /// <summary>
-        /// using ChangedFile Class, converts to ProjectFile, Sets isNew to true
-        /// </summary>
-        /// <param name="changedFile"></param>
-        public ProjectFile(TracedData changedFile, DataChangedState fileChangedState)
-        {
-            var fileInfo = FileVersionInfo.GetVersionInfo(changedFile.DataAbsPath);
-            this.dataState = fileChangedState; 
-            this.DataType = changedFile.DataType;
-            this.DataSize = new FileInfo(changedFile.DataAbsPath).Length;
-            this.BuildVersion = fileInfo.FileVersion ?? "";
-            this.DeployedProjectVersion = "";
-            this.dataSrcPath = changedFile.DataSrcPath;
-            this.dataName = changedFile.DataName;
-            this.dataRelPath = changedFile.DataRelPath;
-            this.dataHash = changedFile.DataHash;
-            this.UpdatedTime = changedFile.UpdatedTime;
-        }
         /// <summary>
         /// First compares fileVersion, then the updatedTime; 
         /// smaller fileVersion corresponds to newer file

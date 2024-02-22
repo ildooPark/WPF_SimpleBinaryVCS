@@ -1,4 +1,5 @@
 ﻿using MemoryPack;
+using SimpleBinaryVCS;
 using SimpleBinaryVCS.DataComponent;
 using SimpleBinaryVCS.Model;
 using SimpleBinaryVCS.Utils;
@@ -91,15 +92,13 @@ namespace SimpleBinaryVCS.ViewModel
 
         private MetaDataManager metaDataManager;
         private BackupManager backupManager;
-        private FileManager fileManager;
         public BackupViewModel()
         {
             metaDataManager = App.MetaDataManager;
             backupManager = App.BackupManager;
-            metaDataManager.UpdateAction += MakeBackUp;
+
             backupManager.FetchAction += Fetch;
-            fileManager = App.FileManager;
-            backupManager = App.BackupManager;
+            backupManager.RevertAction += Revert;
         }
 
         private bool CanFetch(object obj)
@@ -136,7 +135,7 @@ namespace SimpleBinaryVCS.ViewModel
         }
         private bool CanRevert(object obj)
         {
-            if (SelectedItem == null || metaDataManager.MainProjectData.ProjectPath == null) return false;
+            if (SelectedItem == null || metaDataManager.MainProjectData == null) return false;
             return true;
         }
 
@@ -152,162 +151,88 @@ namespace SimpleBinaryVCS.ViewModel
             if (response == DialogResult.Yes)
             {
                 backupManager.RevertProject(selectedItem);
-                //1. Backup Current Project Version 
-                //1-1. Check for current project's backup
-                MakeBackUp(obj);
-                //1-2. Delete all the files in the current Directory 
-                //1-2. Compare Main with Revision Version 
-                DeleteAllInDirectory(metaDataManager.CurrentProjectPath ?? "");
-                //2. Transfer the ProjectData to Current
-                RevertBackupToMain(selectedItem);
-                //3. Set Selected ProjectData as Current Project Data 
-                Fetch(obj);
             }
             else
             {
                 return;
             }
         }
-
-        private void DeleteAllInDirectory(string directoryPath)
-        {
-            try
-            {
-                Directory.Delete(directoryPath, true);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error: {ex.Message}\n Couldn't Delete files in a Given Directory");
-            }
-        }
-        private void RevertBackupToMain(ProjectData revertData)
-        {
-            if (string.IsNullOrEmpty(metaDataManager.CurrentProjectPath))
-            {
-                MessageBox.Show("Main Project Path is Empty");
-                return;
-            }
-            string newSrcPath = metaDataManager.CurrentProjectPath;
-            try
-            {
-                if (!File.Exists(newSrcPath))
-                {
-                    ProjectData revertedData = new ProjectData(revertData, true);
-
-                    Directory.CreateDirectory(newSrcPath);
-
-                    foreach (ProjectFile file in revertData.ProjectFiles)
-                    {
-                        try
-                        {
-                            string newFilePath = $"{newSrcPath}\\{file.DataRelPath}";
-                            if (!File.Exists(Path.GetDirectoryName(newFilePath) ?? "")) Directory.CreateDirectory(Path.GetDirectoryName(newFilePath) ?? "");
-                            File.Copy(file.DataAbsPath, newFilePath, true);
-                            ProjectFile newData = new ProjectFile(file);
-                            revertedData.ProjectFiles.Add(newData);
-                            
-                        }
-                        catch (Exception ex)
-                        {
-                            MessageBox.Show($"Line BU 256: {ex.Message}");
-                        }
-                    }
-                    revertedData.ProjectPath = newSrcPath;
-                    byte[] serializedFile = MemoryPackSerializer.Serialize(revertedData);
-                    File.WriteAllBytes($"{revertedData.ProjectPath}\\VersionLog.bin", serializedFile);
-                }
-                else return;
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"BUVM RevertBackupToMain {ex.Message}");
-            }
-            
-        }
-
-        /// <summary>
-        /// Backup is generated prior to and after update event. 
-        /// </summary>
-        /// <param name="e"></param>
-        private void MakeBackUp(object e)
-        {
-            //Make new ProjectData for backup 
-            if (App.MetaDataManager.MainProjectData.ProjectPath == null) return;
-            DirectoryInfo? parentDirectory = Directory.GetParent(metaDataManager.MainProjectData.ProjectPath);
-            if (parentDirectory == null) return;
-            string backupSrcPath = $"{parentDirectory.ToString()}\\Backup_{Path.GetFileName(metaDataManager.MainProjectData.ProjectPath)}\\Backup_{App.MetaDataManager.MainProjectData.UpdatedVersion}";
-            if (!File.Exists(backupSrcPath))
-            {
-                ProjectData backUpData = new ProjectData(metaDataManager.MainProjectData, true);
-
-                Directory.CreateDirectory(backupSrcPath);
-
-                foreach (ProjectFile data in metaDataManager.MainProjectData.ProjectFiles)
-                {
-                    try
-                    {
-                        string newBackupFullPath = $"{backupSrcPath}\\{data.DataRelPath}";
-                        if (!File.Exists(Path.GetDirectoryName(newBackupFullPath) ?? "")) 
-                            Directory.CreateDirectory(Path.GetDirectoryName(newBackupFullPath) ?? "");
-                        File.Copy(data.DataAbsPath, newBackupFullPath, true);
-                        ProjectFile newFile = new ProjectFile(data);
-                        backUpData.ProjectFiles.Add(newFile);
-                    }
-                    catch (Exception ex)
-                    {
-                        MessageBox.Show($"Line BU 276: {ex.Message}");
-                    }
-                }
-                foreach (ProjectFile file in metaDataManager.MainProjectData.ChangedFiles)
-                {
-                    ProjectFile newFile = new ProjectFile(file);
-                    string retrievablePath = backupManager.GetFileBackupPath(parentDirectory.ToString(), metaDataManager.MainProjectData.ProjectName, file.DeployedProjectVersion);
-                    backUpData.ChangedFiles.Add( newFile);
-                }
-                backUpData.ProjectPath = backupSrcPath;
-                byte[] serializedFile = MemoryPackSerializer.Serialize(backUpData);
-                File.WriteAllBytes($"{backUpData.ProjectPath}\\VersionLog.bin", serializedFile);
-            }
-            else return;
-        }
-        private void CloneDirectory(string root, string dest)
-        {
-            string newFilePath; 
-
-            foreach (var directory in Directory.GetDirectories(root))
-            {
-                //Get the path of the new directory
-                var newDirectory = Path.Combine(dest, Path.GetFileName(directory));
-                //Create the directory if it doesn't already exist
-                Directory.CreateDirectory(newDirectory);
-                //Recursively clone the directory
-                CloneDirectory(directory, newDirectory);
-            }
-
-            foreach (var file in Directory.GetFiles(root))
-            {
-                newFilePath = Path.Combine(dest, Path.GetFileName(file)); 
-
-                File.Copy(file, newFilePath);
-            }
-        }
-        private bool TryGetBackupLogs(string projectParentPath, out string[]? VersionLogFiles)
-        {
-            try
-            {
-                VersionLogFiles = Directory.GetFiles($"{projectParentPath}\\Backup_{metaDataManager.MainProjectData.ProjectName}", "VersionLog.*", SearchOption.AllDirectories);
-                return true;
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show(ex.Message);
-                VersionLogFiles = null;
-                return false;
-            }
-        }
     }
 }
 #region Deprecated 
+/// <summary>
+/// Backup is generated prior to and after update event. 
+/// </summary>
+/// <param name="e"></param>
+//private void MakeBackUp(object e)
+//{
+//    //Make new ProjectData for backup 
+//    if (App.MetaDataManager.MainProjectData.ProjectPath == null) return;
+//    DirectoryInfo? parentDirectory = Directory.GetParent(metaDataManager.MainProjectData.ProjectPath);
+//    if (parentDirectory == null) return;
+//    string backupSrcPath = $"{parentDirectory.ToString()}\\Backup_{Path.GetFileName(metaDataManager.MainProjectData.ProjectPath)}\\Backup_{App.MetaDataManager.MainProjectData.UpdatedVersion}";
+//    if (!File.Exists(backupSrcPath))
+//    {
+//        ProjectData backUpData = new ProjectData(metaDataManager.MainProjectData, true);
+
+//        Directory.CreateDirectory(backupSrcPath);
+
+//        foreach (ProjectFile data in metaDataManager.MainProjectData.ProjectFiles)
+//        {
+//            try
+//            {
+//                string newBackupFullPath = $"{backupSrcPath}\\{data.DataRelPath}";
+//                if (!File.Exists(Path.GetDirectoryName(newBackupFullPath) ?? ""))
+//                    Directory.CreateDirectory(Path.GetDirectoryName(newBackupFullPath) ?? "");
+//                File.Copy(data.DataAbsPath, newBackupFullPath, true);
+//                ProjectFile newFile = new ProjectFile(data);
+//                backUpData.ProjectFiles.Add(newFile);
+//            }
+//            catch (Exception ex)
+//            {
+//                MessageBox.Show($"Line BU 276: {ex.Message}");
+//            }
+//        }
+//        foreach (ProjectFile file in metaDataManager.MainProjectData.ChangedFiles)
+//        {
+//            ProjectFile newFile = new ProjectFile(file);
+//            string retrievablePath = backupManager.GetFileBackupPath(parentDirectory.ToString(), metaDataManager.MainProjectData.ProjectName, file.DeployedProjectVersion);
+//            backUpData.ChangedFiles.Add(newFile);
+//        }
+//        backUpData.ProjectPath = backupSrcPath;
+//        byte[] serializedFile = MemoryPackSerializer.Serialize(backUpData);
+//        File.WriteAllBytes($"{backUpData.ProjectPath}\\VersionLog.bin", serializedFile);
+//    }
+//    else return;
+//}
+//private void Revert(object obj)
+//{
+//    if (selectedItem == null)
+//    {
+//        MessageBox.Show("BUVM 164: Selected BackupVersion is null");
+//        return;
+//    }
+//    var response = MessageBox.Show($"Do you want to Revert to {selectedItem.UpdatedVersion}", "Confirm Updates",
+//        MessageBoxButtons.YesNo);
+//    if (response == DialogResult.Yes)
+//    {
+//        backupManager.RevertProject(selectedItem);
+//        //1. Backup Current Project Version 
+//        //1-1. Check for current project's backup
+//        MakeBackUp(obj);
+//        //1-2. Delete all the files in the current Directory 
+//        //1-2. Compare Main with Revision Version 
+//        DeleteAllInDirectory(metaDataManager.CurrentProjectPath ?? "");
+//        //2. Transfer the ProjectData to Current
+//        RevertBackupToMain(selectedItem);
+//        //3. Set Selected ProjectData as Current Project Data 
+//        Fetch(obj);
+//    }
+//    else
+//    {
+//        return;
+//    }
+//}
 //private void Fetch(object obj)
 //{
 //    SelectedItem = null;

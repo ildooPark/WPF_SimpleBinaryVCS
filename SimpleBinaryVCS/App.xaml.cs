@@ -11,16 +11,7 @@ namespace SimpleBinaryVCS
         private static MetaDataManager? metaDataManager; 
         public static MetaDataManager MetaDataManager
         {
-            get
-            {
-                if (metaDataManager == null)
-                {
-                    metaDataManager = new MetaDataManager();
-                    return metaDataManager;
-                }
-                else
-                    return metaDataManager;
-            }
+            get => metaDataManager ??= new MetaDataManager();
         }
 
         private static UpdateManager? updateManager;
@@ -32,31 +23,13 @@ namespace SimpleBinaryVCS
         private static BackupManager? backupManager;
         public static BackupManager BackupManager
         {
-            get
-            {
-                if (backupManager == null)
-                {
-                    backupManager = new BackupManager();
-                    return backupManager;
-                }
-                else
-                    return backupManager;
-            }
+            get => backupManager ??= new BackupManager();
         }
 
         private static FileManager? fileManager;
         public static FileManager FileManager
         {
-            get
-            {
-                if (fileManager == null)
-                {
-                    fileManager = new FileManager();
-                    return fileManager;
-                }
-                else 
-                    return fileManager;
-            }
+            get => fileManager ??= new FileManager();
         }
 
         public static void AwakeManagers()

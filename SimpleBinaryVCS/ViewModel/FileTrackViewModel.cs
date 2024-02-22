@@ -16,7 +16,18 @@ namespace SimpleBinaryVCS.ViewModel
     }
     public class FileTrackViewModel : ViewModelBase
     {
-        public ObservableCollection<IProjectData> ChangedFileList { get; set; } = new ObservableCollection<IProjectData>();
+        public bool DeployedSrcHasLog { get; set; }
+
+        private ObservableCollection<ProjectFile>? changedFileList; 
+        public ObservableCollection<ProjectFile> ChangedFileList 
+        {
+            get => changedFileList ??= new ObservableCollection<ProjectFile>();
+            set
+            {
+                changedFileList = value;
+                OnPropertyChanged("ChangedFileList");
+            }
+        }
 
         private ProjectFile? selectedItem; 
         public ProjectFile? SelectedItem
@@ -64,7 +75,7 @@ namespace SimpleBinaryVCS.ViewModel
         public FileTrackViewModel()
         {
             this.fileManager = App.FileManager;
-            this.fileManager.UpdateChangedDataList += GetFileChanges;
+            this.fileManager.UpdateChangesObservable += GetFileChanges;
             this.fileManager.IntegrityCheckFinished += OpenIntegrityLogWindow;
             this.currentState = VMState.Idle; 
         }
@@ -91,7 +102,6 @@ namespace SimpleBinaryVCS.ViewModel
             {
                 ChangedFileList.Remove(file);
             }
-            
         }
 
         private bool CanSetDeployDir(object obj)
@@ -107,9 +117,8 @@ namespace SimpleBinaryVCS.ViewModel
                 var openUpdateDir = new WinForms.FolderBrowserDialog();
                 if (openUpdateDir.ShowDialog() == DialogResult.OK)
                 {
-                    //Delete Project Repo and all the related subject. 
                     updateDirPath = openUpdateDir.SelectedPath;
-                    fileManager.MergeFromSrc(updateDirPath);
+                    fileManager.RetrieveDataSrc(updateDirPath);
                 }
                 else
                 {
@@ -166,22 +175,8 @@ namespace SimpleBinaryVCS.ViewModel
             if (changedFileList is ObservableCollection<ProjectFile> projectFileList)
             {
                 ChangedFileList.Clear();
-                foreach (ProjectFile projectFile in projectFileList)
-                {
-                    IProjectData data = projectFile as IProjectData;
-                    this.ChangedFileList.Add(data);
-                }
+                ChangedFileList = projectFileList;
             }
-            else if (changedFileList is ObservableCollection<TracedData> trackedDataList)
-            {
-                ChangedFileList.Clear();
-                foreach (TracedData trackedData in trackedDataList)
-                {
-                    IProjectData data = trackedData as IProjectData;
-                    this.ChangedFileList.Add(data);
-                }
-            }
-                return;
         }
     }
 }

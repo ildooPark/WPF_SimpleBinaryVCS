@@ -15,10 +15,20 @@ namespace SimpleBinaryVCS.DataComponent
         public Action<object>? UpdateAction;
         public Action<object>? PullAction;
         public Action<object>? ProjectLoaded;
-        public Action<object>? ProjectInitialized;
+        public Action<object>? MetaDataLoaded;
 
         public Action? VersionCheckFinished;
-        public ProjectMetaData? ProjectMetaData{ get; private set; }
+        private ProjectMetaData? projectMetaData;
+        public ProjectMetaData? ProjectMetaData
+        {
+            get => projectMetaData;
+            private set
+            {
+                if (value == null) throw new ArgumentNullException(nameof(ProjectMetaData));
+                projectMetaData = value;
+                MetaDataLoaded?.Invoke(value);
+            }
+        }
 
         private ProjectData? mainProjectData; 
         public ProjectData? MainProjectData 
@@ -46,6 +56,7 @@ namespace SimpleBinaryVCS.DataComponent
 
         private FileManager fileManager;
         private BackupManager backupManager;
+        private UpdateManager updateManager;
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         public MetaDataManager()
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
@@ -56,7 +67,17 @@ namespace SimpleBinaryVCS.DataComponent
         {
             backupManager = App.BackupManager;
             fileManager = App.FileManager;
+            updateManager = App.UpdateManager;
+
+            MetaDataLoaded += backupManager.SetProjectMetaData;
+            ProjectLoaded += backupManager.BackupProject;
+            ProjectLoaded += fileManager.Start;
+            ProjectLoaded += updateManager.Start;
+
+            backupManager.RevertAction += SetProjectMain;
+            updateManager.UpdateAction += SetProjectMain;
         }
+
         private void OnReset(object obj)
         {
 
@@ -105,7 +126,7 @@ namespace SimpleBinaryVCS.DataComponent
                 // Project Repository Setup 
                 ProjectMetaData newProjectRepo = new ProjectMetaData(projectPath, Path.GetFileName(projectPath));
                 StringBuilder changeLog = new StringBuilder();
-                TryGetAllFiles(projectPath, out string[]? newProjectFiles);
+                string[]? newProjectFiles = Directory.GetFiles(projectPath, "*", SearchOption.AllDirectories);
                 if (newProjectFiles == null)
                 { MessageBox.Show("Couldn't Get Project Files"); return; }
                 ProjectData newProjectData = new ProjectData(projectPath);
@@ -128,7 +149,7 @@ namespace SimpleBinaryVCS.DataComponent
                     newFile.DataHash = HashTool.GetFileMD5CheckSum(projectPath, filePath);
                     newFile.DeployedProjectVersion = newProjectData.UpdatedVersion;
                     newProjectData.ProjectFiles.Add(newFile);
-                    newProjectData.ChangedFiles.Add(new ChangedFile(new ProjectFile(newFile)));
+                    newProjectData.ChangedFiles.Add(new ChangedFile(new ProjectFile(newFile), DataChangedState.Added));
 
                     changeLog.AppendLine($"Added {newFile.DataName}");
                 }
@@ -139,7 +160,7 @@ namespace SimpleBinaryVCS.DataComponent
                 newProjectData.ProjectName = Path.GetFileName(projectPath);
                 byte[] serializedFile = MemoryPackSerializer.Serialize(newProjectData);
                 File.WriteAllBytes($"{newProjectData.ProjectPath}\\ProjectMetaData.bin", serializedFile);
-                ProjectInitialized?.Invoke(MainProjectData);
+                MetaDataLoaded?.Invoke(MainProjectData);
             }
             catch (Exception ex)
             {
@@ -161,21 +182,11 @@ namespace SimpleBinaryVCS.DataComponent
         
         
         #endregion
-        
-        private void TryGetAllFiles(string directoryPath, out string[]? files)
+        private void SetProjectMain(object projObj)
         {
-            try
-            {
-                files = Directory.GetFiles(directoryPath, "*", SearchOption.AllDirectories);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show(ex.Message);
-                files = null;
-            }
+            if (projObj is not ProjectData projData) return;
+            this.MainProjectData = projData;
         }
-
-
         #region Planned
         #region Exports
         /// <summary>
