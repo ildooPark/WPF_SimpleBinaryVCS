@@ -1,4 +1,5 @@
 ﻿using MemoryPack;
+using Microsoft.VisualBasic.Logging;
 using System.Collections.ObjectModel;
 
 namespace SimpleBinaryVCS.Model
@@ -16,20 +17,9 @@ namespace SimpleBinaryVCS.Model
         public string ChangeLog { get; set; }
         public int RevisionNumber { get; set; } = 0;
         public int NumberOfChanges { get; set; }
+        public ObservableCollection<ProjectFile> ProjectFiles { get; set; } = new ObservableCollection<ProjectFile>();
+        public List<ChangedFile> ChangedFiles {  get; set; } = new List<ChangedFile>();
 
-        private ObservableCollection<ProjectFile> projectFiles;
-        public ObservableCollection<ProjectFile> ProjectFiles
-        {
-            get => projectFiles ??= new ObservableCollection<ProjectFile>();
-            set => projectFiles = value;
-        }
-
-        private List<ChangedFile> changedFiles;
-        public List<ChangedFile> ChangedFiles
-        {
-            get => changedFiles ??= new List<ChangedFile>();
-            set => changedFiles = value;
-        }
         /// <summary>
         /// Key : Data Relative Path 
         /// Value : ProjectFile
@@ -73,22 +63,37 @@ namespace SimpleBinaryVCS.Model
                 return changedFilesObservable;
             }
         }
-        [MemoryPackConstructor]
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
-        public ProjectData()
-        { 
+        public ProjectData() { }
+        [MemoryPackConstructor]
+        public ProjectData(string ProjectName, string ProjectPath, string UpdaterName, string ConductedPC, 
+            DateTime UpdatedTime, string UpdatedVersion, string UpdateLog, string ChangeLog, 
+            int RevisionNumber, int NumberOfChanges, List<ChangedFile> ChangedFiles, ObservableCollection<ProjectFile> ProjectFiles)
+        {
+            this.ProjectName = ProjectName;
+            this.ProjectPath = ProjectPath;
+            this.UpdaterName = UpdaterName;
+            this.ConductedPC = ConductedPC;
+            this.UpdatedTime = UpdatedTime;
+            this.UpdatedVersion = UpdatedVersion;
+            this.UpdateLog = UpdateLog;
+            this.ChangeLog = ChangeLog;
+            this.RevisionNumber = RevisionNumber;
+            this.NumberOfChanges = NumberOfChanges;
+            this.ChangedFiles = ChangedFiles;
+            this.ProjectFiles = ProjectFiles;
         }
 
         public ProjectData(string projectPath)
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         {
             this.ProjectPath = projectPath;
-            this.RevisionNumber = 1;
-            this.projectFiles = new ObservableCollection<ProjectFile>();
-            this.changedFiles = new List<ChangedFile>();
+            this.RevisionNumber = 0;
+            this.ProjectFiles = new ObservableCollection<ProjectFile>();
+            this.ChangedFiles = new List<ChangedFile>();
         }
 
-        public ProjectData(ProjectData srcProjectData, bool isRevert = false)
+        public ProjectData(ProjectData srcProjectData, bool isNewProject = true)
         {
             this.ProjectName = srcProjectData.ProjectName;
             this.ProjectPath = srcProjectData.ProjectPath;
@@ -100,14 +105,14 @@ namespace SimpleBinaryVCS.Model
             this.ChangeLog = srcProjectData.ChangeLog;
             this.NumberOfChanges = srcProjectData.NumberOfChanges;
             this.RevisionNumber = srcProjectData.RevisionNumber;
-            this.projectFiles = new ObservableCollection<ProjectFile>();
-            if (!isRevert)
+            this.ProjectFiles = new ObservableCollection<ProjectFile>();
+            if (isNewProject)
             {
-                this.changedFiles = new List<ChangedFile>();
+                this.ChangedFiles = new List<ChangedFile>();
             }
             else
             {
-                this.changedFiles = new List<ChangedFile>(srcProjectData.ChangedFiles);
+                this.ChangedFiles = new List<ChangedFile>(srcProjectData.ChangedFiles);
             }
         }
 
@@ -155,7 +160,7 @@ namespace SimpleBinaryVCS.Model
                 MessageBox.Show("Project Path is Null, Couldn't Set Source Data Path for all Project Files");
                 return;
             }
-            foreach (ProjectFile file in projectFiles)
+            foreach (ProjectFile file in ProjectFiles)
             {
                 file.DataSrcPath = ProjectPath;
             }

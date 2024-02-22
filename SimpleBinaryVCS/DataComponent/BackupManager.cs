@@ -31,7 +31,7 @@ namespace SimpleBinaryVCS.DataComponent
         /// key : file Hash Value 
         /// Value : IFile, which may include TrackedFiles, or ProjectFiles 
         /// </summary>
-        public Dictionary<string, IProjectData>? BackupFiles => ProjectMetaData?.BackupFiles;
+        public Dictionary<string, ProjectFile>? BackupFiles => ProjectMetaData?.BackupFiles;
 
         private LinkedList<ProjectData>? backupProjectDataList => ProjectMetaData?.ProjectDataList;
         public ObservableCollection<ProjectData>? ProjectBackupListObservable
@@ -82,16 +82,17 @@ namespace SimpleBinaryVCS.DataComponent
             if (!hasBackup)
             {
                 RegisterBackupFiles(newMainProject);
-            }
-
-            // Get changed File List 
-            // IF Modified : Try Register new Backup File  
-            // IF Added : Skip
-            // IF Deleted : Erase from the projectFiles List 
-            // IF Restored: 
-            byte[] serializedFile = MemoryPackSerializer.Serialize(ProjectMetaData);
-            //        File.WriteAllBytes($"{backUpData.ProjectPath}\\VersionLog.bin", serializedFile);
+                
+                projectMetaData.ProjectDataList.AddFirst(new ProjectData(newMainProject));
+                projectMetaData.UpdateCount++;
+            }        
+            
+            byte[] serializedFile = MemoryPackSerializer.Serialize(projectMetaData);
+            File.WriteAllBytes($"{projectMetaData.ProjectPath}\\ProjectMetaData.bin", serializedFile);
+            
             newMainProject.ChangedFiles.Clear();
+            projectMetaData.ProjectMain = newMainProject;
+
             FetchAction?.Invoke(ProjectBackupListObservable);
         }
         public void SetProjectMetaData(object metaDataObj)
@@ -104,20 +105,24 @@ namespace SimpleBinaryVCS.DataComponent
         private void RegisterBackupFiles(ProjectData projectData)
         {
             if (BackupFiles == null) return;
-
+            string backupSrcPath = GetFileBackupSrcPath(projectData);
+            if (!Directory.Exists(backupSrcPath)) Directory.CreateDirectory(backupSrcPath);
             foreach (ProjectFile file in projectData.ChangedDstFileList)
             {
-                if (!BackupFiles.TryAdd(file.DataHash, file))
+                if (file.DataType == ProjectDataType.Directory) continue;
+                if (!BackupFiles.TryGetValue(file.DataHash, out ProjectFile? backupFile))
                 {
-
+                    ProjectFile newBackupFile = new ProjectFile(file, DataChangedState.None, backupSrcPath);
+                    BackupFiles.Add(newBackupFile.DataHash, newBackupFile);
+                    fileHandlerTool.HandleData(file.DataAbsPath, newBackupFile.DataAbsPath, ProjectDataType.File, DataChangedState.Backup);
                 }
             }
         }
 
 
-        public string GetFileBackupPath(string parentPath, string projectName,  string projectVersion)
+        public string GetFileBackupSrcPath(ProjectData projectData)
         {
-            string backupPath = $"{parentPath}\\Backup_{Path.GetFileName(projectName)}\\Backup_{projectVersion}";
+            string backupPath = $"{Directory.GetParent(projectData.ProjectPath)}\\Backup_{Path.GetFileName(projectData.ProjectName)}\\Backup_{projectData.UpdatedVersion}";
             return backupPath; 
         }
 
@@ -133,6 +138,17 @@ namespace SimpleBinaryVCS.DataComponent
             FetchAction?.Invoke(ProjectBackupListObservable);
         }
 
+        public string GetBackupFilePath(ProjectFile projectFile)
+        {
+            if (BackupFiles == null)
+            {
+                MessageBox.Show("Backupfiles is null for BackupManager");
+                return "";
+            }
+            BackupFiles.TryGetValue(projectFile.DataHash, out ProjectFile? backupFile);
+            return backupFile != null ? backupFile.DataAbsPath : "";
+        }
+
         public void RevertProject(ProjectData revertingProjectData)
         {
             try
@@ -144,7 +160,7 @@ namespace SimpleBinaryVCS.DataComponent
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"BUVM RevertBackupToMain {ex.Message}");
+                MessageBox.Show($"BUVM RevertProject {ex.Message}");
             }
         }
         #endregion

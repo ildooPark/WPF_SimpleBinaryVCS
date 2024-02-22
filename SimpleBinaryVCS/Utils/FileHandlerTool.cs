@@ -91,6 +91,8 @@ namespace SimpleBinaryVCS.Utils
                 else
                 {
                     if (srcPath == null) throw new ArgumentNullException(nameof(srcPath));
+                    if (!Directory.Exists(Path.GetDirectoryName(dstPath))) 
+                        Directory.CreateDirectory(Path.GetDirectoryName(dstPath));
                     File.Copy(srcPath, dstPath, true);
                 }
             }

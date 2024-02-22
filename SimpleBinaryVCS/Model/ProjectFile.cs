@@ -44,7 +44,21 @@ namespace SimpleBinaryVCS.Model
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         [MemoryPackConstructor]
-        public ProjectFile() { }
+        public ProjectFile(ProjectDataType DataType, long DataSize, string BuildVersion, string DeployedProjectVersion, 
+            DateTime UpdatedTime, DataChangedState dataState, string dataName, string dataSrcPath, string dataRelPath, string dataHash, bool IsDstFile) 
+        {
+            this.DataType = DataType;
+            this.DataSize = DataSize;
+            this.BuildVersion = BuildVersion;
+            this.DeployedProjectVersion = DeployedProjectVersion;
+            this.UpdatedTime = UpdatedTime;
+            this.DataState = dataState;
+            this.dataName = dataName;
+            this.dataSrcPath = dataSrcPath;
+            this.dataRelPath = dataRelPath;
+            this.dataHash = dataHash;
+            this.IsDstFile = IsDstFile;
+        }
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         #region Constructors
         /// <summary>
@@ -129,7 +143,7 @@ namespace SimpleBinaryVCS.Model
             this.dataHash = srcData.DataHash;
         }
 
-        public ProjectFile(string fileSrcPath, string fileRelPath, string fileHash, DataChangedState state)
+        public ProjectFile(string fileSrcPath, string fileRelPath, string? fileHash, DataChangedState state, ProjectDataType dataType)
         {
             string fileFullPath = Path.Combine(fileSrcPath, fileRelPath);
             var fileInfo = FileVersionInfo.GetVersionInfo(fileFullPath);
@@ -139,9 +153,10 @@ namespace SimpleBinaryVCS.Model
             this.dataSrcPath = fileSrcPath; 
             this.dataName = Path.GetFileName(fileFullPath);
             this.dataRelPath = fileRelPath;
-            this.dataHash = fileHash;
+            this.dataHash = fileHash ?? "";
             this.UpdatedTime = DateTime.Now;
             this.dataState = state;
+            this.DataType = dataType;
         }
 
         /// <summary>

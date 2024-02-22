@@ -94,11 +94,10 @@ namespace SimpleBinaryVCS.DataComponent
             if (binFiles.Length > 0)
             {
                 projectRepoBin = binFiles[0];
-                ProjectMetaData? loadedProjectMetaData;
                 try
                 {
                     var stream = File.ReadAllBytes(projectRepoBin);
-                    loadedProjectMetaData = MemoryPackSerializer.Deserialize<ProjectMetaData>(stream);
+                    ProjectMetaData? loadedProjectMetaData = MemoryPackSerializer.Deserialize<ProjectMetaData>(stream);
                     if (loadedProjectMetaData != null)
                     {
                         ProjectMetaData = loadedProjectMetaData;
@@ -106,9 +105,9 @@ namespace SimpleBinaryVCS.DataComponent
                         ProjectLoaded?.Invoke(MainProjectData);
                     }
                 }
-                catch (Exception e)
+                catch (Exception ex)
                 {
-                    MessageBox.Show(e.Message);
+                    MessageBox.Show($"MetaDataManager TryRetrieveProject Error {ex.Message}");
                     return false;
                 }
                 return true;
@@ -124,30 +123,33 @@ namespace SimpleBinaryVCS.DataComponent
             try
             {
                 // Project Repository Setup 
-                ProjectMetaData newProjectRepo = new ProjectMetaData(projectPath, Path.GetFileName(projectPath));
+                ProjectMetaData newProjectRepo = new ProjectMetaData(Path.GetFileName(projectPath), projectPath);
+                ProjectMetaData = newProjectRepo; 
                 StringBuilder changeLog = new StringBuilder();
                 string[]? newProjectFiles = Directory.GetFiles(projectPath, "*", SearchOption.AllDirectories);
                 if (newProjectFiles == null)
                 { MessageBox.Show("Couldn't Get Project Files"); return; }
                 ProjectData newProjectData = new ProjectData(projectPath);
+                newProjectData.ProjectName = Path.GetFileName(projectPath);
                 newProjectData.ConductedPC = HashTool.GetUniqueComputerID(Environment.MachineName);
                 newProjectData.UpdatedVersion = GetProjectVersionName(newProjectData);
 
                 foreach (string filePath in newProjectFiles)
                 {
-                    var fileInfo = FileVersionInfo.GetVersionInfo(filePath);
                     ProjectFile newFile = new ProjectFile
                         (
+                        ProjectDataType.File,
                         new FileInfo(filePath).Length,
+                        FileVersionInfo.GetVersionInfo(filePath).FileVersion,
+                        newProjectData.UpdatedVersion,
+                        DateTime.Now,
+                        DataChangedState.UnStaged,
                         Path.GetFileName(filePath),
                         projectPath,
                         Path.GetRelativePath(projectPath, filePath),
-                        fileInfo.FileVersion,
-                        DataChangedState.Added
+                        null
                         );
-
-                    newFile.DataHash = HashTool.GetFileMD5CheckSum(projectPath, filePath);
-                    newFile.DeployedProjectVersion = newProjectData.UpdatedVersion;
+                    newFile.DataHash = HashTool.GetFileMD5CheckSum(projectPath, Path.GetRelativePath(projectPath, filePath));
                     newProjectData.ProjectFiles.Add(newFile);
                     newProjectData.ChangedFiles.Add(new ChangedFile(new ProjectFile(newFile), DataChangedState.Added));
 
@@ -157,14 +159,11 @@ namespace SimpleBinaryVCS.DataComponent
                 newProjectData.UpdatedTime = DateTime.Now;
                 newProjectData.ChangeLog = changeLog.ToString();
                 newProjectData.NumberOfChanges = newProjectData.ProjectFiles.Count;
-                newProjectData.ProjectName = Path.GetFileName(projectPath);
-                byte[] serializedFile = MemoryPackSerializer.Serialize(newProjectData);
-                File.WriteAllBytes($"{newProjectData.ProjectPath}\\ProjectMetaData.bin", serializedFile);
-                MetaDataLoaded?.Invoke(MainProjectData);
+                MainProjectData = newProjectData;
             }
             catch (Exception ex)
             {
-                MessageBox.Show(ex.Message);
+                MessageBox.Show($"MetaDataManager Error InitializeProject {ex.Message}");
                 return;
             }
         }

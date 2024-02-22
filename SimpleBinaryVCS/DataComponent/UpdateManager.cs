@@ -109,7 +109,6 @@ namespace SimpleBinaryVCS.DataComponent
         /// <param name="obj"></param>
         private void UponUpdateRequest(object obj)
         {
-            
 
         }
 

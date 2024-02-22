@@ -41,6 +41,7 @@ namespace SimpleBinaryVCS.ViewModel
                 OnPropertyChanged("SelectedItem");
             }
         }
+
         private ICommand? fetchBackup;
         public ICommand FetchBackup
         {
@@ -97,8 +98,7 @@ namespace SimpleBinaryVCS.ViewModel
             metaDataManager = App.MetaDataManager;
             backupManager = App.BackupManager;
 
-            backupManager.FetchAction += Fetch;
-            backupManager.RevertAction += Revert;
+            backupManager.FetchAction += ReceiveFetch;
         }
 
         private bool CanFetch(object obj)
@@ -117,7 +117,7 @@ namespace SimpleBinaryVCS.ViewModel
         private void ReceiveFetch(object backupListObj)
         {
             if (backupListObj is not ObservableCollection<ProjectData> backupList) return;
-            backupProjectDataList = backupList;
+            BackupProjectDataList = backupList;
         }
 
         private void OnViewFullLog(object obj)
@@ -151,6 +151,7 @@ namespace SimpleBinaryVCS.ViewModel
             if (response == DialogResult.Yes)
             {
                 backupManager.RevertProject(selectedItem);
+                return;
             }
             else
             {
@@ -159,114 +160,3 @@ namespace SimpleBinaryVCS.ViewModel
         }
     }
 }
-#region Deprecated 
-/// <summary>
-/// Backup is generated prior to and after update event. 
-/// </summary>
-/// <param name="e"></param>
-//private void MakeBackUp(object e)
-//{
-//    //Make new ProjectData for backup 
-//    if (App.MetaDataManager.MainProjectData.ProjectPath == null) return;
-//    DirectoryInfo? parentDirectory = Directory.GetParent(metaDataManager.MainProjectData.ProjectPath);
-//    if (parentDirectory == null) return;
-//    string backupSrcPath = $"{parentDirectory.ToString()}\\Backup_{Path.GetFileName(metaDataManager.MainProjectData.ProjectPath)}\\Backup_{App.MetaDataManager.MainProjectData.UpdatedVersion}";
-//    if (!File.Exists(backupSrcPath))
-//    {
-//        ProjectData backUpData = new ProjectData(metaDataManager.MainProjectData, true);
-
-//        Directory.CreateDirectory(backupSrcPath);
-
-//        foreach (ProjectFile data in metaDataManager.MainProjectData.ProjectFiles)
-//        {
-//            try
-//            {
-//                string newBackupFullPath = $"{backupSrcPath}\\{data.DataRelPath}";
-//                if (!File.Exists(Path.GetDirectoryName(newBackupFullPath) ?? ""))
-//                    Directory.CreateDirectory(Path.GetDirectoryName(newBackupFullPath) ?? "");
-//                File.Copy(data.DataAbsPath, newBackupFullPath, true);
-//                ProjectFile newFile = new ProjectFile(data);
-//                backUpData.ProjectFiles.Add(newFile);
-//            }
-//            catch (Exception ex)
-//            {
-//                MessageBox.Show($"Line BU 276: {ex.Message}");
-//            }
-//        }
-//        foreach (ProjectFile file in metaDataManager.MainProjectData.ChangedFiles)
-//        {
-//            ProjectFile newFile = new ProjectFile(file);
-//            string retrievablePath = backupManager.GetFileBackupPath(parentDirectory.ToString(), metaDataManager.MainProjectData.ProjectName, file.DeployedProjectVersion);
-//            backUpData.ChangedFiles.Add(newFile);
-//        }
-//        backUpData.ProjectPath = backupSrcPath;
-//        byte[] serializedFile = MemoryPackSerializer.Serialize(backUpData);
-//        File.WriteAllBytes($"{backUpData.ProjectPath}\\VersionLog.bin", serializedFile);
-//    }
-//    else return;
-//}
-//private void Revert(object obj)
-//{
-//    if (selectedItem == null)
-//    {
-//        MessageBox.Show("BUVM 164: Selected BackupVersion is null");
-//        return;
-//    }
-//    var response = MessageBox.Show($"Do you want to Revert to {selectedItem.UpdatedVersion}", "Confirm Updates",
-//        MessageBoxButtons.YesNo);
-//    if (response == DialogResult.Yes)
-//    {
-//        backupManager.RevertProject(selectedItem);
-//        //1. Backup Current Project Version 
-//        //1-1. Check for current project's backup
-//        MakeBackUp(obj);
-//        //1-2. Delete all the files in the current Directory 
-//        //1-2. Compare Main with Revision Version 
-//        DeleteAllInDirectory(metaDataManager.CurrentProjectPath ?? "");
-//        //2. Transfer the ProjectData to Current
-//        RevertBackupToMain(selectedItem);
-//        //3. Set Selected ProjectData as Current Project Data 
-//        Fetch(obj);
-//    }
-//    else
-//    {
-//        return;
-//    }
-//}
-//private void Fetch(object obj)
-//{
-//    SelectedItem = null;
-//    importProjects.Clear();
-//    BackupProjectDataList.Clear();
-//    //Set up Current Project at Main 
-//    if (metaDataManager.CurrentProjectPath == null || metaDataManager.ProjectRepository == null) return;
-//    try
-//    {
-//        DirectoryInfo? parentPath = Directory.GetParent(metaDataManager.CurrentProjectPath);
-//        string[] mainVersionLog = Directory.GetFiles(metaDataManager.CurrentProjectPath, "VersionLog.*", SearchOption.AllDirectories);
-//        ProjectData? mainProjectData = MemoryPackSerializer.Deserialize<ProjectData>(File.ReadAllBytes(mainVersionLog[0]));
-//        if (mainProjectData == null) return;
-//        metaDataManager.MainProjectData = mainProjectData;
-//        string[]? backupVersionLogs;
-//        if (parentPath == null) return;
-//        TryGetBackupLogs(parentPath.ToString(), out backupVersionLogs);
-//        if (backupVersionLogs == null) return;
-//        foreach (string version in backupVersionLogs)
-//        {
-//            ProjectData? data = MemoryPackSerializer.Deserialize<ProjectData>(File.ReadAllBytes(version));
-//            if (data == null) continue;
-//            importProjects.Enqueue(data, data);
-//        }
-//        BackupProjectDataList.Add(metaDataManager.NewestProjectData);
-//        int importProjectCount = importProjects.Count;
-//        for (int i = 0; i < importProjectCount; i++)
-//        {
-//            BackupProjectDataList.Add(importProjects.Dequeue());
-//        }
-//    }
-//    catch (Exception ex)
-//    {
-//        MessageBox.Show($"BUVM 150 {ex.Message}");
-//    }
-//}
-#endregion

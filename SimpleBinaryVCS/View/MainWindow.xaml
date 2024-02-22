@@ -80,7 +80,7 @@
                 </DataGrid>
                 <DataGrid Grid.Row="2"
                     Name="DiffLog" 
-                    ItemsSource='{Binding BackupVM.SelectedItem.ChangedFiles}'
+                    ItemsSource='{Binding BackupVM.DiffLog}'
                     BorderBrush="#cdcdcd"
                     ScrollViewer.CanContentScroll="True"
                     ScrollViewer.VerticalScrollBarVisibility="Auto"
@@ -259,7 +259,7 @@
                             x:Name="StageButton"
                             Content="Stage For Update" 
                             Height="20"
-                            Command="{Binding MetaDataVM.ConductUpdate}"
+                            Command="{Binding FileTrackVM.StageChanges}"
                             />
                         <Button
                             x:Name="UpdateButton"

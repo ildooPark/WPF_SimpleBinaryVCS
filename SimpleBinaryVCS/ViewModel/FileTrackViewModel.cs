@@ -39,6 +39,7 @@ namespace SimpleBinaryVCS.ViewModel
                 OnPropertyChanged("SelectedItem"); 
             }
         }
+
         private ICommand? getDeploySrcDir;
         public ICommand GetDeploySrcDir
         {
@@ -48,6 +49,7 @@ namespace SimpleBinaryVCS.ViewModel
                 return getDeploySrcDir;
             }
         }
+
         private ICommand? clearNewfiles;
         public ICommand ClearNewfiles
         {
@@ -59,11 +61,13 @@ namespace SimpleBinaryVCS.ViewModel
         {
             get => checkProjectIntegrity ??= new RelayCommand(MainProjectIntegrityTest, CanRunIntegrityTest);
         }
+
         private ICommand? stageChanges;
         public ICommand StageChanges
         {
             get => stageChanges ??= new RelayCommand(MainProjectIntegrityTest, CanRunIntegrityTest);
         }
+
         private ICommand? addForRestore;
         public ICommand AddForRestore
         {
@@ -134,9 +138,9 @@ namespace SimpleBinaryVCS.ViewModel
         }
         private bool CanRestoreAFile(object? obj)
         {
-            if (obj is ProjectFile projFile && 
-                projFile.IsDstFile && 
-                (projFile.DataState & DataChangedState.Modified) != 0) return true; 
+            if (obj is ProjectFile projFile &&
+                projFile != null &&
+                (projFile.DataState & DataChangedState.Added) != 0) return true; 
             else return false;
         }
 
@@ -169,7 +173,7 @@ namespace SimpleBinaryVCS.ViewModel
             logWindow.WindowStartupLocation = WPF.WindowStartupLocation.CenterOwner;
             logWindow.Show();
         }
-
+        #region Receive Callback From Model 
         private void GetFileChanges(object changedFileList)
         {
             if (changedFileList is ObservableCollection<ProjectFile> projectFileList)
@@ -178,5 +182,6 @@ namespace SimpleBinaryVCS.ViewModel
                 ChangedFileList = projectFileList;
             }
         }
+        #endregion
     }
 }

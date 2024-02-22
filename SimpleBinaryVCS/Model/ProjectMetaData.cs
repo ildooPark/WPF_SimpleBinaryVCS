@@ -7,48 +7,25 @@ namespace SimpleBinaryVCS.Model
     [MemoryPackable]
     public partial class ProjectMetaData
     {
-        public int UpdateCount { get; set; }
-        public string ProjectName {  get; set; }
-        public string ProjectPath { get; set; }
-
-        [MemoryPackInclude]
-        private ProjectData? projectMain;
-        [MemoryPackIgnore]
-        public ProjectData ProjectMain 
-        {
-            get => projectMain ?? throw new ArgumentNullException(nameof(projectMain));
-            set => projectMain = value;
-        }
-
-        [MemoryPackInclude]
-        private LinkedList<ProjectData>? projectDataList;
-        [MemoryPackIgnore]
-        public LinkedList<ProjectData> ProjectDataList
-        {
-            get => projectDataList ?? throw new ArgumentNullException(nameof(projectMain));
-            set => projectDataList = value;
-        }
-
-        [MemoryPackInclude]
-        private Dictionary<string, IProjectData> backupFiles;
-        [MemoryPackIgnore]
-        public Dictionary<string, IProjectData> BackupFiles 
-        {
-            get => backupFiles ?? throw new ArgumentNullException(nameof(projectMain)); 
-            set => backupFiles = value;
-        }
+        public int UpdateCount;
+        public string ProjectName;
+        public string ProjectPath;
+        public ProjectData ProjectMain {  get; set; }
+        public LinkedList<ProjectData> ProjectDataList {  get; set; }   
+        public Dictionary<string, ProjectFile> BackupFiles { get; set; }
         #region Constructor 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         [MemoryPackConstructor]
         public ProjectMetaData() { }
+
         public ProjectMetaData(string projectName, string projectPath)
         {
             this.UpdateCount = 0;
             this.ProjectName = projectName;
             this.ProjectPath = projectPath;
-            this.projectMain = new ProjectData();
-            this.projectDataList = new LinkedList<ProjectData>();
-            this.backupFiles = new Dictionary<string, IProjectData>();
+            this.ProjectMain = new ProjectData();
+            this.ProjectDataList = new LinkedList<ProjectData>();
+            this.BackupFiles = new Dictionary<string, ProjectFile>();
         }
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         #endregion
