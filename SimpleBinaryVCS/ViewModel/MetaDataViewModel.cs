@@ -111,10 +111,10 @@ namespace SimpleBinaryVCS.ViewModel
             backupManager = App.BackupManager;
             updateManager = App.UpdateManager;
 
-            metaDataManager.ResetAction += ProjectLoadResponse;
-            metaDataManager.ProjectLoaded += ProjectLoadResponse;
-            updateManager.UpdateAction += UpdateResponse;
-            backupManager.RevertAction += RevertResponse;
+            metaDataManager.ResetEventHandler += ProjectLoadResponse;
+            metaDataManager.ProjectLoadedEventHandler += ProjectLoadResponse;
+            updateManager.ProjectUpdateEventHandler += UpdateResponse;
+            backupManager.ProjectRevertEventHandler += RevertResponse;
         }
 
         #region Update Version 

@@ -82,21 +82,59 @@ namespace SimpleBinaryVCS.Model
             this.dataState = changedState;
         }
 
-        public ProjectFile(ProjectDataType DataType, long DataSize, string? BuildVersion, string? DeployedProjectVersion, 
-            DateTime? UpdateTime, DataChangedState DataState, string DataName, string DataSrcPath, string DataRelPath, string? DataHash)
+        /// <summary>
+        /// For PreStagedProjectFile Data Type = File 
+        /// </summary>
+        /// <param name="DataType"></param>
+        /// <param name="DataSize"></param>
+        /// <param name="BuildVersion"></param>
+        /// <param name="DeployedProjectVersion"></param>
+        /// <param name="UpdateTime"></param>
+        /// <param name="DataState"></param>
+        /// <param name="DataName"></param>
+        /// <param name="DataSrcPath"></param>
+        /// <param name="DataRelPath"></param>
+        /// <param name="DataHash"></param>
+        public ProjectFile(long DataSize, string? BuildVersion, string DataName, string DataSrcPath, string DataRelPath)
         {
-            this.DataType = DataType;
+            this.DataType = ProjectDataType.File;
             this.DataSize = DataSize;
             this.BuildVersion = BuildVersion ?? "";
-            this.DeployedProjectVersion = DeployedProjectVersion ?? "";
-            this.UpdatedTime = UpdateTime ?? DateTime.MinValue;
-            this.DataState = DataState;
+            this.DeployedProjectVersion = "";
+            this.UpdatedTime = DateTime.MinValue;
+            this.DataState = DataChangedState.PreStaged;
             this.dataName = DataName;
             this.dataSrcPath = DataSrcPath;
             this.dataRelPath= DataRelPath;
-            this.dataHash = dataHash ?? "";
+            this.dataHash = "";
         }
 
+        /// <summary>
+        /// For PreStagedProjectFile Data Type = Directory 
+        /// </summary>
+        /// <param name="DataType"></param>
+        /// <param name="DataSize"></param>
+        /// <param name="BuildVersion"></param>
+        /// <param name="DeployedProjectVersion"></param>
+        /// <param name="UpdateTime"></param>
+        /// <param name="DataState"></param>
+        /// <param name="DataName"></param>
+        /// <param name="DataSrcPath"></param>
+        /// <param name="DataRelPath"></param>
+        /// <param name="DataHash"></param>
+        public ProjectFile(string DataName, string DataSrcPath, string DataRelPath)
+        {
+            this.DataType = ProjectDataType.Directory;
+            this.DataSize = 0;
+            this.BuildVersion = "";
+            this.DeployedProjectVersion = "";
+            this.UpdatedTime = DateTime.MinValue;
+            this.DataState = DataChangedState.PreStaged;
+            this.dataName = DataName;
+            this.dataSrcPath = DataSrcPath;
+            this.dataRelPath = DataRelPath;
+            this.dataHash = "";
+        }
         /// <summary>
         /// Deep Copy of ProjectFile
         /// </summary>
@@ -159,12 +197,6 @@ namespace SimpleBinaryVCS.Model
             this.DataType = dataType;
         }
 
-        /// <summary>
-        /// First compares fileVersion, then the updatedTime; 
-        /// smaller fileVersion corresponds to newer file
-        /// </summary>
-        /// <param name="other"></param>
-        /// <returns></returns>
         #endregion
         public int CompareTo(ProjectFile other) 
         {
@@ -186,8 +218,6 @@ namespace SimpleBinaryVCS.Model
                 MessageBox.Show($"Presented ProjectFile is Null for comparision with {this.DataName}"); 
                 return false;
             }
-            //if (other?.fileRelPath == this.fileRelPath) 
-            //    return other.fileHash == this.fileHash;
             return other.DataRelPath == this.DataRelPath;
         }
         

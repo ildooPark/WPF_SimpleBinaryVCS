@@ -24,6 +24,7 @@ namespace SimpleBinaryVCS.DataComponent
                 projectMain = value; 
             }
         }
+        private Dictionary<string, ProjectFile> BackupFiles { get; set; }
         private ProjectData? SrcProjectData { get; set; }
         private List<ChangedFile>? projectFileChanges;
         public List<ChangedFile>? ProjectFileChanges
@@ -43,10 +44,12 @@ namespace SimpleBinaryVCS.DataComponent
             }
         }
 
-        public Action<object>? UpdateAction;
+        public Action<object>? ProjectUpdateEventHandler;
+
         private FileManager fileManager;
         private StringBuilder changeLog;
         private FileHandlerTool fileHandlerTool;
+
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         public UpdateManager() 
         { 
@@ -58,11 +61,10 @@ namespace SimpleBinaryVCS.DataComponent
         public void Awake()
         {
             fileManager = App.FileManager;
-            fileManager.SrcProjectDeployed += 
-            fileManager.UpdateChanges += ProjectChangesForUpdate;
+            fileManager.SrcProjectDataEventHandler += RegisterSrcProject;
         }
 
-        public void Start(object obj)
+        public void ProjectLoadedCallback(object obj)
         {
             if (obj is not ProjectData loadedProject)
             {
@@ -74,6 +76,7 @@ namespace SimpleBinaryVCS.DataComponent
             projectFileChanges?.Clear();
             changeLog.Clear();
         }
+
         private void RegisterSrcProject(object srcProjDataObj)
         {
             if (srcProjDataObj is not ProjectData srcProjectData) 
@@ -82,9 +85,11 @@ namespace SimpleBinaryVCS.DataComponent
             }
             this.SrcProjectData = srcProjectData;
         }
+
         private void ProjectChangesForUpdate(object fileChangeListObj)
         {
             if (fileChangeListObj is not List<ChangedFile> fileChangesList) return;
+            projectFileChanges = fileChangesList;
         }
 
         public void UpdateProjectMain()
@@ -99,19 +104,15 @@ namespace SimpleBinaryVCS.DataComponent
             // 2. Make Physical changes to the files 
             fileHandlerTool.ApplyFileChanges(ProjectFileChanges);
             // 3. Make Update, and backup for new version. 
-            UpdateAction?.Invoke(newProjectData);
+            ProjectUpdateEventHandler?.Invoke(newProjectData);
             // 4. Call for new Fetch on BackupProject List
         }
-
-        /// <summary>
-        /// Preceded by the backup of the current Project
-        /// </summary>
-        /// <param name="obj"></param>
-        private void UponUpdateRequest(object obj)
+        #region MetaData CallBack 
+        public void MetaDataLoadedCallBack(object projMetaDataObj)
         {
-
+            if (projMetaDataObj is not ProjectMetaData projectMetaData) return;
+            BackupFiles = projectMetaData.BackupFiles;
         }
-
-
+        #endregion
     }
 }

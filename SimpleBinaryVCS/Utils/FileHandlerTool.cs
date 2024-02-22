@@ -7,9 +7,9 @@ namespace SimpleBinaryVCS.Utils
 {
     public class FileHandlerTool
     {
-        public void ApplyFileChanges(List<ChangedFile> ChangedFile)
+        public void ApplyFileChanges(List<ChangedFile> Changes)
         {
-            foreach (ChangedFile file in ChangedFile)
+            foreach (ChangedFile file in Changes)
             {
                 HandleData(file.SrcFile, file.DstFile, file.DataState);
             }
@@ -87,11 +87,19 @@ namespace SimpleBinaryVCS.Utils
                 {
                     if (File.Exists(dstPath))
                         File.Delete(dstPath);
+                    return;
+                }
+                if (srcPath == null) throw new ArgumentNullException(nameof(srcPath));
+                else if ((state & DataChangedState.Added) != 0)
+                {
+                    if (!Directory.Exists(Path.GetDirectoryName(dstPath))) 
+                        Directory.CreateDirectory(Path.GetDirectoryName(dstPath));
+                    if (!File.Exists(dstPath))
+                        File.Copy(srcPath, dstPath, true);
                 }
                 else
                 {
-                    if (srcPath == null) throw new ArgumentNullException(nameof(srcPath));
-                    if (!Directory.Exists(Path.GetDirectoryName(dstPath))) 
+                    if (!Directory.Exists(Path.GetDirectoryName(dstPath)))
                         Directory.CreateDirectory(Path.GetDirectoryName(dstPath));
                     File.Copy(srcPath, dstPath, true);
                 }

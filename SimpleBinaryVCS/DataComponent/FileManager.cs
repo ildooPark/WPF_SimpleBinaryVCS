@@ -19,21 +19,22 @@ namespace SimpleBinaryVCS.DataComponent
         Deleted = 1 << 1,
         Restored = 1 << 2,
         Modified = 1 << 3,
-        UnStaged = 1 << 4,
+        PreStaged = 1 << 4,
         IntegrityChecked = 1 << 5, 
         Backup = 1 << 6
     }
     public class FileManager : IManager
     {
-        private readonly object dictLock = new object();
-        public Action<object>? UpdateChanges;
-        public Action<object>? UpdateChangesObservable;
-        public Action<object>? SrcProjectDeployed;
-        public Action<object, string, ObservableCollection<ProjectFile>>? IntegrityCheckFinished;
+        public Action<object>? DataStagedEventHandler;
+        public Action<object>? DataPreStagedEventHandler;
+        public Action<object>? SrcProjectDataEventHandler;
+        public Action<object, string, ObservableCollection<ProjectFile>>? IntegrityCheckEventHandler;
 
+        private Dictionary<string, ProjectFile> backupFiles;
         private Dictionary<string, ProjectFile> projectFilesDict;
-        private Dictionary<string, ProjectFile> changedFilesDict;
+        private Dictionary<string, ProjectFile> rawDirectoryFilesDict;
         private SemaphoreSlim asyncControl;
+        
         private ObservableCollection<ProjectFile> changedFileList;
         public ObservableCollection<ProjectFile> ChangedFileList
         {
@@ -54,31 +55,38 @@ namespace SimpleBinaryVCS.DataComponent
                 return currentProjectData;
             }
         }
+
         private FileHandlerTool fileHandlerTool;
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
-public FileManager()
+        public FileManager()
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         {
             changedFileList = new ObservableCollection<ProjectFile>();
             projectFilesDict = new Dictionary<string, ProjectFile>();
-            changedFilesDict = new Dictionary<string, ProjectFile>();
+            rawDirectoryFilesDict = new Dictionary<string, ProjectFile>();
             fileHandlerTool = new FileHandlerTool();    
             asyncControl = new SemaphoreSlim(5); 
         }
-
         public void Awake()
         {
         }
-        public void Start(object projObj)
+
+        public void ProjectLoadedCallback(object projObj)
         {
             if (projObj is not ProjectData loadedProject) return;
 
-            changedFilesDict.Clear();
+            rawDirectoryFilesDict.Clear();
             changedFileList.Clear();
             projectFilesDict.Clear();
-            currentProjectData = loadedProject;
-            projectFilesDict = currentProjectData.ProjectFilesDict;
+            this.currentProjectData = loadedProject;
+            this.projectFilesDict = currentProjectData.ProjectFilesDict;
+        }
+        public void MetaDataLoadedCallBack(object metaDataObj)
+        {
+            if (metaDataObj is not ProjectMetaData projectMetaData) return;
+            if (projectMetaData == null) return;
+            this.backupFiles = projectMetaData.BackupFiles;
         }
 
         private void UpdateResponse(object obj)
@@ -88,39 +96,48 @@ public FileManager()
 
         private void UpdateStageFileList()
         {
-            if (changedFilesDict.Count <= 0) return;    
-            foreach (ProjectFile file in changedFilesDict.Values)
+            if (rawDirectoryFilesDict.Count <= 0) return;
+            List<ChangedFile> stagedChanges = new List<ChangedFile>();
+            foreach (ProjectFile file in rawDirectoryFilesDict.Values)
             {
-                //compare the hash value, and if its the same, request to remove that file. 
-                if (projectFilesDict.TryGetValue(file.DataRelPath, out var correspondingFile))
+                file.DataState &= ~DataChangedState.PreStaged;
+                if ((file.DataState & DataChangedState.Deleted) != 0)
                 {
-                    if (correspondingFile.DataHash != file.DataHash)
+                    ChangedFile newChange = new ChangedFile(new ProjectFile(file), DataChangedState.Deleted);
+                    changedFileList.Add(file);
+                }
+                //compare the hash value, and if its the same, request to remove that file. 
+                if (projectFilesDict.TryGetValue(file.DataRelPath, out var srcProjectFile))
+                {
+                    if (srcProjectFile.DataHash != file.DataHash)
                     {
-                        ProjectFile newFile = new ProjectFile(file, DataChangedState.Modified);
-                        changedFileList.Add(newFile);
+                        ProjectFile srcFile = new ProjectFile(srcProjectFile);
+                        ProjectFile dstFile = new ProjectFile(file, DataChangedState.Modified);
+                        stagedChanges.Add(new ChangedFile(srcFile, dstFile, DataChangedState.Modified));
+                        changedFileList.Add(dstFile);
                     }
                     else continue;
                 }
                 else
                 {
                     ProjectFile newFile = new ProjectFile(file, DataChangedState.Added);
+                    stagedChanges.Add(new ChangedFile(newFile, DataChangedState.Added));
                     changedFileList.Add(newFile);
                 }
             }
-            UpdateChangesObservable?.Invoke(changedFileList);
+            DataPreStagedEventHandler?.Invoke(changedFileList);
         }
-
         /// <summary>
         /// Post Upload, Compute Hash value. 
         /// </summary>
-        private async Task UpdateHashFromStagedFileList()
+        private async Task HashUnStagedFilesAsync()
         {
             try
             {
-                if (changedFilesDict.Count <= 0) return;
+                if (rawDirectoryFilesDict.Count <= 0) return;
                 List<Task> asyncTasks = new List<Task>();
                 //Update changedFilesDict
-                foreach (ProjectFile file in changedFilesDict.Values)
+                foreach (ProjectFile file in rawDirectoryFilesDict.Values)
                 {
                     if (file.DataType == ProjectDataType.Directory) continue;
                     if (file.DataHash != "") continue; 
@@ -149,23 +166,11 @@ public FileManager()
             
         }
 
-        public void RevertResponse(object obj)
+        public void PerformIntegrityCheck(object sender)
         {
-
-            changedFilesDict.Clear(); 
+            MainProjectIntegrityCheck(sender);
         }
-
-        public void PerformIntegrityCheck(object obj)
-        {
-            MainProjectIntegrityCheck(obj);
-        }
-
-        /// <summary>
-        /// Based on File's given relative path to the project, 
-        /// runs File Integrity Test against recorded Project Version to Current Project Directory files.
-        /// </summary>
-        /// <param name="obj"></param>
-        private void MainProjectIntegrityCheck(object obj)
+        private void MainProjectIntegrityCheck(object sender)
         {
             ProjectData? mainProject = currentProjectData;
             if (mainProject == null)
@@ -173,7 +178,7 @@ public FileManager()
                 MessageBox.Show("Main Project is Missing");
                 return;
             }
-            changedFilesDict.Clear();
+            rawDirectoryFilesDict.Clear();
             changedFileList.Clear(); 
             try
             {
@@ -214,7 +219,8 @@ public FileManager()
 
                 foreach (string dirRelPath in deletedDirs)
                 {
-
+                    ProjectFile file = new ProjectFile(mainProject.ProjectPath, dirRelPath, null, DataChangedState.Deleted | DataChangedState.IntegrityChecked, ProjectDataType.Directory);
+                    changedFileList.Add(file);
                 }
 
                 foreach (string fileRelPath in addedFiles)
@@ -229,29 +235,28 @@ public FileManager()
                 foreach (string fileRelPath in deletedFiles)
                 {
                     fileIntegrityLog.AppendLine($"{fileRelPath} has been Deleted");
-                    ProjectFile file = projectFilesDict[fileRelPath];
-                    file.DataState = DataChangedState.Deleted | DataChangedState.IntegrityChecked;
+                    ProjectFile file = new ProjectFile (projectFilesDict[fileRelPath], DataChangedState.Deleted | DataChangedState.IntegrityChecked);
                     changedFileList.Add(file);
                 }
 
                 foreach(string fileRelPath in intersectFiles)
                 {
-                    string? dirfileHash = HashTool.GetFileMD5CheckSum(mainProject.ProjectPath, fileRelPath);
-                    if (projectFilesDict[fileRelPath].DataHash != dirfileHash)
+                    string? dirFileHash = HashTool.GetFileMD5CheckSum(mainProject.ProjectPath, fileRelPath);
+                    if (projectFilesDict[fileRelPath].DataHash != dirFileHash)
                     {
                         fileIntegrityLog.AppendLine($"File {projectFilesDict[fileRelPath].DataName} on {fileRelPath} has been modified");
-                        var fileVersionInfo = FileVersionInfo.GetVersionInfo(Path.Combine(mainProject.ProjectPath, fileRelPath));
 
                         ProjectFile file = new ProjectFile(projectFilesDict[fileRelPath], DataChangedState.Modified | DataChangedState.IntegrityChecked); 
-                        file.DataState = DataChangedState.Modified | DataChangedState.IntegrityChecked;
-                        file.DataHash = dirfileHash;
+                        file.DataHash = dirFileHash;
                         file.UpdatedTime = new FileInfo(file.DataAbsPath).LastAccessTime; 
+
                         changedFileList.Add(file);
                     }
                 }
+
                 fileIntegrityLog.AppendLine("Integrity Check Complete");
-                UpdateChangesObservable?.Invoke(changedFileList);
-                IntegrityCheckFinished?.Invoke(obj, fileIntegrityLog.ToString(), changedFileList);
+                DataPreStagedEventHandler?.Invoke(changedFileList);
+                IntegrityCheckEventHandler?.Invoke(sender, fileIntegrityLog.ToString(), changedFileList);
             }
             catch (Exception ex)
             {
@@ -265,7 +270,7 @@ public FileManager()
         /// <param name="srcData"></param>
         /// <param name="dstData"></param>
         /// <param name="isRevert"> True if Reverting, else (Merge) false.</param>
-        public List<ChangedFile>? FindVersionDifferences(ProjectData srcData, ProjectData dstData, bool isRevert = true)
+        public List<ChangedFile>? FindVersionDifferences(ProjectData srcData, ProjectData dstData)
         {
             try
             {
@@ -325,7 +330,7 @@ public FileManager()
                     }
                 }
 
-                UpdateChangesObservable?.Invoke(diffLog);
+                DataPreStagedEventHandler?.Invoke(diffLog);
                 return diffLog;
             }
             catch (Exception ex)
@@ -334,6 +339,7 @@ public FileManager()
                 return null;
             }
         }
+
         public void FindVersionDifferences(ProjectData srcData, ProjectData dstData, ObservableCollection<ProjectFile> changeList)
         {
             if (srcData == null || dstData == null)
@@ -425,14 +431,14 @@ public FileManager()
                         srcProjectData.ProjectPath = srcPath;
                         srcProjectData.SetProjectFilesSrcPath();
                         RegisterNewData(srcProjectData);
-                        List<ChangedFile>? changedFiles = FindVersionDifferences(srcProjectData, currentProjectData);
-                        UpdateChanges?.Invoke(changedFiles);
+                        DataPreStagedEventHandler?.Invoke(ChangedFileList);
                     }
                 }
                 else
                 {
                     RegisterNewData(srcPath);
                 }
+                DataPreStagedEventHandler?.Invoke(ChangedFileList);
             }
             catch (Exception ex)
             {
@@ -467,19 +473,14 @@ public FileManager()
                 {
                     ProjectFile newFile = new ProjectFile
                         (
-                        ProjectDataType.File,
                         new FileInfo(fileAbsPath).Length,
                         FileVersionInfo.GetVersionInfo(fileAbsPath).FileVersion,
-                        null,
-                        null,
-                        DataChangedState.UnStaged,
                         Path.GetFileName(fileAbsPath),
                         updateDirPath,
-                        Path.GetRelativePath(updateDirPath, fileAbsPath),
-                        null
+                        Path.GetRelativePath(updateDirPath, fileAbsPath)
                         );
-
-                    if (!changedFilesDict.TryAdd(newFile.DataRelPath, newFile))
+                    changedFileList.Add(newFile);
+                    if (!rawDirectoryFilesDict.TryAdd(newFile.DataRelPath, newFile))
                     {
                         WPF.MessageBox.Show($"Already Enlisted File {newFile.DataName}: for Update");
                     }
@@ -489,19 +490,12 @@ public FileManager()
                 {
                     ProjectFile newFile = new ProjectFile
                         (
-                        ProjectDataType.Directory,
-                        0,
-                        null,
-                        null,
-                        null,
-                        DataChangedState.UnStaged,
                         Path.GetFileName(dirAbsPath),
                         updateDirPath,
-                        Path.GetRelativePath(updateDirPath, dirAbsPath),
-                        null
+                        Path.GetRelativePath(updateDirPath, dirAbsPath)
                         );
-
-                    if (!changedFilesDict.TryAdd(newFile.DataRelPath, newFile))
+                    changedFileList.Add(newFile);
+                    if (!rawDirectoryFilesDict.TryAdd(newFile.DataRelPath, newFile))
                     {
                         WPF.MessageBox.Show($"Already Enlisted File {newFile.DataName}: for Update");
                     }
@@ -520,8 +514,9 @@ public FileManager()
             {
                 foreach (ProjectFile srcFile in srcProjectData.ProjectFiles)
                 {
-                    srcFile.DataState |= DataChangedState.UnStaged;
-                    if (!changedFilesDict.TryAdd(srcFile.DataRelPath, srcFile))
+                    srcFile.DataState |= DataChangedState.PreStaged;
+                    changedFileList.Add(srcFile);
+                    if (!rawDirectoryFilesDict.TryAdd(srcFile.DataRelPath, srcFile))
                     {
                         WPF.MessageBox.Show($"Already Enlisted File {srcFile.DataName}: for Update");
                     }
@@ -546,11 +541,18 @@ public FileManager()
             return changedFilesObservable;
         }
 
-        public async void StageNewFiles()
+        public async void StageNewFilesAsync()
         {
-            await UpdateHashFromStagedFileList();
+            await HashUnStagedFilesAsync();
             UpdateStageFileList();
-            changedFilesDict.Clear();
+            rawDirectoryFilesDict.Clear();
+        }
+
+        public async void StageNewFilesAsync(ProjectData srcProjectData)
+        {
+            await HashUnStagedFilesAsync();
+            UpdateStageFileList();
+            rawDirectoryFilesDict.Clear();
         }
 
         public void RegisterNewfile(ProjectFile projectFile, DataChangedState fileState)
@@ -559,5 +561,7 @@ public FileManager()
             newfile.DataState = fileState;
             changedFileList.Add(newfile);
         }
+
+
     }
 }

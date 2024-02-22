@@ -49,7 +49,7 @@ namespace SimpleBinaryVCS.DataComponent
         }
 
         public Action<object>? BackupAction;
-        public Action<object>? RevertAction;
+        public Action<object>? ProjectRevertEventHandler;
         public Action<object>? FetchAction; 
         private FileManager fileManager;
         private FileHandlerTool fileHandlerTool;
@@ -73,11 +73,11 @@ namespace SimpleBinaryVCS.DataComponent
         /// By Default should Point to ProjectMain, Make backup of the ucrrent project main before applying new changes. 
         /// </summary>
         /// <param name="projectData">Should Point to ProjectMain</param>
-        public void BackupProject (object? projectObj)
+        public void ProjectLoadedCallback (object? projectObj)
         {
             if (projectObj is not ProjectData newMainProject) return;
             if (projectMetaData == null || backupProjectDataList == null || BackupFiles == null) return;
-            // Check if Backup already exists 
+            
             bool hasBackup = backupProjectDataList.Contains(newMainProject);
             if (!hasBackup)
             {
@@ -95,7 +95,7 @@ namespace SimpleBinaryVCS.DataComponent
 
             FetchAction?.Invoke(ProjectBackupListObservable);
         }
-        public void SetProjectMetaData(object metaDataObj)
+        public void MetaDataLoadedCallBack(object metaDataObj)
         {
             if (metaDataObj is not ProjectMetaData projectMetaData) return;
             if (projectMetaData == null) return;
@@ -156,7 +156,7 @@ namespace SimpleBinaryVCS.DataComponent
                 ProjectData revertedData = new ProjectData(revertingProjectData, true);
                 List<ChangedFile>? FileDifferences = fileManager.FindVersionDifferences(revertingProjectData, ProjectMetaData?.ProjectMain);
                 fileHandlerTool.ApplyFileChanges(FileDifferences);
-                RevertAction?.Invoke(revertingProjectData);
+                ProjectRevertEventHandler?.Invoke(revertingProjectData);
             }
             catch (Exception ex)
             {

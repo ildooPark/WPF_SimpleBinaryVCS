@@ -11,11 +11,10 @@ namespace SimpleBinaryVCS.DataComponent
     public class MetaDataManager : IManager
     {
         public string? CurrentProjectPath {  get; set; }
-        public Action<object>? ResetAction;
-        public Action<object>? UpdateAction;
-        public Action<object>? PullAction;
-        public Action<object>? ProjectLoaded;
-        public Action<object>? MetaDataLoaded;
+        public Action<object>? ResetEventHandler;
+        public Action<object>? UpdateEventHandler;
+        public Action<object>? ProjectLoadedEventHandler;
+        public Action<object>? MetaDataLoadedEventHandler;
 
         public Action? VersionCheckFinished;
         private ProjectMetaData? projectMetaData;
@@ -26,7 +25,7 @@ namespace SimpleBinaryVCS.DataComponent
             {
                 if (value == null) throw new ArgumentNullException(nameof(ProjectMetaData));
                 projectMetaData = value;
-                MetaDataLoaded?.Invoke(value);
+                MetaDataLoadedEventHandler?.Invoke(value);
             }
         }
 
@@ -40,7 +39,7 @@ namespace SimpleBinaryVCS.DataComponent
                 else if (ProjectMetaData == null) throw new ArgumentNullException(nameof(ProjectMetaData));
                 ProjectMetaData.ProjectMain = value;
                 mainProjectData = value; 
-                ProjectLoaded?.Invoke(value);
+                ProjectLoadedEventHandler?.Invoke(value);
             }
         }
 
@@ -69,13 +68,16 @@ namespace SimpleBinaryVCS.DataComponent
             fileManager = App.FileManager;
             updateManager = App.UpdateManager;
 
-            MetaDataLoaded += backupManager.SetProjectMetaData;
-            ProjectLoaded += backupManager.BackupProject;
-            ProjectLoaded += fileManager.Start;
-            ProjectLoaded += updateManager.Start;
+            MetaDataLoadedEventHandler += backupManager.MetaDataLoadedCallBack;
+            MetaDataLoadedEventHandler += fileManager.MetaDataLoadedCallBack;
+            MetaDataLoadedEventHandler += updateManager.MetaDataLoadedCallBack;
 
-            backupManager.RevertAction += SetProjectMain;
-            updateManager.UpdateAction += SetProjectMain;
+            ProjectLoadedEventHandler += backupManager.ProjectLoadedCallback;
+            ProjectLoadedEventHandler += fileManager.ProjectLoadedCallback;
+            ProjectLoadedEventHandler += updateManager.ProjectLoadedCallback;
+
+            backupManager.ProjectRevertEventHandler += ProjectChangeCallBack;
+            updateManager.ProjectUpdateEventHandler += ProjectChangeCallBack;
         }
 
         private void OnReset(object obj)
@@ -102,7 +104,7 @@ namespace SimpleBinaryVCS.DataComponent
                     {
                         ProjectMetaData = loadedProjectMetaData;
                         MainProjectData = loadedProjectMetaData.ProjectMain;
-                        ProjectLoaded?.Invoke(MainProjectData);
+                        ProjectLoadedEventHandler?.Invoke(MainProjectData);
                     }
                 }
                 catch (Exception ex)
@@ -122,13 +124,17 @@ namespace SimpleBinaryVCS.DataComponent
         {
             try
             {
-                // Project Repository Setup 
+                StringBuilder changeLog = new StringBuilder();
                 ProjectMetaData newProjectRepo = new ProjectMetaData(Path.GetFileName(projectPath), projectPath);
                 ProjectMetaData = newProjectRepo; 
-                StringBuilder changeLog = new StringBuilder();
+
                 string[]? newProjectFiles = Directory.GetFiles(projectPath, "*", SearchOption.AllDirectories);
                 if (newProjectFiles == null)
-                { MessageBox.Show("Couldn't Get Project Files"); return; }
+                { 
+                    MessageBox.Show("Couldn't Get Project Files"); 
+                    return; 
+                }
+
                 ProjectData newProjectData = new ProjectData(projectPath);
                 newProjectData.ProjectName = Path.GetFileName(projectPath);
                 newProjectData.ConductedPC = HashTool.GetUniqueComputerID(Environment.MachineName);
@@ -143,13 +149,15 @@ namespace SimpleBinaryVCS.DataComponent
                         FileVersionInfo.GetVersionInfo(filePath).FileVersion,
                         newProjectData.UpdatedVersion,
                         DateTime.Now,
-                        DataChangedState.UnStaged,
+                        DataChangedState.PreStaged,
                         Path.GetFileName(filePath),
                         projectPath,
                         Path.GetRelativePath(projectPath, filePath),
-                        null
+                        "",
+                        true
                         );
                     newFile.DataHash = HashTool.GetFileMD5CheckSum(projectPath, Path.GetRelativePath(projectPath, filePath));
+                    
                     newProjectData.ProjectFiles.Add(newFile);
                     newProjectData.ChangedFiles.Add(new ChangedFile(new ProjectFile(newFile), DataChangedState.Added));
 
@@ -174,14 +182,14 @@ namespace SimpleBinaryVCS.DataComponent
         {
             if (!isNewProject)
             {
-                return $"{HashTool.GetUniqueComputerID(Environment.MachineName)}_{DateTime.Now.ToString("yyyy_MM_dd")}_{++projData.RevisionNumber + 1}";
+                return $"{HashTool.GetUniqueComputerID(Environment.MachineName)}_{DateTime.Now.ToString("yyyy_MM_dd")}_{projData.RevisionNumber + 1}";
             }
             return $"{HashTool.GetUniqueComputerID(Environment.MachineName)}_{DateTime.Now.ToString("yyyy_MM_dd")}_v{projData.RevisionNumber + 1}";
         }
         
         
         #endregion
-        private void SetProjectMain(object projObj)
+        private void ProjectChangeCallBack(object projObj)
         {
             if (projObj is not ProjectData projData) return;
             this.MainProjectData = projData;
