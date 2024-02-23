@@ -7,7 +7,7 @@ using System.IO;
 namespace SimpleBinaryVCS.Model
 {
     [MemoryPackable]
-    public partial class ProjectFile : IEquatable<ProjectFile>, IProjectData
+    public partial class ProjectFile : IEquatable<ProjectFile>, IComparable<ProjectFile>, IProjectData
     {
         #region [MemoryPackInclude]
         public ProjectDataType DataType { get; private set; }
@@ -16,7 +16,7 @@ namespace SimpleBinaryVCS.Model
         public string DeployedProjectVersion { get; set; }
         public DateTime UpdatedTime { get; set; }
         [MemoryPackInclude]
-        private DataChangedState dataState;
+        private DataState dataState;
         [MemoryPackInclude]
         private string dataName;
         [MemoryPackInclude]
@@ -29,7 +29,7 @@ namespace SimpleBinaryVCS.Model
         #endregion
         #region [MemoryPackIgnore]
         [MemoryPackIgnore]
-        public DataChangedState DataState { get => dataState; set => dataState = value; }
+        public DataState DataState { get => dataState; set => dataState = value; }
         [MemoryPackIgnore]
         public string DataName => dataName;
         [MemoryPackIgnore]
@@ -45,7 +45,7 @@ namespace SimpleBinaryVCS.Model
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         [MemoryPackConstructor]
         public ProjectFile(ProjectDataType DataType, long DataSize, string BuildVersion, string DeployedProjectVersion, 
-            DateTime UpdatedTime, DataChangedState dataState, string dataName, string dataSrcPath, string dataRelPath, string dataHash, bool IsDstFile) 
+            DateTime UpdatedTime, DataState dataState, string dataName, string dataSrcPath, string dataRelPath, string dataHash, bool IsDstFile) 
         {
             this.DataType = DataType;
             this.DataSize = DataSize;
@@ -69,7 +69,7 @@ namespace SimpleBinaryVCS.Model
         /// <param name="fileName"></param>
         /// <param name="filePath"></param>
         /// <param name="fileVersion"></param>
-        public ProjectFile(long fileSize, string? fileVersion, string fileName, string fileSrcPath, string fileRelPath, DataChangedState changedState)
+        public ProjectFile(long fileSize, string? fileVersion, string fileName, string fileSrcPath, string fileRelPath, DataState changedState)
         {
             this.DataSize = fileSize;
             this.BuildVersion = fileVersion ?? "";
@@ -81,7 +81,6 @@ namespace SimpleBinaryVCS.Model
             this.UpdatedTime = DateTime.Now;
             this.dataState = changedState;
         }
-
         /// <summary>
         /// For PreStagedProjectFile Data Type = File 
         /// </summary>
@@ -102,13 +101,12 @@ namespace SimpleBinaryVCS.Model
             this.BuildVersion = BuildVersion ?? "";
             this.DeployedProjectVersion = "";
             this.UpdatedTime = DateTime.MinValue;
-            this.DataState = DataChangedState.PreStaged;
+            this.DataState = DataState.PreStaged;
             this.dataName = DataName;
             this.dataSrcPath = DataSrcPath;
             this.dataRelPath= DataRelPath;
             this.dataHash = "";
         }
-
         /// <summary>
         /// For PreStagedProjectFile Data Type = Directory 
         /// </summary>
@@ -129,7 +127,7 @@ namespace SimpleBinaryVCS.Model
             this.BuildVersion = "";
             this.DeployedProjectVersion = "";
             this.UpdatedTime = DateTime.MinValue;
-            this.DataState = DataChangedState.PreStaged;
+            this.DataState = DataState.PreStaged;
             this.dataName = DataName;
             this.dataSrcPath = DataSrcPath;
             this.dataRelPath = DataRelPath;
@@ -152,8 +150,7 @@ namespace SimpleBinaryVCS.Model
             this.dataRelPath = srcData.DataRelPath;
             this.dataHash = srcData.DataHash;
         }
-
-        public ProjectFile(ProjectFile srcData, DataChangedState state)
+        public ProjectFile(ProjectFile srcData, DataState state)
         {
             this.DataType = srcData.DataType;
             this.DataSize = srcData.DataSize;
@@ -166,8 +163,7 @@ namespace SimpleBinaryVCS.Model
             this.dataRelPath = srcData.DataRelPath;
             this.dataHash = srcData.DataHash;
         }
-
-        public ProjectFile(ProjectFile srcData, DataChangedState state, string dataSrcPath)
+        public ProjectFile(ProjectFile srcData, DataState state, string dataSrcPath)
         {
             this.DataType = srcData.DataType;
             this.DataSize = srcData.DataSize;
@@ -180,8 +176,7 @@ namespace SimpleBinaryVCS.Model
             this.dataRelPath = srcData.DataRelPath;
             this.dataHash = srcData.DataHash;
         }
-
-        public ProjectFile(string fileSrcPath, string fileRelPath, string? fileHash, DataChangedState state, ProjectDataType dataType)
+        public ProjectFile(string fileSrcPath, string fileRelPath, string? fileHash, DataState state, ProjectDataType dataType)
         {
             string fileFullPath = Path.Combine(fileSrcPath, fileRelPath);
             var fileInfo = FileVersionInfo.GetVersionInfo(fileFullPath);
@@ -196,15 +191,14 @@ namespace SimpleBinaryVCS.Model
             this.dataState = state;
             this.DataType = dataType;
         }
-
         #endregion
-        public int CompareTo(ProjectFile other) 
+
+        public int CompareTo(ProjectFile? other) 
         {
             if (this.UpdatedTime.CompareTo(other.UpdatedTime) == 0)
                 return this.DataSize.CompareTo(other.DataSize);
             return this.UpdatedTime.CompareTo(other.UpdatedTime);
         }
-        
         /// <summary>
         /// Checks 1. fileName, 2. fileVersion 
         /// IF all returns as true, then MD5 checksum is used to compute the differences.
@@ -220,7 +214,6 @@ namespace SimpleBinaryVCS.Model
             }
             return other.DataRelPath == this.DataRelPath;
         }
-        
         /// <summary>
         /// Returns False if not Same
         /// </summary>

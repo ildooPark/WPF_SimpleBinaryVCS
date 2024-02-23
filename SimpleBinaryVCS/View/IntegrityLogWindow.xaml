@@ -73,14 +73,14 @@
             AutoGenerateColumns="False"
             >
             <DataGrid.Columns>
-                <DataGridTextColumn Header="Filename" Binding="{Binding fileName}" Width ="Auto"/>
-                <DataGridTextColumn Header="FileSize(kb)" Binding="{Binding fileSize}" Width ="Auto"/>
-                <DataGridTextColumn Header="Project#" Binding="{Binding deployedProjectVersion}" Width ="Auto"/>
-                <DataGridTextColumn Header="Build#" Binding="{Binding fileBuildVersion}" Width ="Auto"/>
-                <DataGridTextColumn Header="RelativePath" Binding="{Binding fileRelPath}" Width ="Auto"/>
-                <DataGridTextColumn Header="HashValue" Binding="{Binding fileHash}" Width ="Auto"/>
-                <DataGridTextColumn Header="UpdatedTime" Binding="{Binding updatedTime}" Width ="Auto"/>
-                <DataGridTextColumn Header="ChangedState" Binding="{Binding fileChangedState}" Width ="Auto"/>
+                <DataGridTextColumn Header="Filename" Binding="{Binding DataName}" Width ="Auto"/>
+                <DataGridTextColumn Header="FileSize(kb)" Binding="{Binding DataSize}" Width ="Auto"/>
+                <DataGridTextColumn Header="Project#" Binding="{Binding DeployedProjectVersion}" Width ="Auto"/>
+                <DataGridTextColumn Header="Build#" Binding="{Binding BuildVersion}" Width ="Auto"/>
+                <DataGridTextColumn Header="RelativePath" Binding="{Binding DataRelPath}" Width ="Auto"/>
+                <DataGridTextColumn Header="HashValue" Binding="{Binding DataHash}" Width ="Auto"/>
+                <DataGridTextColumn Header="UpdatedTime" Binding="{Binding UpdatedTime}" Width ="Auto"/>
+                <DataGridTextColumn Header="ChangedState" Binding="{Binding DataChangedState}" Width ="Auto"/>
             </DataGrid.Columns>
         </DataGrid>
     </Grid>

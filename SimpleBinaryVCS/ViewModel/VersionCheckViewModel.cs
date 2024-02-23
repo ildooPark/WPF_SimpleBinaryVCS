@@ -10,7 +10,7 @@ namespace SimpleBinaryVCS.ViewModel
 {
     public class VersionCheckViewModel : ViewModelBase
     {
-        private string changeLog; 
+        private string? changeLog; 
         public string ChangeLog
         {
             get { return changeLog ??= ""; }
@@ -20,7 +20,7 @@ namespace SimpleBinaryVCS.ViewModel
                 OnPropertyChanged("ChangeLog");
             }
         }
-        private string updateLog;
+        private string? updateLog;
         public string UpdateLog
         {
             get { return updateLog ??= ""; }
@@ -31,7 +31,7 @@ namespace SimpleBinaryVCS.ViewModel
             }
         }
 
-        private ObservableCollection<ProjectFile> fileList;
+        private ObservableCollection<ProjectFile>? fileList;
         public ObservableCollection<ProjectFile> FileList
         {
             get=> fileList ??= new ObservableCollection<ProjectFile>();
@@ -63,9 +63,9 @@ namespace SimpleBinaryVCS.ViewModel
         {
             _projectDataDetail = new Dictionary<string, object>();
             projectData.RegisterProjectInfo(ProjectDataDetail);
-            this.fileList = projectData.ProjectFiles;
-            this.changeLog = projectData.ChangeLog ?? "Undefined";
-            this.updateLog = projectData.UpdateLog ?? "Undefined";
+            this.FileList = projectData.ProjectFilesObs;
+            this.ChangeLog = projectData.ChangeLog ?? "Undefined";
+            this.UpdateLog = projectData.UpdateLog ?? "Undefined";
         }
     }
 }

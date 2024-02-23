@@ -10,7 +10,7 @@ namespace SimpleBinaryVCS.Interfaces
     public interface IProjectData
     {
         ProjectDataType DataType { get; }
-        public DataChangedState DataState { get; set; }
+        public DataState DataState { get; set; }
         public DateTime UpdatedTime { get; set; }
         public string DataName { get; }
         public string DataRelPath { get; }

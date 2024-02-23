@@ -67,6 +67,26 @@ namespace SimpleBinaryVCS.DataComponent
         {
         }
 
+        private void BackupProject(ProjectData projectData)
+        {
+            bool hasBackup = backupProjectDataList.Contains(projectData);
+            if (!hasBackup)
+            {
+                RegisterBackupFiles(projectData);
+
+                projectMetaData.ProjectDataList.AddFirst(new ProjectData(projectData));
+                projectMetaData.UpdateCount++;
+            }
+
+            byte[] serializedFile = MemoryPackSerializer.Serialize(projectMetaData);
+            File.WriteAllBytes($"{projectMetaData.ProjectPath}\\ProjectMetaData.bin", serializedFile);
+
+            projectData.ChangedFiles.Clear();
+            projectMetaData.ProjectMain = projectData;
+
+            FetchAction?.Invoke(ProjectBackupListObservable);
+        }
+        #region Callbacks
         // Save BackUp 
 
         /// <summary>
@@ -77,23 +97,7 @@ namespace SimpleBinaryVCS.DataComponent
         {
             if (projectObj is not ProjectData newMainProject) return;
             if (projectMetaData == null || backupProjectDataList == null || BackupFiles == null) return;
-            
-            bool hasBackup = backupProjectDataList.Contains(newMainProject);
-            if (!hasBackup)
-            {
-                RegisterBackupFiles(newMainProject);
-                
-                projectMetaData.ProjectDataList.AddFirst(new ProjectData(newMainProject));
-                projectMetaData.UpdateCount++;
-            }        
-            
-            byte[] serializedFile = MemoryPackSerializer.Serialize(projectMetaData);
-            File.WriteAllBytes($"{projectMetaData.ProjectPath}\\ProjectMetaData.bin", serializedFile);
-            
-            newMainProject.ChangedFiles.Clear();
-            projectMetaData.ProjectMain = newMainProject;
-
-            FetchAction?.Invoke(ProjectBackupListObservable);
+            BackupProject(newMainProject);
         }
         public void MetaDataLoadedCallBack(object metaDataObj)
         {
@@ -101,7 +105,7 @@ namespace SimpleBinaryVCS.DataComponent
             if (projectMetaData == null) return;
             this.projectMetaData = projectMetaData;
         }
-
+        #endregion
         private void RegisterBackupFiles(ProjectData projectData)
         {
             if (BackupFiles == null) return;
@@ -112,9 +116,9 @@ namespace SimpleBinaryVCS.DataComponent
                 if (file.DataType == ProjectDataType.Directory) continue;
                 if (!BackupFiles.TryGetValue(file.DataHash, out ProjectFile? backupFile))
                 {
-                    ProjectFile newBackupFile = new ProjectFile(file, DataChangedState.None, backupSrcPath);
+                    ProjectFile newBackupFile = new ProjectFile(file, DataState.None, backupSrcPath);
                     BackupFiles.Add(newBackupFile.DataHash, newBackupFile);
-                    fileHandlerTool.HandleData(file.DataAbsPath, newBackupFile.DataAbsPath, ProjectDataType.File, DataChangedState.Backup);
+                    fileHandlerTool.HandleData(file.DataAbsPath, newBackupFile.DataAbsPath, ProjectDataType.File, DataState.Backup);
                 }
             }
         }
@@ -154,7 +158,8 @@ namespace SimpleBinaryVCS.DataComponent
             try
             {
                 ProjectData revertedData = new ProjectData(revertingProjectData, true);
-                List<ChangedFile>? FileDifferences = fileManager.FindVersionDifferences(revertingProjectData, ProjectMetaData?.ProjectMain);
+                List<ChangedFile>? FileDifferences = fileManager.FindVersionDifferences(revertingProjectData, ProjectMetaData?.ProjectMain, true);
+                
                 fileHandlerTool.ApplyFileChanges(FileDifferences);
                 ProjectRevertEventHandler?.Invoke(revertingProjectData);
             }

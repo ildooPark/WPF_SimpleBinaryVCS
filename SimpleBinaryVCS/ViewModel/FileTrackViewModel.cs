@@ -16,7 +16,6 @@ namespace SimpleBinaryVCS.ViewModel
     }
     public class FileTrackViewModel : ViewModelBase
     {
-        public bool DeployedSrcHasLog { get; set; }
         private ProjectData? deployedProjectData; 
 
         private ObservableCollection<ProjectFile>? changedFileList; 
@@ -42,48 +41,27 @@ namespace SimpleBinaryVCS.ViewModel
         }
 
         private ICommand? getDeploySrcDir;
-        public ICommand GetDeploySrcDir
-        {
-            get
-            {
-                if (getDeploySrcDir == null) getDeploySrcDir = new RelayCommand(SetDeploySrcDirectory, CanSetDeployDir);
-                return getDeploySrcDir;
-            }
-        }
+        public ICommand GetDeploySrcDir => getDeploySrcDir ??= new RelayCommand(SetDeploySrcDirectory, CanSetDeployDir);
 
         private ICommand? clearNewfiles;
-        public ICommand ClearNewfiles
-        {
-            get => clearNewfiles ??= new RelayCommand(ClearFiles, CanClearFiles);
-        }
+        public ICommand ClearNewfiles => clearNewfiles ??= new RelayCommand(ClearFiles, CanClearFiles);
 
         private ICommand? checkProjectIntegrity; 
-        public ICommand CheckProjectIntegrity
-        {
-            get => checkProjectIntegrity ??= new RelayCommand(MainProjectIntegrityTest, CanRunIntegrityTest);
-        }
+        public ICommand CheckProjectIntegrity => checkProjectIntegrity ??= new RelayCommand(MainProjectIntegrityTest, CanRunIntegrityTest);
 
         private ICommand? stageChanges;
-        public ICommand StageChanges
-        {
-            get => stageChanges ??= new RelayCommand(MainProjectIntegrityTest, CanRunIntegrityTest);
-        }
+        public ICommand StageChanges => stageChanges ??= new RelayCommand(StageNewChanges, CanStageChanges);
 
         private ICommand? addForRestore;
-        public ICommand AddForRestore
-        {
-            get => addForRestore ??= new RelayCommand(RestoreFile, CanRestoreFile);
-        }
+        public ICommand AddForRestore => addForRestore ??= new RelayCommand(RestoreFile, CanRestoreFile);
 
-        private ICommand? getDeployedProjectInfo; 
-        public ICommand? GetDeployedProjectInfo
-        {
-            get => getDeployedProjectInfo ??= new RelayCommand(OpenDeployedProjectInfo, CanOpenDeployedProjectInfo)
-        }
+        private ICommand? getDeployedProjectInfo;
+        public ICommand? GetDeployedProjectInfo => getDeployedProjectInfo ??= new RelayCommand(OpenDeployedProjectInfo, CanOpenDeployedProjectInfo);
 
         private FileManager fileManager;
         private UpdateManager updateManager; 
         private VMState currentState; 
+
         public FileTrackViewModel()
         {
             this.fileManager = App.FileManager;
@@ -95,21 +73,23 @@ namespace SimpleBinaryVCS.ViewModel
         }
 
         private bool CanStageChanges(object obj) { return ChangedFileList.Count != 0; }
-        private void StageNewChanges(object obj)
+        private async void StageNewChanges(object obj)
         {
             if (deployedProjectData != null)
             {
-
+                fileManager.StageNewFiles(deployedProjectData);
             }
             else
             {
-
+                await fileManager.StageNewFilesAsync();
             }
         }
+
         private bool CanOpenDeployedProjectInfo(object obj)
         {
-            return true;
+            return deployedProjectData != null;
         }
+
         public void OpenDeployedProjectInfo(object obj)
         {
             var mainWindow = obj as WPF.Window;
@@ -125,7 +105,7 @@ namespace SimpleBinaryVCS.ViewModel
             List<ProjectFile> clearList = new List<ProjectFile>();
             foreach (ProjectFile file in ChangedFileList)
             {
-                if ((file.DataState & DataChangedState.IntegrityChecked) == 0)
+                if ((file.DataState & DataState.IntegrityChecked) == 0)
                 {
                     clearList.Add(file);
                 }
@@ -148,6 +128,7 @@ namespace SimpleBinaryVCS.ViewModel
                 var openUpdateDir = new WinForms.FolderBrowserDialog();
                 if (openUpdateDir.ShowDialog() == DialogResult.OK)
                 {
+                    deployedProjectData = null; 
                     updateDirPath = openUpdateDir.SelectedPath;
                     fileManager.RetrieveDataSrc(updateDirPath);
                 }
@@ -167,15 +148,14 @@ namespace SimpleBinaryVCS.ViewModel
         private bool CanRestoreFile(object? obj)
         {
             if (obj is ProjectFile projFile &&
-                projFile != null &&
-                (projFile.DataState & DataChangedState.Added) != 0) return true; 
+                !projFile.IsDstFile) return true; 
             else return false;
         }
         private void RestoreFile(object? obj)
         {
             if (obj is ProjectFile file)
             {
-                fileManager.RegisterNewfile(file, DataChangedState.Restored);
+                fileManager.RegisterNewfile(file, DataState.Restored);
             }
         }
 
@@ -185,23 +165,30 @@ namespace SimpleBinaryVCS.ViewModel
         }
         private void MainProjectIntegrityTest(object sender)
         {
-            currentState = VMState.Calculating;
+            currentState = VMState.Idle;
             fileManager.PerformIntegrityCheck(sender);
+            currentState = VMState.Idle;
         }
 
         #region Receive Callback From Model 
+        private void PreStagedFileOverlapCallBack(object overlappedFileObj)
+        {
+            if (overlappedFileObj is not ProjectFile file) return;
+            MessageBox.Show($"PreStaged file {file.DataName} Already Exists");
+            // User should be able to choose which to update.
+            // Pop List ComboBox
+        }
+
         private void PreStagedCallBack(object changedFileList)
         {
             if (changedFileList is ObservableCollection<ProjectFile> projectFileList)
             {
-                ChangedFileList.Clear();
                 ChangedFileList = projectFileList;
             }
         }
 
         private void IntegrityCheckCallBack(object sender, string changeLog, ObservableCollection<ProjectFile> changedFileList)
         {
-            currentState = VMState.Idle;
             if (changedFileList == null) { MessageBox.Show("Model Binding Issue: ChangedList is Empty"); return; }
             
             var mainWindow = sender as WPF.Window;

@@ -11,10 +11,12 @@ namespace SimpleBinaryVCS.DataComponent
     public class MetaDataManager : IManager
     {
         public string? CurrentProjectPath {  get; set; }
-        public Action<object>? ResetEventHandler;
-        public Action<object>? UpdateEventHandler;
-        public Action<object>? ProjectLoadedEventHandler;
-        public Action<object>? MetaDataLoadedEventHandler;
+        public event Action<object>? ResetEventHandler;
+        public event Action<object>? UpdateEventHandler;
+        public event Action<object>? DataStagedEventHandler;
+        public event Action<object>? SrcProjectLoadedEventHandler;
+        public event Action<object>? ProjectLoadedEventHandler;
+        public event Action<object>? MetaDataLoadedEventHandler;
 
         public Action? VersionCheckFinished;
         private ProjectMetaData? projectMetaData;
@@ -35,11 +37,11 @@ namespace SimpleBinaryVCS.DataComponent
             get => mainProjectData;
             private set
             {
-                if (value == null) throw new ArgumentNullException(nameof(mainProjectData));
+                if (value == null || value is not ProjectData) throw new ArgumentNullException(nameof(mainProjectData));
                 else if (ProjectMetaData == null) throw new ArgumentNullException(nameof(ProjectMetaData));
-                ProjectMetaData.ProjectMain = value;
-                mainProjectData = value; 
-                ProjectLoadedEventHandler?.Invoke(value);
+                mainProjectData = new ProjectData(value);
+                ProjectMetaData.ProjectMain = mainProjectData;
+                ProjectLoadedEventHandler?.Invoke(mainProjectData);
             }
         }
 
@@ -76,16 +78,17 @@ namespace SimpleBinaryVCS.DataComponent
             ProjectLoadedEventHandler += fileManager.ProjectLoadedCallback;
             ProjectLoadedEventHandler += updateManager.ProjectLoadedCallback;
 
+            SrcProjectLoadedEventHandler += updateManager.SrcProjectLoadedCallBack;
+
+            DataStagedEventHandler += updateManager.NewDataStagedCallBack;
+            //DataStagedEventHandler += backupManager.
             backupManager.ProjectRevertEventHandler += ProjectChangeCallBack;
             updateManager.ProjectUpdateEventHandler += ProjectChangeCallBack;
+            fileManager.SrcProjectDataEventHandler += SrcProjectLoadedCallBack;
+            fileManager.DataStagedEventHandler += DataStagedCallBack;
         }
 
-        private void OnReset(object obj)
-        {
-
-        }
-
-        #region Setup Project 
+        #region Project Load
         public bool TryRetrieveProject(string projectPath)
         {
             string projectRepoBin;
@@ -129,9 +132,10 @@ namespace SimpleBinaryVCS.DataComponent
                 ProjectMetaData = newProjectRepo; 
 
                 string[]? newProjectFiles = Directory.GetFiles(projectPath, "*", SearchOption.AllDirectories);
-                if (newProjectFiles == null)
+                string[]? newProjectDirs = Directory.GetDirectories(projectPath, "*", SearchOption.AllDirectories);
+                if (newProjectFiles == null || newProjectDirs == null)
                 { 
-                    MessageBox.Show("Couldn't Get Project Files"); 
+                    MessageBox.Show("Couldn't Get Project Files (And Or) Directories on MetaDataManager"); 
                     return; 
                 }
 
@@ -149,7 +153,7 @@ namespace SimpleBinaryVCS.DataComponent
                         FileVersionInfo.GetVersionInfo(filePath).FileVersion,
                         newProjectData.UpdatedVersion,
                         DateTime.Now,
-                        DataChangedState.PreStaged,
+                        DataState.None,
                         Path.GetFileName(filePath),
                         projectPath,
                         Path.GetRelativePath(projectPath, filePath),
@@ -157,16 +161,33 @@ namespace SimpleBinaryVCS.DataComponent
                         true
                         );
                     newFile.DataHash = HashTool.GetFileMD5CheckSum(projectPath, Path.GetRelativePath(projectPath, filePath));
-                    
-                    newProjectData.ProjectFiles.Add(newFile);
-                    newProjectData.ChangedFiles.Add(new ChangedFile(new ProjectFile(newFile), DataChangedState.Added));
-
+                    newProjectData.ProjectFiles.Add(newFile.DataRelPath, newFile);
+                    newProjectData.ChangedFiles.Add(new ChangedFile(new ProjectFile(newFile), DataState.Added));
                     changeLog.AppendLine($"Added {newFile.DataName}");
                 }
-
+                foreach (string dirPath in newProjectDirs)
+                {
+                    ProjectFile newFile = new ProjectFile
+                        (
+                        ProjectDataType.Directory,
+                        0,
+                        "",
+                        newProjectData.UpdatedVersion,
+                        DateTime.Now,
+                        DataState.None,
+                        Path.GetFileName(dirPath),
+                        projectPath,
+                        Path.GetRelativePath(projectPath, dirPath),
+                        "",
+                        true
+                        );
+                    newProjectData.ProjectFiles.Add(newFile.DataRelPath, newFile);
+                    newProjectData.ChangedFiles.Add(new ChangedFile(new ProjectFile(newFile), DataState.Added));
+                    changeLog.AppendLine($"Added {newFile.DataName}");
+                }
                 newProjectData.UpdatedTime = DateTime.Now;
                 newProjectData.ChangeLog = changeLog.ToString();
-                newProjectData.NumberOfChanges = newProjectData.ProjectFiles.Count;
+                newProjectData.NumberOfChanges = newProjectData.ProjectFilesObs.Count;
                 MainProjectData = newProjectData;
             }
             catch (Exception ex)
@@ -175,9 +196,6 @@ namespace SimpleBinaryVCS.DataComponent
                 return;
             }
         }
-        #endregion
-        #region Version Management Tools
-
         private string GetProjectVersionName(ProjectData projData, bool isNewProject = false)
         {
             if (!isNewProject)
@@ -186,14 +204,32 @@ namespace SimpleBinaryVCS.DataComponent
             }
             return $"{HashTool.GetUniqueComputerID(Environment.MachineName)}_{DateTime.Now.ToString("yyyy_MM_dd")}_v{projData.RevisionNumber + 1}";
         }
-        
-        
         #endregion
+        #region Version Management Tools
+        #endregion
+        #region Callbacks
+        private void DataStagedCallBack(object stagedFileListObj)
+        {
+            if (stagedFileListObj is not List<ChangedFile> stagedFiles)
+            {
+                MessageBox.Show("Improper stagedFile parameter value called");
+                return;
+            }
+            DataStagedEventHandler?.Invoke(stagedFileListObj);
+        }
+
         private void ProjectChangeCallBack(object projObj)
         {
             if (projObj is not ProjectData projData) return;
             this.MainProjectData = projData;
         }
+
+        private void SrcProjectLoadedCallBack(object srcProjectObj)
+        {
+            if (srcProjectObj is not ProjectData projData) return;
+            SrcProjectLoadedEventHandler?.Invoke(projData);
+        }
+        #endregion
         #region Planned
         #region Exports
         /// <summary>

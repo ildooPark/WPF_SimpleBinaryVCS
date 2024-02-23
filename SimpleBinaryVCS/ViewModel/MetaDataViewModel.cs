@@ -9,6 +9,13 @@ namespace SimpleBinaryVCS.ViewModel
 {
     public class MetaDataViewModel : ViewModelBase
     {
+        private string? currentProjectPath; 
+        public string CurrentProjectPath
+        {
+            get => currentProjectPath ?? ""; 
+            set => currentProjectPath = value;
+        }
+
         private ProjectData? projectData; 
         public ProjectData? ProjectData
         {
@@ -16,7 +23,7 @@ namespace SimpleBinaryVCS.ViewModel
             set
             {
                 projectData = value;
-                ProjectFiles = value?.ProjectFiles;
+                ProjectFiles = value?.ProjectFilesObs;
                 ProjectName = value?.ProjectName ?? "Undefined";
                 CurrentVersion = value?.UpdatedVersion ?? "Undefined"; 
             }
@@ -78,24 +85,10 @@ namespace SimpleBinaryVCS.ViewModel
         }
 
         private ICommand? conductUpdate;
-        public ICommand ConductUpdate
-        {
-            get
-            {
-                if (conductUpdate == null) conductUpdate = new RelayCommand(Update, CanUpdate);
-                return conductUpdate; 
-            }
-        }
+        public ICommand ConductUpdate => conductUpdate ??= new RelayCommand(Update, CanUpdate);
 
         private ICommand? getProject;
-        public ICommand GetProject
-        {
-            get
-            {
-                if (getProject == null) getProject = new RelayCommand(RetrieveProject, CanRetrieveProject);
-                return getProject;
-            }
-        }
+        public ICommand GetProject => getProject ??= new RelayCommand(RetrieveProject, CanRetrieveProject);
 
         private MetaDataManager metaDataManager;
         private FileManager fileManager; 
@@ -111,12 +104,11 @@ namespace SimpleBinaryVCS.ViewModel
             backupManager = App.BackupManager;
             updateManager = App.UpdateManager;
 
-            metaDataManager.ResetEventHandler += ProjectLoadResponse;
-            metaDataManager.ProjectLoadedEventHandler += ProjectLoadResponse;
-            updateManager.ProjectUpdateEventHandler += UpdateResponse;
-            backupManager.ProjectRevertEventHandler += RevertResponse;
+            metaDataManager.ResetEventHandler += ProjectLoadCallBack;
+            metaDataManager.ProjectLoadedEventHandler += ProjectLoadCallBack;
+            updateManager.ProjectUpdateEventHandler += UpdateCallBack;
+            backupManager.ProjectRevertEventHandler += RevertCallBack;
         }
-
         #region Update Version 
         private bool CanUpdate(object obj)
         {
@@ -134,7 +126,7 @@ namespace SimpleBinaryVCS.ViewModel
                 return;
             }
             if (fileManager.ChangedFileList.Count == 0 || fileManager == null) return;
-            updateManager.UpdateProjectMain();
+            updateManager.UpdateProjectMain(updaterName, UpdateLog, CurrentProjectPath);
         }
 
         private bool CanRetrieveProject(object parameter)
@@ -149,6 +141,7 @@ namespace SimpleBinaryVCS.ViewModel
             if (openFD.ShowDialog() == DialogResult.OK)
             {
                 projectPath = openFD.SelectedPath;
+                CurrentProjectPath = openFD.SelectedPath; 
             }
             else return;
             openFD.Dispose();
@@ -178,7 +171,7 @@ namespace SimpleBinaryVCS.ViewModel
             // Any Detected Changes should be enlisted to the FileManager.DetectedFileChanges for the Push
         }
 
-        private void UpdateResponse(object projObj)
+        private void UpdateCallBack(object projObj)
         {
             if (projObj is not ProjectData projectData) return;
             ProjectData = projectData;
@@ -186,16 +179,18 @@ namespace SimpleBinaryVCS.ViewModel
             CurrentVersion = ProjectData.UpdatedVersion ?? "Undefined";
         }
 
-        private void RevertResponse(object projObj)
+        private void RevertCallBack(object projObj)
         {
             if (projObj is not ProjectData projectData) return;
             this.ProjectData = projectData;
         }
 
-        private void ProjectLoadResponse(object projObj)
+        private void ProjectLoadCallBack(object projObj)
         {
             if (projObj is not ProjectData projectData) return; 
             this.ProjectData = projectData;
+            UpdaterName = "";
+            UpdateLog = "";
         }
         #endregion
 

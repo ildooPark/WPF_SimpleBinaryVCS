@@ -8,17 +8,17 @@ namespace SimpleBinaryVCS.Model
     {
         public ProjectFile? SrcFile;
         public ProjectFile? DstFile;
-        public DataChangedState DataState {  get; set; }
+        public DataState DataState {  get; set; }
         [MemoryPackConstructor]
         public ChangedFile() { }
-        public ChangedFile(ProjectFile DstFile, DataChangedState DataState)
+        public ChangedFile(ProjectFile DstFile, DataState DataState)
         {
             this.SrcFile = null;
             this.DstFile = DstFile;
             DstFile.IsDstFile = true; 
             this.DataState = DataState;
         }
-        public ChangedFile(ProjectFile SrcFile,  ProjectFile DstFile, DataChangedState DataState)
+        public ChangedFile(ProjectFile SrcFile,  ProjectFile DstFile, DataState DataState)
         {
             this.SrcFile = SrcFile;
             SrcFile.IsDstFile = false; 

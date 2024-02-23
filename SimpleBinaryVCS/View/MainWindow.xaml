@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:SimpleBinaryVCS.View"
         mc:Ignorable="d"
-        Title="MainWindow" Height="750" Width="1000">
+        Title="MainWindow" Height="1200" Width="1500">
 
     <Grid>
         <Grid.RowDefinitions>
@@ -61,7 +61,7 @@
                 </StackPanel>
                 <DataGrid Grid.Row="1"
                     Name="BackupLog" 
-                    ItemsSource='{Binding BackupVM.SelectedItem.ProjectFiles}'
+                    ItemsSource='{Binding BackupVM.SelectedItem.ProjectFilesObs}'
                     BorderBrush="#cdcdcd"
                     ScrollViewer.CanContentScroll="True"
                     ScrollViewer.VerticalScrollBarVisibility="Auto"
@@ -78,6 +78,7 @@
                         <DataGridTextColumn Header="HashValue" Binding="{Binding DataHash}" Width ="1*"/>
                     </DataGrid.Columns>
                 </DataGrid>
+                
                 <DataGrid Grid.Row="2"
                     Name="DiffLog" 
                     ItemsSource='{Binding BackupVM.DiffLog}'
@@ -90,17 +91,20 @@
                     AutoGenerateColumns="False"
                     >
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="Filename" Binding="{Binding FileName}" Width ="2*"/>
-                        <DataGridTextColumn Header="Version" Binding="{Binding FileSrcPath}" Width ="2*"/>
-                        <DataGridTextColumn Header="Build Version" Binding="{Binding FileBuildVersion}" Width ="2*"/>
-                        <DataGridTextColumn Header="Changed Date" Binding="{Binding UpdatedTime}" Width ="3*"/>
-                        <DataGridTextColumn Header="HashValue" Binding="{Binding FileHash}" Width ="1*"/>
-                        <DataGridTextColumn Header="ChangedState" Binding="{Binding FileState}" Width ="1*"/>
+                        <DataGridTextColumn Header="Filename" Binding="{Binding DataName}" Width ="2*"/>
+                        <DataGridTextColumn Header="Version" Binding="{Binding DataSrcPath}" Width ="2*"/>
+                        <DataGridTextColumn Header="Build Version" Binding="{Binding BuildVersion}" Width ="2*"/>
+                        <DataGridTextColumn Header="Updated Date" Binding="{Binding UpdatedTime}" Width ="3*"/>
+                        <DataGridTextColumn Header="HashValue" Binding="{Binding DataHash}" Width ="1*"/>
+                        <DataGridTextColumn Header="ChangedState" Binding="{Binding DataState}" Width ="1*"/>
                         <DataGridTemplateColumn Header="Restore">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <Button Content="Restore" Command="{Binding DataContext.FileTrackVM.AddForRestore, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
-                            CommandParameter="{Binding}" />
+                                    <Button Content="Restore" 
+                                            Command="{Binding DataContext.FileTrackVM.AddForRestore, 
+                                        RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
+                                            IsEnabled="{Binding DataContext.FileTrackVM.AddForRestore.CanExecute}"
+                                            CommandParameter="{Binding}" />
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
@@ -108,14 +112,14 @@
                     <DataGrid.CellStyle>
                         <Style TargetType="DataGridCell">
                             <Style.Triggers>
-                                <DataTrigger Binding="{Binding IsDst}" Value="True">
+                                <DataTrigger Binding="{Binding IsDstFile}" Value="True">
                                     <Setter Property="Background">
                                         <Setter.Value>
                                             <SolidColorBrush Color="LightGreen" Opacity="0.5"/>
                                         </Setter.Value>
                                     </Setter>
                                 </DataTrigger>
-                                <DataTrigger Binding="{Binding IsDst}" Value="False">
+                                <DataTrigger Binding="{Binding IsDstFile}" Value="False">
                                     <Setter Property="Background">
                                         <Setter.Value>
                                             <SolidColorBrush Color="LightCoral" Opacity="0.5"/>
