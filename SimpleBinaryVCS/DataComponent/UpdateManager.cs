@@ -129,7 +129,7 @@ namespace SimpleBinaryVCS.DataComponent
             return $"{HashTool.GetUniqueComputerID(Environment.MachineName)}_{DateTime.Now.ToString("yyyy_MM_dd")}_v{projData.RevisionNumber + 1}";
         }
         #region MetaData CallBack 
-        public void NewDataStagedCallBack(object fileChangeListObj)
+        public void DataStagedCallBack(object fileChangeListObj)
         {
             if (fileChangeListObj is not List<ChangedFile> fileChangesList) return;
             projectFileChanges = fileChangesList;

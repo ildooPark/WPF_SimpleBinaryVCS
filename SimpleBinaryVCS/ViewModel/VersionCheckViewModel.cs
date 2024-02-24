@@ -41,13 +41,13 @@ namespace SimpleBinaryVCS.ViewModel
                 OnPropertyChanged("FileList");
             }
         }
-        private Dictionary<string, object>? _projectDataDetail;
-        public Dictionary<string, object> ProjectDataDetail
+        private Dictionary<string, object>? _projectDataReview;
+        public Dictionary<string, object> ProjectDataReview
         {
-            get => _projectDataDetail ??= new Dictionary<string, object>(); 
+            get => _projectDataReview ??= new Dictionary<string, object>(); 
             set
             {
-                _projectDataDetail = value;
+                _projectDataReview = value;
                 OnPropertyChanged("ProjectDataDetail");
             }
         }
@@ -61,8 +61,8 @@ namespace SimpleBinaryVCS.ViewModel
 
         public VersionCheckViewModel(ProjectData projectData)
         {
-            _projectDataDetail = new Dictionary<string, object>();
-            projectData.RegisterProjectInfo(ProjectDataDetail);
+            _projectDataReview = new Dictionary<string, object>();
+            projectData.RegisterProjectInfo(ProjectDataReview);
             this.FileList = projectData.ProjectFilesObs;
             this.ChangeLog = projectData.ChangeLog ?? "Undefined";
             this.UpdateLog = projectData.UpdateLog ?? "Undefined";

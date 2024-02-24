@@ -91,7 +91,6 @@ namespace SimpleBinaryVCS.ViewModel
         public ICommand GetProject => getProject ??= new RelayCommand(RetrieveProject, CanRetrieveProject);
 
         private MetaDataManager metaDataManager;
-        private FileManager fileManager; 
         private BackupManager backupManager;
         private UpdateManager updateManager;
 
@@ -100,33 +99,28 @@ namespace SimpleBinaryVCS.ViewModel
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         {
             metaDataManager = App.MetaDataManager;
-            fileManager = App.FileManager;
             backupManager = App.BackupManager;
             updateManager = App.UpdateManager;
 
-            metaDataManager.ResetEventHandler += ProjectLoadCallBack;
-            metaDataManager.ProjectLoadedEventHandler += ProjectLoadCallBack;
-            updateManager.ProjectUpdateEventHandler += UpdateCallBack;
-            backupManager.ProjectRevertEventHandler += RevertCallBack;
+            metaDataManager.ProjectLoadedEventHandler += ProjectLoadedCallBack;
         }
         #region Update Version 
         private bool CanUpdate(object obj)
         {
-            if (projectFiles == null || fileManager.ChangedFileList.Count == 0) return false;
-            if (ProjectData?.ProjectPath == null || updaterName == "" || updateLog == "") return false;
+            if (ProjectFiles == null || CurrentProjectPath == "") return false;
+            if (UpdaterName == "" || UpdateLog == "") return false; 
             return true;
         }
         
         private void Update(object obj)
         {
-            if (updaterName == null || updateLog == null || updaterName == "" || updateLog == "")
+            if (UpdaterName == "" || UpdateLog == "")
             {
                 var response = MessageBox.Show("Must Have both Deploy Version AND UpdaterName", "ok", MessageBoxButtons.OK);
                 if (response == DialogResult.OK) return;
                 return;
             }
-            if (fileManager.ChangedFileList.Count == 0 || fileManager == null) return;
-            updateManager.UpdateProjectMain(updaterName, UpdateLog, CurrentProjectPath);
+            metaDataManager.RequestUpdate(updaterName, UpdateLog, CurrentProjectPath);
         }
 
         private bool CanRetrieveProject(object parameter)
@@ -147,14 +141,14 @@ namespace SimpleBinaryVCS.ViewModel
             openFD.Dispose();
             if (string.IsNullOrEmpty(projectPath)) return;
 
-            bool retrieveProjectResult = metaDataManager.TryRetrieveProject(projectPath);
+            bool retrieveProjectResult = metaDataManager.RequestProjectRetrieval(projectPath);
             if (!retrieveProjectResult)
             {
                 var result = MessageBox.Show("VersionLog file not found!\n Initialize A New Project?",
                     "Import Project", MessageBoxButtons.YesNo);
                 if (result == DialogResult.Yes)
                 {
-                    metaDataManager.InitializeProject(openFD.SelectedPath);
+                    metaDataManager.RequestProjectInitialization(openFD.SelectedPath);
                 }
                 else
                 {
@@ -171,26 +165,12 @@ namespace SimpleBinaryVCS.ViewModel
             // Any Detected Changes should be enlisted to the FileManager.DetectedFileChanges for the Push
         }
 
-        private void UpdateCallBack(object projObj)
+        private void ProjectLoadedCallBack(object projObj)
         {
             if (projObj is not ProjectData projectData) return;
             ProjectData = projectData;
             ProjectName = ProjectData.ProjectName ?? "Undefined";
             CurrentVersion = ProjectData.UpdatedVersion ?? "Undefined";
-        }
-
-        private void RevertCallBack(object projObj)
-        {
-            if (projObj is not ProjectData projectData) return;
-            this.ProjectData = projectData;
-        }
-
-        private void ProjectLoadCallBack(object projObj)
-        {
-            if (projObj is not ProjectData projectData) return; 
-            this.ProjectData = projectData;
-            UpdaterName = "";
-            UpdateLog = "";
         }
         #endregion
 

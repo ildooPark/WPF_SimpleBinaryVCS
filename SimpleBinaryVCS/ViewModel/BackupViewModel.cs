@@ -92,13 +92,10 @@ namespace SimpleBinaryVCS.ViewModel
         }
 
         private MetaDataManager metaDataManager;
-        private BackupManager backupManager;
         public BackupViewModel()
         {
-            metaDataManager = App.MetaDataManager;
-            backupManager = App.BackupManager;
-
-            backupManager.FetchAction += ReceiveFetch;
+            this.metaDataManager = App.MetaDataManager;
+            this.metaDataManager.FetchRequestEventHandler += FetchRequestCallBack;
         }
 
         private bool CanFetch(object obj)
@@ -112,9 +109,10 @@ namespace SimpleBinaryVCS.ViewModel
             SelectedItem = null;
             //Set up Current Project at Main 
             if (metaDataManager.CurrentProjectPath == null || metaDataManager.ProjectMetaData == null) return;
-            backupManager.FetchBackupProjectList(obj);
+            metaDataManager.RequestFetchBackup();
+
         }
-        private void ReceiveFetch(object backupListObj)
+        private void FetchRequestCallBack(object backupListObj)
         {
             if (backupListObj is not ObservableCollection<ProjectData> backupList) return;
             BackupProjectDataList = backupList;
@@ -150,7 +148,7 @@ namespace SimpleBinaryVCS.ViewModel
                 MessageBoxButtons.YesNo); 
             if (response == DialogResult.Yes)
             {
-                backupManager.RevertProject(selectedItem);
+                metaDataManager.RequestRevertProject(selectedItem);
                 return;
             }
             else

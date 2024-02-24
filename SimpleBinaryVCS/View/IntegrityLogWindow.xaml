@@ -19,7 +19,7 @@
             </Grid.RowDefinitions>
                 <DataGrid 
                     IsReadOnly="True"
-                    ItemsSource="{Binding ProjectDataDetail}" 
+                    ItemsSource="{Binding ProjectDataReview}" 
                     AutoGenerateColumns="False">
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="Variable" Binding="{Binding Key}" Width="3*"/>

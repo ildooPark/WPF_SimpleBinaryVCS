@@ -21,13 +21,14 @@ namespace SimpleBinaryVCS.DataComponent
         Restored = 1 << 2,
         Modified = 1 << 3,
         PreStaged = 1 << 4,
-        IntegrityChecked = 1 << 5, 
+        IntegrityChecked = 1 << 5,
         Backup = 1 << 6
     }
     public class FileManager : IManager
     {
         public event Action<object>? DataStagedEventHandler;
         public event Action<object>? DataPreStagedEventHandler;
+        public event Action<object>? FileChangeListUpdateEventHandler;
         public event Action<object>? SrcProjectDataEventHandler;
         public event Action<object>? PreStagedDataOverlapEventHandler;
         public event Action<object, string, ObservableCollection<ProjectFile>>? IntegrityCheckEventHandler;
@@ -36,7 +37,7 @@ namespace SimpleBinaryVCS.DataComponent
         private Dictionary<string, ProjectFile> projectFilesDict;
         private Dictionary<string, ProjectFile> registeredFilesDict;
         private SemaphoreSlim asyncControl;
-        
+
         private ObservableCollection<ProjectFile> changedFileList;
         public ObservableCollection<ProjectFile> ChangedFileList
         {
@@ -52,7 +53,7 @@ namespace SimpleBinaryVCS.DataComponent
                 if (currentProjectData == null)
                 {
                     MessageBox.Show("Project Data is unreachable from FileManager");
-                    return null; 
+                    return null;
                 }
                 return currentProjectData;
             }
@@ -67,8 +68,8 @@ namespace SimpleBinaryVCS.DataComponent
             changedFileList = new ObservableCollection<ProjectFile>();
             projectFilesDict = new Dictionary<string, ProjectFile>();
             registeredFilesDict = new Dictionary<string, ProjectFile>();
-            fileHandlerTool = new FileHandlerTool();    
-            asyncControl = new SemaphoreSlim(5); 
+            fileHandlerTool = new FileHandlerTool();
+            asyncControl = new SemaphoreSlim(5);
         }
         public void Awake()
         {
@@ -117,7 +118,7 @@ namespace SimpleBinaryVCS.DataComponent
                 return;
             }
             registeredFilesDict.Clear();
-            changedFileList.Clear(); 
+            changedFileList.Clear();
             try
             {
                 StringBuilder fileIntegrityLog = new StringBuilder();
@@ -137,13 +138,13 @@ namespace SimpleBinaryVCS.DataComponent
                 {
                     directoryFiles.Add(Path.GetRelativePath(mainProject.ProjectPath, absPathFile));
                 }
-                
+
                 string[]? rawDirs = Directory.GetDirectories(mainProject.ProjectPath, "*", SearchOption.AllDirectories);
                 foreach (string absPathFile in rawDirs)
                 {
                     directoryDirs.Add(Path.GetRelativePath(mainProject.ProjectPath, absPathFile));
                 }
-                
+
                 IEnumerable<string> addedFiles = directoryFiles.Except(recordedFiles);
                 IEnumerable<string> addedDirs = directoryDirs.Except(recordedDirs);
                 IEnumerable<string> deletedFiles = recordedFiles.Except(directoryFiles);
@@ -168,7 +169,7 @@ namespace SimpleBinaryVCS.DataComponent
 
                 foreach (string fileRelPath in addedFiles)
                 {
-                    if (fileRelPath == "ProjectMetaData.bin") continue; 
+                    if (fileRelPath == "ProjectMetaData.bin") continue;
                     fileIntegrityLog.AppendLine($"{fileRelPath} has been Added");
                     string? fileHash = HashTool.GetFileMD5CheckSum(mainProject.ProjectPath, fileRelPath);
                     ProjectFile file = new ProjectFile(mainProject.ProjectPath, fileRelPath, fileHash, DataState.Added | DataState.IntegrityChecked, ProjectDataType.Directory);
@@ -178,14 +179,14 @@ namespace SimpleBinaryVCS.DataComponent
                 foreach (string fileRelPath in deletedFiles)
                 {
                     fileIntegrityLog.AppendLine($"{fileRelPath} has been Deleted");
-                    ProjectFile srcFile = new ProjectFile(projectFilesDict[fileRelPath], DataState.None); 
+                    ProjectFile srcFile = new ProjectFile(projectFilesDict[fileRelPath], DataState.None);
                     ProjectFile dstFile = new ProjectFile(projectFilesDict[fileRelPath], DataState.Deleted | DataState.IntegrityChecked);
                     dstFile.UpdatedTime = DateTime.Now;
                     fileChanges.Add(new ChangedFile(srcFile, dstFile, DataState.Deleted | DataState.IntegrityChecked));
                     changedFileList.Add(srcFile);
                 }
 
-                foreach(string fileRelPath in intersectFiles)
+                foreach (string fileRelPath in intersectFiles)
                 {
                     string? dirFileHash = HashTool.GetFileMD5CheckSum(mainProject.ProjectPath, fileRelPath);
                     if (projectFilesDict[fileRelPath].DataHash != dirFileHash)
@@ -302,7 +303,7 @@ namespace SimpleBinaryVCS.DataComponent
                     }
                 }
                 DataPreStagedEventHandler?.Invoke(changedFileList);
-                DataPreStagedEventHandler?.Invoke(fileChanges);
+                DataStagedEventHandler?.Invoke(fileChanges);
                 return fileChanges;
             }
             catch (Exception ex)
@@ -416,7 +417,7 @@ namespace SimpleBinaryVCS.DataComponent
             {
                 MessageBox.Show($"File Manager RetrieveDataSrc Error: {ex.Message}");
             }
-            
+
         }
         public void RegisterNewData(string updateDirPath)
         {
@@ -456,7 +457,7 @@ namespace SimpleBinaryVCS.DataComponent
                     {
                         WPF.MessageBox.Show($"Already Enlisted File {newFile.DataName}: for Update");
                     }
-                    else continue; 
+                    else continue;
                 }
                 foreach (string dirAbsPath in dirsFullPaths)
                 {
@@ -502,8 +503,8 @@ namespace SimpleBinaryVCS.DataComponent
                 return;
             }
         }
-        
-        public async Task StageNewFilesAsync()
+
+        public async void StageNewFilesAsync()
         {
             changedFileList.Clear();
             await HashPreStagedFilesAsync();
@@ -631,81 +632,3 @@ namespace SimpleBinaryVCS.DataComponent
         #endregion
     }
 }
-#region Deprecated 
-//public void FindVersionDifferences(ProjectData srcData, ProjectData dstData, ObservableCollection<ProjectFile> changeList)
-//{
-//    if (srcData == null || dstData == null)
-//    {
-//        MessageBox.Show($"One or more project is set to null");
-//        return;
-//    }
-//    try
-//    {
-//        List<ChangedFile> diffLog = new List<ChangedFile>();
-//        StringBuilder fileIntegrityLog = new StringBuilder();
-//        fileIntegrityLog.AppendLine($"Conducting Version Integrity Check on {dstData.UpdatedVersion}");
-//        Dictionary<string, ProjectFile> srcDict = srcData.ProjectFilesDict;
-//        Dictionary<string, ProjectFile> dstDict = dstData.ProjectFilesDict;
-
-//        List<string> recordedFiles = new List<string>();
-//        List<string> directoryFiles = new List<string>();
-
-//        // Files which is not on the Dst 
-//        IEnumerable<string> filesToAdd = srcData.ProjectRelFilePathsList.Except(dstData.ProjectRelFilePathsList);
-//        // Files which is not on the Src
-//        IEnumerable<string> filesToDelete = dstData.ProjectRelFilePathsList.Except(srcData.ProjectRelFilePathsList);
-//        // Directories which is not on the Src
-//        IEnumerable<string> dirsToAdd = srcData.ProjectRelDirsList.Except(dstData.ProjectRelDirsList);
-//        // Directories which is not on the Dst
-//        IEnumerable<string> dirsToDelete = dstData.ProjectRelDirsList.Except(srcData.ProjectRelDirsList);
-//        // Files to Overwrite
-//        IEnumerable<string> intersectFiles = srcData.ProjectRelFilePathsList.Intersect(dstData.ProjectRelFilePathsList);
-
-//        foreach (string dirRelPath in dirsToAdd)
-//        {
-//            ProjectFile srcFile = new ProjectFile(srcDict[dirRelPath]);
-//            ProjectFile dstFile = new ProjectFile(srcDict[dirRelPath], DataChangedState.Added, dstData.ProjectPath);
-//            ChangedFile newChange = new ChangedFile(srcFile, dstFile, DataChangedState.Added);
-//            diffLog.Add(newChange);
-//        }
-
-//        foreach (string dirRelPath in dirsToDelete)
-//        {
-//            ProjectFile dstFile = new ProjectFile(dstDict[dirRelPath], DataChangedState.Deleted);
-//            changeList.Add(dstFile);
-//        }
-
-//        foreach (string fileRelPath in filesToAdd)
-//        {
-//            ProjectFile srcFile = new ProjectFile(srcDict[fileRelPath]);
-//            ProjectFile dstFile = new ProjectFile(srcDict[fileRelPath], DataChangedState.Added, dstData.ProjectPath);
-//            ChangedFile newChange = new ChangedFile(srcFile, dstFile, DataChangedState.Added);
-//            diffLog.Add(newChange);
-//        }
-
-//        foreach (string fileRelPath in filesToDelete)
-//        {
-//            ProjectFile dstFile = new ProjectFile(dstDict[fileRelPath], DataChangedState.Deleted);
-//            ChangedFile newChange = new ChangedFile(dstFile, DataChangedState.Deleted);
-//            diffLog.Add(newChange);
-//        }
-
-//        foreach (string fileRelPath in intersectFiles)
-//        {
-//            if (srcDict[fileRelPath].DataHash != dstDict[fileRelPath].DataHash)
-//            {
-//                ProjectFile dstFile = new ProjectFile(srcDict[fileRelPath], DataChangedState.Modified);
-//                ProjectFile srcFile = new ProjectFile(srcDict[fileRelPath]);
-//                ChangedFile newChange = new ChangedFile(srcFile, dstFile, DataChangedState.Modified);
-//                dstData.ChangedFiles.Add(newChange);
-//            }
-//        }
-
-//        fileIntegrityLog.AppendLine("Integrity Check Complete");
-//    }
-//    catch (Exception ex)
-//    {
-//        System.Windows.MessageBox.Show($"{ex.Message}. Couldn't Run File Integrity Check");
-//    }
-//}
-#endregion

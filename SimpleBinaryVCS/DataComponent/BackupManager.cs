@@ -39,19 +39,12 @@ namespace SimpleBinaryVCS.DataComponent
             get
             {
                 if (backupProjectDataList == null) return null; 
-                ObservableCollection<ProjectData> dataList = new ObservableCollection<ProjectData>();
-                foreach (ProjectData pd in backupProjectDataList)
-                {
-                    dataList.Add(pd);
-                }
-                return dataList;
+                return new ObservableCollection<ProjectData>(backupProjectDataList);
             }
         }
 
-        public Action<object>? BackupAction;
-        public Action<object>? ProjectRevertEventHandler;
-        public Action<object>? FetchAction; 
-        private FileManager fileManager;
+        public event Action<object>? ProjectRevertEventHandler;
+        public event Action<object>? FetchCompleteEventHandler; 
         private FileHandlerTool fileHandlerTool;
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         public BackupManager()
@@ -60,10 +53,6 @@ namespace SimpleBinaryVCS.DataComponent
             fileHandlerTool = new FileHandlerTool();
         }
         public void Awake()
-        {
-            fileManager = App.FileManager;
-        }
-        public void Start(object obj)
         {
         }
 
@@ -84,7 +73,7 @@ namespace SimpleBinaryVCS.DataComponent
             projectData.ChangedFiles.Clear();
             projectMetaData.ProjectMain = projectData;
 
-            FetchAction?.Invoke(ProjectBackupListObservable);
+            FetchCompleteEventHandler?.Invoke(ProjectBackupListObservable);
         }
         #region Callbacks
         // Save BackUp 
@@ -136,10 +125,10 @@ namespace SimpleBinaryVCS.DataComponent
             //Else, Update Backup Path Info 
         }
         #region Link To View Model 
-        public void FetchBackupProjectList(object obj)
+        public void FetchBackupProjectList()
         {
             if (projectMetaData == null || projectMetaData.ProjectDataList == null) return;
-            FetchAction?.Invoke(ProjectBackupListObservable);
+            FetchCompleteEventHandler?.Invoke(ProjectBackupListObservable);
         }
 
         public string GetBackupFilePath(ProjectFile projectFile)
@@ -153,13 +142,11 @@ namespace SimpleBinaryVCS.DataComponent
             return backupFile != null ? backupFile.DataAbsPath : "";
         }
 
-        public void RevertProject(ProjectData revertingProjectData)
+        public void RevertProject(ProjectData revertingProjectData, List<ChangedFile>? FileDifferences)
         {
             try
             {
                 ProjectData revertedData = new ProjectData(revertingProjectData, true);
-                List<ChangedFile>? FileDifferences = fileManager.FindVersionDifferences(revertingProjectData, ProjectMetaData?.ProjectMain, true);
-                
                 fileHandlerTool.ApplyFileChanges(FileDifferences);
                 ProjectRevertEventHandler?.Invoke(revertingProjectData);
             }

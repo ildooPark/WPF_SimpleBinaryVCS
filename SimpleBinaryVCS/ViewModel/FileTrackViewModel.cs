@@ -16,8 +16,6 @@ namespace SimpleBinaryVCS.ViewModel
     }
     public class FileTrackViewModel : ViewModelBase
     {
-        private ProjectData? deployedProjectData; 
-
         private ObservableCollection<ProjectFile>? changedFileList; 
         public ObservableCollection<ProjectFile> ChangedFileList 
         {
@@ -40,9 +38,6 @@ namespace SimpleBinaryVCS.ViewModel
             }
         }
 
-        private ICommand? getDeploySrcDir;
-        public ICommand GetDeploySrcDir => getDeploySrcDir ??= new RelayCommand(SetDeploySrcDirectory, CanSetDeployDir);
-
         private ICommand? clearNewfiles;
         public ICommand ClearNewfiles => clearNewfiles ??= new RelayCommand(ClearFiles, CanClearFiles);
 
@@ -58,30 +53,28 @@ namespace SimpleBinaryVCS.ViewModel
         private ICommand? getDeployedProjectInfo;
         public ICommand? GetDeployedProjectInfo => getDeployedProjectInfo ??= new RelayCommand(OpenDeployedProjectInfo, CanOpenDeployedProjectInfo);
 
-        private FileManager fileManager;
-        private UpdateManager updateManager; 
-        private VMState currentState; 
+        private MetaDataManager metaDataManager;
+        private ProjectData? deployedProjectData;
 
         public FileTrackViewModel()
         {
-            this.fileManager = App.FileManager;
-            this.updateManager = App.UpdateManager;
-            this.fileManager.DataPreStagedEventHandler += PreStagedCallBack;
-            this.fileManager.IntegrityCheckEventHandler += IntegrityCheckCallBack;
-            
-            this.currentState = VMState.Idle; 
+            this.metaDataManager = App.MetaDataManager;
+            this.metaDataManager.SrcProjectLoadedEventHandler += SrcProjectDataCallBack;
+            this.metaDataManager.PreStagedChangesEventHandler += PreStagedChangesCallBack;
+            this.metaDataManager.ProjectIntegrityCheckEventHandler += ProjectIntegrityCheckCallBack;
+            this.metaDataManager.StagedChangesEventHandler += StageRequestCallBack;
         }
 
         private bool CanStageChanges(object obj) { return ChangedFileList.Count != 0; }
-        private async void StageNewChanges(object obj)
+        private void StageNewChanges(object obj)
         {
             if (deployedProjectData != null)
             {
-                fileManager.StageNewFiles(deployedProjectData);
+                metaDataManager.RequestStageChanges(deployedProjectData);
             }
             else
             {
-                await fileManager.StageNewFilesAsync();
+                metaDataManager.RequestStageChanges(null);
             }
         }
 
@@ -116,34 +109,6 @@ namespace SimpleBinaryVCS.ViewModel
             }
         }
 
-        private bool CanSetDeployDir(object obj)
-        {
-            return true;
-        }
-        private void SetDeploySrcDirectory(object obj)
-        {
-            try
-            {
-                string? updateDirPath;
-                var openUpdateDir = new WinForms.FolderBrowserDialog();
-                if (openUpdateDir.ShowDialog() == DialogResult.OK)
-                {
-                    deployedProjectData = null; 
-                    updateDirPath = openUpdateDir.SelectedPath;
-                    fileManager.RetrieveDataSrc(updateDirPath);
-                }
-                else
-                {
-                    openUpdateDir.Dispose();
-                    return;
-                }
-                openUpdateDir.Dispose();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show(ex.Message);
-            }
-        }
         
         private bool CanRestoreFile(object? obj)
         {
@@ -155,22 +120,25 @@ namespace SimpleBinaryVCS.ViewModel
         {
             if (obj is ProjectFile file)
             {
-                fileManager.RegisterNewfile(file, DataState.Restored);
+                metaDataManager.RequestFileRestore(file, DataState.Restored);
             }
         }
 
         private bool CanRunIntegrityTest(object Sender)
         {
-            return currentState == VMState.Idle;
+            return true; 
         }
         private void MainProjectIntegrityTest(object sender)
         {
-            currentState = VMState.Idle;
-            fileManager.PerformIntegrityCheck(sender);
-            currentState = VMState.Idle;
+            metaDataManager.RequestProjectIntegrityTest(sender);
         }
 
         #region Receive Callback From Model 
+        private void StageRequestCallBack(ObservableCollection<ProjectFile> stagedChangesObj)
+        {
+            if (stagedChangesObj is not ObservableCollection<ProjectFile> stagedChanges) return;
+            changedFileList = stagedChanges;
+        }
         private void PreStagedFileOverlapCallBack(object overlappedFileObj)
         {
             if (overlappedFileObj is not ProjectFile file) return;
@@ -179,15 +147,21 @@ namespace SimpleBinaryVCS.ViewModel
             // Pop List ComboBox
         }
 
-        private void PreStagedCallBack(object changedFileList)
+        private void PreStagedChangesCallBack(object changedFileListObj)
         {
-            if (changedFileList is ObservableCollection<ProjectFile> projectFileList)
+            if (changedFileListObj is ObservableCollection<ProjectFile> changedFileList)
             {
-                ChangedFileList = projectFileList;
+                ChangedFileList = changedFileList;
             }
         }
 
-        private void IntegrityCheckCallBack(object sender, string changeLog, ObservableCollection<ProjectFile> changedFileList)
+        private void FileChangeListUpdateCallBack(object changedFileListObj)
+        {
+            if (changedFileListObj is ObservableCollection<ProjectFile> changedFileList)
+                this.ChangedFileList = changedFileList;
+        }
+
+        private void ProjectIntegrityCheckCallBack(object sender, string changeLog, ObservableCollection<ProjectFile> changedFileList)
         {
             if (changedFileList == null) { MessageBox.Show("Model Binding Issue: ChangedList is Empty"); return; }
             
@@ -206,3 +180,36 @@ namespace SimpleBinaryVCS.ViewModel
         #endregion
     }
 }
+#region Deprecated 
+//private ICommand? getDeploySrcDir;
+//public ICommand GetDeploySrcDir => getDeploySrcDir ??= new RelayCommand(SetDeploySrcDirectory, CanSetDeployDir);
+//private bool CanSetDeployDir(object obj)
+//{
+//    return true;
+//}
+//private void SetDeploySrcDirectory(object obj)
+//{
+//    try
+//    {
+//        string? updateDirPath;
+//        var openUpdateDir = new WinForms.FolderBrowserDialog();
+//        if (openUpdateDir.ShowDialog() == DialogResult.OK)
+//        {
+//            deployedProjectData = null; 
+//            updateDirPath = openUpdateDir.SelectedPath;
+//            fileManager.RetrieveDataSrc(updateDirPath);
+//        }
+//        else
+//        {
+//            openUpdateDir.Dispose();
+//            return;
+//        }
+//        openUpdateDir.Dispose();
+//    }
+//    catch (Exception ex)
+//    {
+//        MessageBox.Show(ex.Message);
+//    }
+//}
+
+#endregion
