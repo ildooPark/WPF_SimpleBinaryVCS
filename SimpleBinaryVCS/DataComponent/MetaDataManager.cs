@@ -13,6 +13,7 @@ namespace SimpleBinaryVCS.DataComponent
     {
         public string? CurrentProjectPath {  get; set; }
 
+        public event Action<object>? FileChangesEventHandler;
         public event Action<object>? StagedChangesEventHandler;
         public event Action<object>? PreStagedChangesEventHandler;
         public event Action<object>? SrcProjectLoadedEventHandler;
@@ -203,9 +204,17 @@ namespace SimpleBinaryVCS.DataComponent
                 return;
             }
         }
-        public void RequestFetchBackup()
+        public bool RequestSrcDataRetrieval(string deployedPath)
         {
-            backupManager.FetchBackupProjectList();
+            bool result = fileManager.RetrieveDataSrc(deployedPath);
+            if (!result) return false;
+            return true; 
+        }
+        public bool RequestFetchBackup()
+        {
+            bool result = backupManager.FetchBackupProjectList();
+            if (!result) return false;
+            return true;
         }
         public void RequestRevertProject(ProjectData? targetProject)
         {
@@ -217,28 +226,26 @@ namespace SimpleBinaryVCS.DataComponent
             List<ChangedFile>? fileDifferences = fileManager.FindVersionDifferences(targetProject, MainProjectData, true);
             backupManager.RevertProject(targetProject, fileDifferences);
         }
-        public void RequestStageChanges(ProjectData? projectData)
+        public void RequestStageChanges()
         {
-            if (projectData == null)
-            {
-                fileManager.StageNewFilesAsync();
-                return;
-            }
-            fileManager.StageNewFiles(projectData);
+            fileManager.StageNewFilesAsync();
         }
 
         public void RequestClearStagedFiles()
         {
-
+            fileManager.ClearDeployedFileChanges();
         }
+
         public void RequestProjectIntegrityTest(object requester)
         {
-            fileManager.PerformIntegrityCheck(requester);
+            fileManager.MainProjectIntegrityCheck(requester);
         }
+
         public void RequestFileRestore(ProjectFile targetFile, DataState state)
         {
             fileManager.RegisterNewfile(targetFile, state);
         }
+
         public void RequestUpdate(string? updaterName, string? updateLog, string? currentProjectPath)
         {
             if (currentProjectPath == null)
@@ -261,15 +268,16 @@ namespace SimpleBinaryVCS.DataComponent
 
         #endregion
         #region Callbacks
-        private void ProjectIntegrityCheckCallBack(object sender, string changeLog, ObservableCollection<ProjectFile> changedFileList)
+        private void ProjectIntegrityCheckCallBack(object sender, string changeLog, List<ProjectFile> changedFileList)
         {
-            ProjectIntegrityCheckEventHandler?.Invoke(sender, changeLog, changedFileList);
+            ProjectIntegrityCheckEventHandler?.Invoke(sender, changeLog, new ObservableCollection<ProjectFile>(changedFileList));
         }
 
         private void DataPreStagedCallBack(object preStagedFileListObj)
         {
             if (preStagedFileListObj is not List<ProjectFile> preStagedFileList) return;
-            PreStagedChangesEventHandler?.Invoke(preStagedFileList);
+            ObservableCollection<ProjectFile> preStagedChangesObs = new ObservableCollection<ProjectFile>(preStagedFileList);
+            FileChangesEventHandler?.Invoke(preStagedChangesObs);
         }
 
         private void DataStagedCallBack(object stagedFileListObj)
@@ -284,7 +292,8 @@ namespace SimpleBinaryVCS.DataComponent
             {
                 if (file.DstFile == null) stagedChangesObs.Add(file.DstFile);
             }
-            StagedChangesEventHandler?.Invoke(stagedChangesObs);
+            FileChangesEventHandler?.Invoke(stagedChangesObs);
+            StagedChangesEventHandler?.Invoke(stagedFiles);
         }
 
         private void ProjectChangeCallBack(object projObj)

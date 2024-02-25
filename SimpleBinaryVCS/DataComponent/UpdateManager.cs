@@ -27,27 +27,18 @@ namespace SimpleBinaryVCS.DataComponent
         }
         private Dictionary<string, ProjectFile> BackupFiles { get; set; }
         private ProjectData? SrcProjectData { get; set; }
-        private List<ChangedFile>? projectFileChanges;
+        private List<ChangedFile>? currentProjectFileChanges;
         public List<ChangedFile>? CurrentProjectFileChanges
         {
-            get
-            {
-                if (projectFileChanges == null)
-                {
-                    MessageBox.Show("FileChangesList Not Set for Update Manager");
-                    return null;
-                }
-                return projectFileChanges;
-            }
+            get => currentProjectFileChanges;
             private set 
             { 
-                projectFileChanges = value; 
+                currentProjectFileChanges = value; 
             }
         }
 
         public Action<object>? ProjectUpdateEventHandler;
 
-        private FileManager fileManager;
         private FileHandlerTool fileHandlerTool;
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
@@ -56,10 +47,8 @@ namespace SimpleBinaryVCS.DataComponent
             fileHandlerTool = new FileHandlerTool();
         }
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
-        
         public void Awake()
         {
-            fileManager = App.FileManager;
         }
         
         /// <summary>
@@ -93,7 +82,6 @@ namespace SimpleBinaryVCS.DataComponent
                 );
 
             ProjectUpdateEventHandler?.Invoke(newProjectData);
-            // 4. Call for new Fetch on BackupProject List
         }
 
         private void RegisterFileChanges(ProjectData currentProject, List<ChangedFile> fileChanges, out StringBuilder? changeLog)
@@ -132,7 +120,7 @@ namespace SimpleBinaryVCS.DataComponent
         public void DataStagedCallBack(object fileChangeListObj)
         {
             if (fileChangeListObj is not List<ChangedFile> fileChangesList) return;
-            projectFileChanges = fileChangesList;
+            currentProjectFileChanges = fileChangesList;
         }
 
         public void MetaDataLoadedCallBack(object projMetaDataObj)
@@ -148,6 +136,7 @@ namespace SimpleBinaryVCS.DataComponent
                 return;
             }
             ProjectMain = loadedProject;
+            CurrentProjectFileChanges = null; 
             SrcProjectData = null;
         }
         public void SrcProjectLoadedCallBack(object srcProjDataObj)

@@ -3,11 +3,11 @@ using SimpleBinaryVCS.DataComponent;
 using SimpleBinaryVCS.Interfaces;
 using System.Diagnostics;
 using System.IO;
+using System.Text.Json.Serialization;
 
 namespace SimpleBinaryVCS.Model
 {
-    [MemoryPackable]
-    public partial class ProjectFile : IEquatable<ProjectFile>, IComparable<ProjectFile>, IProjectData
+    public class ProjectFile : IEquatable<ProjectFile>, IComparable<ProjectFile>, ICloneable, IProjectData
     {
         #region [MemoryPackInclude]
         public ProjectDataType DataType { get; private set; }
@@ -15,35 +15,24 @@ namespace SimpleBinaryVCS.Model
         public string BuildVersion {  get; set; }
         public string DeployedProjectVersion { get; set; }
         public DateTime UpdatedTime { get; set; }
-        [MemoryPackInclude]
         private DataState dataState;
-        [MemoryPackInclude]
         private string dataName;
-        [MemoryPackInclude]
         private string dataSrcPath;
-        [MemoryPackInclude]
         private string dataRelPath;
-        [MemoryPackInclude]
         private string dataHash;
         public bool IsDstFile { get; set; }
         #endregion
         #region [MemoryPackIgnore]
-        [MemoryPackIgnore]
         public DataState DataState { get => dataState; set => dataState = value; }
-        [MemoryPackIgnore]
         public string DataName => dataName;
-        [MemoryPackIgnore]
         public string DataSrcPath { get => dataSrcPath; set => dataSrcPath = value; }
-        [MemoryPackIgnore]
         public string DataRelPath => dataRelPath;
-        [MemoryPackIgnore]
         public string DataHash { get => dataHash ?? ""; set => dataHash = value; }
-        [MemoryPackIgnore]
         public string DataAbsPath => Path.Combine(dataSrcPath, dataRelPath);
         #endregion
-
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
-        [MemoryPackConstructor]
+        public ProjectFile() { }
+        [JsonConstructor]
         public ProjectFile(ProjectDataType DataType, long DataSize, string BuildVersion, string DeployedProjectVersion, 
             DateTime UpdatedTime, DataState dataState, string dataName, string dataSrcPath, string dataRelPath, string dataHash, bool IsDstFile) 
         {
@@ -222,6 +211,23 @@ namespace SimpleBinaryVCS.Model
         public bool CheckSize(ProjectFile other)
         {
             return other.DataSize == this.DataSize;
+        }
+
+        public object Clone()
+        {
+            ProjectFile clone = new ProjectFile();
+            clone.DataType = this.DataType;
+            clone.DataSize = this.DataSize;
+            clone.BuildVersion = this.BuildVersion;
+            clone.DeployedProjectVersion = this.DeployedProjectVersion;
+            clone.UpdatedTime = this.UpdatedTime;
+            clone.dataState = this.dataState;
+            clone.dataName = this.dataName;
+            clone.dataSrcPath = this.dataSrcPath;
+            clone.dataRelPath = this.dataRelPath;
+            clone.dataHash = this.dataHash;
+            clone.IsDstFile = this.IsDstFile;
+            return clone;
         }
     }
 }

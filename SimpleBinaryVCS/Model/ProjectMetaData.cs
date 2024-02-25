@@ -1,11 +1,11 @@
 ﻿using MemoryPack;
 using SimpleBinaryVCS.Interfaces;
 using System.Collections.ObjectModel;
+using System.Text.Json.Serialization;
 
 namespace SimpleBinaryVCS.Model
 {
-    [MemoryPackable]
-    public partial class ProjectMetaData
+    public class ProjectMetaData
     {
         public int UpdateCount;
         public string ProjectName;
@@ -15,7 +15,7 @@ namespace SimpleBinaryVCS.Model
         public Dictionary<string, ProjectFile> BackupFiles { get; set; }
         #region Constructor 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
-        [MemoryPackConstructor]
+        [JsonConstructor]
         public ProjectMetaData() { }
 
         public ProjectMetaData(string projectName, string projectPath)

@@ -2,11 +2,105 @@
 using SimpleBinaryVCS.Interfaces;
 using SimpleBinaryVCS.Model;
 using System.IO;
+using System.Xml.Serialization;
+using System.Xml;
+using System.Text.Json;
 
 namespace SimpleBinaryVCS.Utils
 {
     public class FileHandlerTool
     {
+        public bool TrySerializeProjectData(ProjectData data, string filePath)
+        {
+            try
+            {
+                string jsonString = JsonSerializer.Serialize(data);
+                byte[] jsonData = System.Text.Encoding.UTF8.GetBytes(jsonString);
+
+                // Optional: Encrypt the data before saving (consider using a strong encryption algorithm and key management practices)
+
+                File.WriteAllBytes(filePath, jsonData);
+                return true; 
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error serializing ProjectData: " + ex.Message);
+                return false;
+            }
+        }
+
+        public bool TryDeserializeProjectData(string filePath, out ProjectData? projectData)
+        {
+            try
+            {
+                byte[] jsonData = File.ReadAllBytes(filePath);
+
+                // Optional: Decrypt the data before deserialization
+
+                string jsonString = System.Text.Encoding.UTF8.GetString(jsonData);
+                ProjectData? data = JsonSerializer.Deserialize<ProjectData>(jsonString);
+                if (data != null)
+                {
+                    projectData = data;
+                    return true; 
+                }
+                projectData = null;
+                return false; 
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error deserializing ProjectData: " + ex.Message);
+                projectData = null; 
+                return false;
+            }
+        }
+
+        public bool TrySerializeProjectMetaData(ProjectData data, string filePath)
+        {
+            try
+            {
+                string jsonString = JsonSerializer.Serialize(data);
+                byte[] jsonData = System.Text.Encoding.UTF8.GetBytes(jsonString);
+
+                // Optional: Encrypt the data before saving (consider using a strong encryption algorithm and key management practices)
+
+                File.WriteAllBytes(filePath, jsonData);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error serializing ProjectData: " + ex.Message);
+                return false; 
+            }
+        }
+
+        public bool TryDeserializeProjectMetaData(string filePath, out ProjectMetaData? projectMetaData)
+        {
+            try
+            {
+                byte[] jsonData = File.ReadAllBytes(filePath);
+
+                // Optional: Decrypt the data before deserialization
+
+                string jsonString = System.Text.Encoding.UTF8.GetString(jsonData);
+                ProjectMetaData? data = JsonSerializer.Deserialize<ProjectMetaData>(jsonString);
+                if (data != null)
+                {
+                    projectMetaData = data;
+                    return true;
+                }
+                else
+                    projectMetaData = null;
+                return false; 
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error deserializing ProjectData: " + ex.Message);
+                projectMetaData = null; 
+                return false;
+            }
+        }
+
         public void ApplyFileChanges(List<ChangedFile> Changes)
         {
             if (Changes == null) return;

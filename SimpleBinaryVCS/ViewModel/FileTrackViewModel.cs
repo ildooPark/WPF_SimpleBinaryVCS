@@ -60,22 +60,14 @@ namespace SimpleBinaryVCS.ViewModel
         {
             this.metaDataManager = App.MetaDataManager;
             this.metaDataManager.SrcProjectLoadedEventHandler += SrcProjectDataCallBack;
-            this.metaDataManager.PreStagedChangesEventHandler += PreStagedChangesCallBack;
             this.metaDataManager.ProjectIntegrityCheckEventHandler += ProjectIntegrityCheckCallBack;
-            this.metaDataManager.StagedChangesEventHandler += StageRequestCallBack;
+            this.metaDataManager.FileChangesEventHandler += FileChangeListUpdateCallBack;
         }
 
         private bool CanStageChanges(object obj) { return ChangedFileList.Count != 0; }
         private void StageNewChanges(object obj)
         {
-            if (deployedProjectData != null)
-            {
-                metaDataManager.RequestStageChanges(deployedProjectData);
-            }
-            else
-            {
-                metaDataManager.RequestStageChanges(null);
-            }
+            metaDataManager.RequestStageChanges();
         }
 
         private bool CanOpenDeployedProjectInfo(object obj)
@@ -134,25 +126,13 @@ namespace SimpleBinaryVCS.ViewModel
         }
 
         #region Receive Callback From Model 
-        private void StageRequestCallBack(ObservableCollection<ProjectFile> stagedChangesObj)
-        {
-            if (stagedChangesObj is not ObservableCollection<ProjectFile> stagedChanges) return;
-            changedFileList = stagedChanges;
-        }
+
         private void PreStagedFileOverlapCallBack(object overlappedFileObj)
         {
             if (overlappedFileObj is not ProjectFile file) return;
             MessageBox.Show($"PreStaged file {file.DataName} Already Exists");
             // User should be able to choose which to update.
             // Pop List ComboBox
-        }
-
-        private void PreStagedChangesCallBack(object changedFileListObj)
-        {
-            if (changedFileListObj is ObservableCollection<ProjectFile> changedFileList)
-            {
-                ChangedFileList = changedFileList;
-            }
         }
 
         private void FileChangeListUpdateCallBack(object changedFileListObj)

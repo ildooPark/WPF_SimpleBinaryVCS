@@ -91,16 +91,12 @@ namespace SimpleBinaryVCS.ViewModel
         public ICommand GetProject => getProject ??= new RelayCommand(RetrieveProject, CanRetrieveProject);
 
         private MetaDataManager metaDataManager;
-        private BackupManager backupManager;
-        private UpdateManager updateManager;
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         public MetaDataViewModel()
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         {
             metaDataManager = App.MetaDataManager;
-            backupManager = App.BackupManager;
-            updateManager = App.UpdateManager;
 
             metaDataManager.ProjectLoadedEventHandler += ProjectLoadedCallBack;
         }
@@ -159,12 +155,6 @@ namespace SimpleBinaryVCS.ViewModel
         }
         #endregion
         #region Receiving Model Callbacks
-        private void VersionIntegrityCheck(object projObj)
-        {
-            // After Revert Changes, 
-            // Any Detected Changes should be enlisted to the FileManager.DetectedFileChanges for the Push
-        }
-
         private void ProjectLoadedCallBack(object projObj)
         {
             if (projObj is not ProjectData projectData) return;

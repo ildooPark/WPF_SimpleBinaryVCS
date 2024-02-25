@@ -125,10 +125,11 @@ namespace SimpleBinaryVCS.DataComponent
             //Else, Update Backup Path Info 
         }
         #region Link To View Model 
-        public void FetchBackupProjectList()
+        public bool FetchBackupProjectList()
         {
-            if (projectMetaData == null || projectMetaData.ProjectDataList == null) return;
+            if (projectMetaData == null || projectMetaData.ProjectDataList == null) return false;
             FetchCompleteEventHandler?.Invoke(ProjectBackupListObservable);
+            return true;
         }
 
         public string GetBackupFilePath(ProjectFile projectFile)
