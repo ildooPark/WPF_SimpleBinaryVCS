@@ -161,6 +161,7 @@ namespace SimpleBinaryVCS.ViewModel
             ProjectData = projectData;
             ProjectName = ProjectData.ProjectName ?? "Undefined";
             CurrentVersion = ProjectData.UpdatedVersion ?? "Undefined";
+
             UpdaterName = "";
             UpdateLog = "";
         }

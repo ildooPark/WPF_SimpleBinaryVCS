@@ -41,7 +41,7 @@ namespace SimpleBinaryVCS.DataComponent
                 return new ObservableCollection<ProjectData>(backupProjectDataList);
             }
         }
-
+        public event Action? ExportBackupEventHandler; 
         public event Action<object>? ProjectRevertEventHandler;
         public event Action<object>? FetchCompleteEventHandler; 
         private FileHandlerTool fileHandlerTool;
@@ -113,8 +113,6 @@ namespace SimpleBinaryVCS.DataComponent
                 }
             }
         }
-
-
         public string GetFileBackupSrcPath(ProjectData projectData)
         {
             string backupPath = $"{Directory.GetParent(projectData.ProjectPath)}\\Backup_{Path.GetFileName(projectData.ProjectName)}\\Backup_{projectData.UpdatedVersion}";
@@ -127,7 +125,6 @@ namespace SimpleBinaryVCS.DataComponent
             FetchCompleteEventHandler?.Invoke(ProjectBackupListObservable);
             return true;
         }
-
         public string GetBackupFilePath(ProjectFile projectFile)
         {
             if (BackupFiles == null)
@@ -138,7 +135,6 @@ namespace SimpleBinaryVCS.DataComponent
             BackupFiles.TryGetValue(projectFile.DataHash, out ProjectFile? backupFile);
             return backupFile != null ? backupFile.DataAbsPath : "";
         }
-
         public void RevertProject(ProjectData revertingProjectData, List<ChangedFile>? FileDifferences)
         {
             try

@@ -316,18 +316,21 @@ namespace SimpleBinaryVCS.DataComponent
         /// in a @.projectParentDir/Exports/ProjectVersion
         /// </summary>
         /// <param name="projectData"></param>
-        public void RequestProjectExport(ProjectData projectData)
+        public bool ExportProject(ProjectData projectData)
         {
             // Requests for all the registerd project files, 
             // Copy paste to the 
+            backupManager.Try
+            return true; 
         }
         public void ExportProjectRepo(ProjectMetaData projectRepository)
         {
 
         }
-        public void Start(object obj)
+
+        public void GenerateProjectDataHash(object obj)
         {
-            throw new NotImplementedException();
+
         }
         #endregion
         #endregion

@@ -13,8 +13,4 @@
     <None Include="..\.editorconfig" Link=".editorconfig" />
   </ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="MemoryPack" Version="1.10.0" />
-  </ItemGroup>
-
 </Project>

@@ -186,9 +186,9 @@
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="Filename" Binding="{Binding DataName}" Width ="2*"/>
                     <DataGridTextColumn Header="Build Version" Binding="{Binding BuildVersion}" Width ="2*"/>
-                    <DataGridTextColumn Header="Deployed PV" Binding="{Binding DeployedProjectVersion}" Width ="2*"/>
-                    <DataGridTextColumn Header="Deployed Date" Binding="{Binding UpdatedTime}" Width ="2*"/>
-                    <DataGridTextColumn Header="Hash" Binding="{Binding DataHash}" Width ="3*"/>
+                    <DataGridTextColumn Header="DeployedV" Binding="{Binding DeployedProjectVersion}" Width ="2*"/>
+                    <DataGridTextColumn Header="Updated Date" Binding="{Binding UpdatedTime}" Width ="2*"/>
+                    <DataGridTextColumn Header="Hash" Binding="{Binding DataHash}" Width ="2*"/>
                 </DataGrid.Columns>
             </DataGrid>
             <GridSplitter Grid.Column="2"

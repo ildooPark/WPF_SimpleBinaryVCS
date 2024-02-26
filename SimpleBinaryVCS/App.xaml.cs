@@ -1,5 +1,4 @@
 ﻿using SimpleBinaryVCS.DataComponent;
-using SimpleBinaryVCS.Model;
 
 namespace SimpleBinaryVCS
 {
