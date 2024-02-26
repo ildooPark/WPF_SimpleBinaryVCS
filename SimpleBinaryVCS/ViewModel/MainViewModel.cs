@@ -4,17 +4,17 @@ namespace SimpleBinaryVCS.ViewModel
 {
     public class MainViewModel : ViewModelBase
     {
-        private MetaDataViewModel metaDataVM;
-        private FileTrackViewModel fileTrackVM;
-        private BackupViewModel backupVM;
-        public MetaDataViewModel MetaDataVM => metaDataVM;
-        public FileTrackViewModel FileTrackVM => fileTrackVM;
-        public BackupViewModel BackupVM => backupVM; 
+        private MetaDataViewModel _metaDataVM;
+        private FileTrackViewModel _fileTrackVM;
+        private BackupViewModel _backupVM;
+        public MetaDataViewModel MetaDataVM => _metaDataVM;
+        public FileTrackViewModel FileTrackVM => _fileTrackVM;
+        public BackupViewModel BackupVM => _backupVM; 
         public MainViewModel()
         {
-            metaDataVM = new MetaDataViewModel();
-            fileTrackVM = new FileTrackViewModel();
-            backupVM = new BackupViewModel();
+            _metaDataVM = new MetaDataViewModel();
+            _fileTrackVM = new FileTrackViewModel();
+            _backupVM = new BackupViewModel();
             App.AwakeManagers();
         }
     }

@@ -135,6 +135,19 @@ namespace SimpleBinaryVCS.Model
             this.DataRelPath = srcData.DataRelPath;
             this.DataHash = srcData.DataHash;
         }
+        public ProjectFile(ProjectFile updatedData, string deployedProjectVersion)
+        {
+            this.DataType = updatedData.DataType;
+            this.DataSize = updatedData.DataSize;
+            this.BuildVersion = updatedData.BuildVersion;
+            this.DeployedProjectVersion = deployedProjectVersion;
+            this.UpdatedTime = DateTime.Now;
+            this.DataState = updatedData.DataState;
+            this.DataName = updatedData.DataName;
+            this.DataSrcPath = updatedData.DataSrcPath;
+            this.DataRelPath = updatedData.DataRelPath;
+            this.DataHash = updatedData.DataHash;
+        }
         public ProjectFile(ProjectFile srcData, DataState state)
         {
             this.DataType = srcData.DataType;

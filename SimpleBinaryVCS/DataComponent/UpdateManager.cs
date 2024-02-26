@@ -7,21 +7,21 @@ namespace SimpleBinaryVCS.DataComponent
 {
     public class UpdateManager : IManager
     {
-        private ProjectData? projectMain; 
+        private ProjectData? _projectMain; 
         public ProjectData? ProjectMain
         {
             get
             {
-                if (projectMain == null)
+                if (_projectMain == null)
                 {
                     MessageBox.Show("Project Main Not Set for Update Manager");
                     return null; 
                 }
-                return projectMain;
+                return _projectMain;
             }
             private set
             {
-                projectMain = value; 
+                _projectMain = value; 
             }
         }
         private Dictionary<string, ProjectFile> BackupFiles { get; set; }
@@ -38,12 +38,12 @@ namespace SimpleBinaryVCS.DataComponent
 
         public Action<object>? ProjectUpdateEventHandler;
 
-        private FileHandlerTool fileHandlerTool;
+        private FileHandlerTool _fileHandlerTool;
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         public UpdateManager() 
         { 
-            fileHandlerTool = new FileHandlerTool();
+            _fileHandlerTool = new FileHandlerTool();
         }
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         public void Awake()
@@ -67,7 +67,7 @@ namespace SimpleBinaryVCS.DataComponent
             }
 
             RegisterFileChanges(ProjectMain, CurrentProjectFileChanges, out StringBuilder? changeLog);
-            fileHandlerTool.ApplyFileChanges(CurrentProjectFileChanges);
+            _fileHandlerTool.ApplyFileChanges(CurrentProjectFileChanges);
 
             string newVersionName = GetProjectVersionName(ProjectMain);
             string conductedId = HashTool.GetUniqueComputerID(Environment.MachineName);
@@ -86,7 +86,6 @@ namespace SimpleBinaryVCS.DataComponent
 
             ProjectUpdateEventHandler?.Invoke(newProjectData);
         }
-
         private void RegisterFileChanges(ProjectData currentProject, List<ChangedFile> fileChanges, out StringBuilder? changeLog)
         {
             if (fileChanges.Count <= 0)
@@ -101,16 +100,15 @@ namespace SimpleBinaryVCS.DataComponent
                 if (changes.DstFile == null) continue; 
                 if (!currentProject.ProjectFiles.TryGetValue(changes.DstFile.DataRelPath, out ProjectFile? existingFile))
                 {
-                    currentProject.ProjectFiles.Add(changes.DstFile.DataRelPath, new ProjectFile(changes.DstFile));
+                    currentProject.ProjectFiles.Add(changes.DstFile.DataRelPath, new ProjectFile(changes.DstFile, currentProject.UpdatedVersion));
                 }
                 else 
-                    currentProject.ProjectFiles[changes.DstFile.DataRelPath] = new ProjectFile(changes.DstFile);
+                    currentProject.ProjectFiles[changes.DstFile.DataRelPath] = new ProjectFile(changes.DstFile, currentProject.UpdatedVersion);
                 LogTool.RegisterChange(newChangeLog, changes.DataState, changes.SrcFile, changes.DstFile);
                 currentProject.NumberOfChanges++;
             }
             changeLog = newChangeLog; 
         }
-        
         private string GetProjectVersionName(ProjectData projData, bool isNewProject = false)
         {
             if (!isNewProject)
@@ -125,7 +123,6 @@ namespace SimpleBinaryVCS.DataComponent
             if (fileChangeListObj is not List<ChangedFile> fileChangesList) return;
             currentProjectFileChanges = fileChangesList;
         }
-
         public void MetaDataLoadedCallBack(object projMetaDataObj)
         {
             if (projMetaDataObj is not ProjectMetaData projectMetaData) return;
