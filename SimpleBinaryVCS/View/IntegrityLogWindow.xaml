@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:SimpleBinaryVCS.View"
         mc:Ignorable="d"
-        Title="IntegrityLogWindow" Height="450" Width="800">
+        Title="IntegrityLogWindow" Height="600" Width="1000">
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width = "3*" />
@@ -19,7 +19,7 @@
             </Grid.RowDefinitions>
                 <DataGrid 
                     IsReadOnly="True"
-                    ItemsSource="{Binding ProjectDataDetail}" 
+                    ItemsSource="{Binding ProjectDataReview}" 
                     AutoGenerateColumns="False">
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="Variable" Binding="{Binding Key}" Width="3*"/>
@@ -73,14 +73,14 @@
             AutoGenerateColumns="False"
             >
             <DataGrid.Columns>
-                <DataGridTextColumn Header="Filename" Binding="{Binding fileName}" Width ="Auto"/>
-                <DataGridTextColumn Header="FileSize(kb)" Binding="{Binding fileSize}" Width ="Auto"/>
-                <DataGridTextColumn Header="Project#" Binding="{Binding deployedProjectVersion}" Width ="Auto"/>
-                <DataGridTextColumn Header="Build#" Binding="{Binding fileBuildVersion}" Width ="Auto"/>
-                <DataGridTextColumn Header="RelativePath" Binding="{Binding fileRelPath}" Width ="Auto"/>
-                <DataGridTextColumn Header="HashValue" Binding="{Binding fileHash}" Width ="Auto"/>
-                <DataGridTextColumn Header="UpdatedTime" Binding="{Binding updatedTime}" Width ="Auto"/>
-                <DataGridTextColumn Header="ChangedState" Binding="{Binding fileChangedState}" Width ="Auto"/>
+                <DataGridTextColumn Header="Filename" Binding="{Binding DataName}" Width ="2*"/>
+                <DataGridTextColumn Header="FileSize(kb)" Binding="{Binding DataSize}" Width ="2*"/>
+                <DataGridTextColumn Header="DeployedV#" Binding="{Binding DeployedProjectVersion}" Width ="2*"/>
+                <DataGridTextColumn Header="FileV#" Binding="{Binding BuildVersion}" Width ="2*"/>
+                <DataGridTextColumn Header="FilePath" Binding="{Binding DataRelPath}" Width ="2*"/>
+                <DataGridTextColumn Header="HashValue" Binding="{Binding DataHash}" Width ="2*"/>
+                <DataGridTextColumn Header="UpdatedTime" Binding="{Binding UpdatedTime}" Width ="2*"/>
+                <DataGridTextColumn Header="ChangedState" Binding="{Binding DataState}" Width ="2*"/>
             </DataGrid.Columns>
         </DataGrid>
     </Grid>

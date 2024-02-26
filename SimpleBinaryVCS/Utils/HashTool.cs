@@ -1,42 +1,17 @@
-﻿using SimpleBinaryVCS.Model;
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
 using System.Security.Cryptography;
+using System.Linq;
 using System.Text;
+using System.IO;
 using System.Threading.Tasks;
+using SimpleBinaryVCS.Model;
 
-namespace SimpleBinaryVCS.DataComponent
+namespace SimpleBinaryVCS.Utils
 {
-    public class VersionControlManager
+    public static class HashTool
     {
-        public string? mainProjectPath {  get; set; }
-        public Action<object>? updateAction;
-        public Action<object>? revertAction;
-        public Action<object>? pullAction;
-        public Action<ProjectData>? projectLoadAction;
-        public Action<object>? fetchAction; 
-        private ProjectData? projectData; 
-        public ProjectData ProjectData 
-        { 
-            get => projectData ?? new ProjectData();
-            set
-            {
-                projectData = value;
-                projectLoadAction?.Invoke(projectData);
-            }
-        }
-        public ProjectData? NewestProjectData { get; set; }
-        public ObservableCollection<ProjectData> projectDataList { get; set; }
-        public VersionControlManager()
-        {
-            projectData = new ProjectData();
-            projectDataList = new ObservableCollection<ProjectData>();
-        }
-
+        #region Binary Comparision Through MD5 CheckSum
         /// <summary>
         /// Returns true if content is the same. 
         /// </summary>
@@ -44,11 +19,11 @@ namespace SimpleBinaryVCS.DataComponent
         /// <param name="dstFile"></param>
         /// <param name="result">First is srcHash, Second is dstHash</param>
         /// <returns></returns>
-        public bool TryCompareMD5CheckSum(string? srcFile, string? dstFile, out (string?, string?) result)
+        public static bool TryCompareMD5CheckSum(string? srcFile, string? dstFile, out (string?, string?) result)
         {
             if (srcFile == null || dstFile == null)
             {
-                result = (null, null); 
+                result = (null, null);
                 return false;
             }
             byte[] srcHashBytes, dstHashBytes;
@@ -56,8 +31,8 @@ namespace SimpleBinaryVCS.DataComponent
             if (md5 == null)
             {
                 MessageBox.Show("Failed to Initialize MD5");
-                result = (null, null);  
-                return false; 
+                result = (null, null);
+                return false;
             }
             using (var srcStream = File.OpenRead(srcFile))
             {
@@ -67,30 +42,29 @@ namespace SimpleBinaryVCS.DataComponent
             {
                 dstHashBytes = md5.ComputeHash(dstStream);
             }
-            string srcHashString = BitConverter.ToString(srcHashBytes).Replace("-", ""); 
+            string srcHashString = BitConverter.ToString(srcHashBytes).Replace("-", "");
             string dstHashString = BitConverter.ToString(srcHashBytes).Replace("-", "");
-            result =  (srcHashString, dstHashString);
+            result = (srcHashString, dstHashString);
             return srcHashString == dstHashString;
         }
-
-        public string? GetFileMD5CheckSum(string projectPath, string srcFileRelPath)
+        public static string GetFileMD5CheckSum(string projectPath, string srcFileRelPath)
         {
             byte[] srcHashBytes;
             string srcFileFullPath = Path.Combine(projectPath, srcFileRelPath);
             using MD5 md5 = MD5.Create();
             if (md5 == null)
             {
-                MessageBox.Show("Failed to Initialize MD5");
-                return null; 
+                MessageBox.Show($"Failed to Initialize MD5 for file {srcFileRelPath}");
+                return "";
             }
             using (var srcStream = File.OpenRead(srcFileFullPath))
             {
                 srcHashBytes = md5.ComputeHash(srcStream);
             }
-            md5.Dispose(); 
+            md5.Dispose();
             return BitConverter.ToString(srcHashBytes).Replace("-", "");
         }
-        public async Task GetFileMD5CheckSumAsync(ChangedFile file)
+        public static async Task GetFileMD5CheckSumAsync(ProjectFile file)
         {
             try
             {
@@ -99,22 +73,22 @@ namespace SimpleBinaryVCS.DataComponent
                 if (md5 == null)
                 {
                     MessageBox.Show("Failed to Initialize MD5 Async");
+                    return;
                 }
-                using (var srcStream = File.OpenRead(file.fileFullPath()))
+                using (var srcStream = File.OpenRead(file.DataAbsPath))
                 {
                     srcHashBytes = await md5.ComputeHashAsync(srcStream);
                 }
                 string resultHash = BitConverter.ToString(srcHashBytes).Replace("-", "");
-                file.FileHash = resultHash;
+                file.DataHash = resultHash;
                 md5.Dispose();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error occured {ex.Message} \nwhile Computing hash async by this file {file.fileName}");
+                MessageBox.Show($"Error occured {ex.Message} \nwhile Computing hash async by this file {file.DataName}");
             }
         }
-
-        public async Task<string?> GetFileMD5CheckSumAsync(string fileFullPath)
+        public static async Task<string?> GetFileMD5CheckSumAsync(string fileFullPath)
         {
             try
             {
@@ -137,6 +111,22 @@ namespace SimpleBinaryVCS.DataComponent
             {
                 MessageBox.Show($"Error occured {ex.Message} \nwhile Computing hash async by this file {Path.GetFileName(fileFullPath)}");
                 return null;
+            }
+        }
+        #endregion
+        public static string GetUniqueComputerID(string userID)
+        {
+            using (SHA256 sha256Hash = SHA256.Create())
+            {
+                byte[] bytes = sha256Hash.ComputeHash(Encoding.UTF8.GetBytes(userID));
+
+                // Convert the hash bytes to a 10-character string by taking the first 5 bytes (40 bits) of the hash
+                StringBuilder builder = new StringBuilder();
+                for (int i = 0; i < 5; i++)
+                {
+                    builder.Append(bytes[i].ToString("x2"));
+                }
+                return builder.ToString();
             }
         }
     }

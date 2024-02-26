@@ -10,8 +10,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="MemoryPack" Version="1.10.0" />
-    <PackageReference Include="Microsoft.TeamFoundation.ObjectModel" Version="14.0.0.1" />
+    <None Include="..\.editorconfig" Link=".editorconfig" />
   </ItemGroup>
 
 </Project>

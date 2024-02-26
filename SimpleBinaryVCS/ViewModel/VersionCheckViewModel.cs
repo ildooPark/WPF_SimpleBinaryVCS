@@ -1,16 +1,11 @@
 ﻿using SimpleBinaryVCS.Model;
-using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace SimpleBinaryVCS.ViewModel
 {
     public class VersionCheckViewModel : ViewModelBase
     {
-        private string changeLog; 
+        private string? changeLog; 
         public string ChangeLog
         {
             get { return changeLog ??= ""; }
@@ -20,7 +15,7 @@ namespace SimpleBinaryVCS.ViewModel
                 OnPropertyChanged("ChangeLog");
             }
         }
-        private string updateLog;
+        private string? updateLog;
         public string UpdateLog
         {
             get { return updateLog ??= ""; }
@@ -31,7 +26,7 @@ namespace SimpleBinaryVCS.ViewModel
             }
         }
 
-        private ObservableCollection<ProjectFile> fileList;
+        private ObservableCollection<ProjectFile>? fileList;
         public ObservableCollection<ProjectFile> FileList
         {
             get=> fileList ??= new ObservableCollection<ProjectFile>();
@@ -41,13 +36,13 @@ namespace SimpleBinaryVCS.ViewModel
                 OnPropertyChanged("FileList");
             }
         }
-        private Dictionary<string, object>? _projectDataDetail;
-        public Dictionary<string, object> ProjectDataDetail
+        private Dictionary<string, object>? _projectDataReview;
+        public Dictionary<string, object> ProjectDataReview
         {
-            get => _projectDataDetail ??= new Dictionary<string, object>(); 
+            get => _projectDataReview ??= new Dictionary<string, object>(); 
             set
             {
-                _projectDataDetail = value;
+                _projectDataReview = value;
                 OnPropertyChanged("ProjectDataDetail");
             }
         }
@@ -61,11 +56,11 @@ namespace SimpleBinaryVCS.ViewModel
 
         public VersionCheckViewModel(ProjectData projectData)
         {
-            _projectDataDetail = new Dictionary<string, object>();
-            projectData.RegisterProjectToDict(ProjectDataDetail);
-            this.fileList = projectData.ProjectFiles;
-            this.changeLog = projectData.changeLog ?? "Undefined";
-            this.updateLog = projectData.updateLog ?? "Undefined";
+            _projectDataReview = new Dictionary<string, object>();
+            projectData.RegisterProjectInfo(ProjectDataReview);
+            this.FileList = projectData.ProjectFilesObs;
+            this.ChangeLog = projectData.ChangeLog ?? "Undefined";
+            this.UpdateLog = projectData.UpdateLog ?? "Undefined";
         }
     }
 }

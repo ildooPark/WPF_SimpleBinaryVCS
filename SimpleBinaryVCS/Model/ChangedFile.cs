@@ -1,58 +1,53 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using SimpleBinaryVCS.DataComponent;
+﻿using SimpleBinaryVCS.DataComponent;
+using System.Text.Json.Serialization;
 
 namespace SimpleBinaryVCS.Model
 {
     public class ChangedFile
     {
-        public FileChangedState fileChangedState;
-        public bool fileHashChecked;
-        public string fileSrcPath { get;set; }
-        public string fileRelPath {  get; set; }
-        public string fileName {  get; set; }
-        private string? fileHash; 
-        public string? FileHash 
+        public ProjectFile? SrcFile { get; set; }
+        public ProjectFile? DstFile { get; set;}
+        public DataState DataState {  get; set; }
+        public ChangedFile() { }
+        public ChangedFile(ChangedFile srcChangedfile)
         {
-            get => fileHash ??= ""; 
-            set
+            if (srcChangedfile.SrcFile != null)
             {
-                fileHash = value;
-                fileHashChecked = true; 
+                this.SrcFile = new ProjectFile(srcChangedfile.SrcFile);
+                this.SrcFile.IsDstFile = false; 
             }
+            else
+                this.SrcFile = null;
+            if (srcChangedfile.DstFile != null)
+            {
+                this.DstFile = new ProjectFile(srcChangedfile.DstFile);
+                this.DstFile.IsDstFile = true; 
+            }
+            else
+                this.DstFile = null;
+            this.DataState = srcChangedfile.DataState;
         }
-        public DateTime changedTime {  get; set; }
-        /// <summary>
-        /// Requires getting fileHash Value. 
-        /// </summary>
-        /// <param name="fileChangedState"></param>
-        /// <param name="fileRelPath"></param>
-        /// <param name="fileName"></param>
-        /// <param name="fileHash"></param>
-        public ChangedFile(FileChangedState fileChangedState, string fileSrcPath, string fileRelPath, string fileName)
+        public ChangedFile(ProjectFile DstFile, DataState DataState)
         {
-            this.fileChangedState = fileChangedState;
-            this.fileSrcPath = fileSrcPath;
-            this.fileRelPath = fileRelPath;
-            this.fileName = fileName;
-            this.changedTime = DateTime.Now;
-            this.fileHashChecked = false;
+            this.SrcFile = null;
+            this.DstFile = DstFile;
+            DstFile.IsDstFile = true; 
+            this.DataState = DataState;
         }
-        public string fileFullPath()
+        public ChangedFile(ProjectFile SrcFile,  ProjectFile DstFile, DataState DataState, bool RegisterChanges)
         {
-            try
-            {
-                return Path.Combine(fileSrcPath, fileRelPath);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Couldn't get File's Full Path {ex.Message}");
-                return "";
-            }
+            this.SrcFile = SrcFile;
+            SrcFile.IsDstFile = false; 
+            this.DstFile = DstFile;
+            DstFile.IsDstFile = true;
+            this.DataState = DataState;
+        }
+        [JsonConstructor]
+        public ChangedFile(ProjectFile SrcFile, ProjectFile DstFile, DataState DataState)
+        {
+            this.SrcFile = SrcFile;
+            this.DstFile = DstFile;
+            this.DataState = DataState;
         }
     }
 }

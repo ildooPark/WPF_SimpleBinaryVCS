@@ -1,129 +1,210 @@
-﻿using MemoryPack;
-using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Collections.ObjectModel;
+using System.Text.Json.Serialization;
 
 namespace SimpleBinaryVCS.Model
 {
-    [MemoryPackable]
-    public partial class ProjectData : IEquatable<ProjectData>, IComparer<ProjectData>, IComparable<ProjectData>
+    public class ProjectData : IEquatable<ProjectData>, IComparer<ProjectData>, IComparable<ProjectData>
     {
-        public string projectName { get; set; }
-        public string projectPath { get; set; }
-        public string? updaterName {  get; set; }
-        public DateTime updatedTime { get; set; }
-        public string? updatedVersion {  get; set; }
-        public int revisionNumber { get; set; }
-        public string? updateLog { get; set; }
-        public string? changeLog { get; set; }
-        public int numberOfChanges {  get; set; }
-        private ObservableCollection<ProjectFile>? projectFiles; 
-        public ObservableCollection<ProjectFile> ProjectFiles 
-        { 
-            get
-            {
-                if (projectFiles == null)
-                {
-                    projectFiles = new ObservableCollection<ProjectFile>();
-                    return projectFiles;
-                }
-                else 
-                    return projectFiles;
-            }
-            set
-            { 
-                projectFiles = value; 
-            }
-        }
-        private ObservableCollection<ProjectFile>? diffLog;
-        public ObservableCollection<ProjectFile> DiffLog
+        public string ProjectName { get; set; }
+        public string ProjectPath { get; set; }
+        public string UpdaterName { get; set; }
+        public string ConductedPC { get; set; }
+        public DateTime UpdatedTime { get; set; }
+        public string UpdatedVersion { get; set; }
+        public string UpdateLog { get; set; }
+        public string ChangeLog { get; set; }
+        public int RevisionNumber { get; set; } = 0;
+        public int NumberOfChanges { get; set; }
+        public List<ChangedFile> ChangedFiles {  get; set; }
+        public Dictionary<string, ProjectFile> ProjectFiles { get; set; }
+
+        [JsonIgnore]
+        public ObservableCollection<ProjectFile> ProjectFilesObs => new ObservableCollection<ProjectFile>(ProjectFiles.Values.ToList());
+        [JsonIgnore]
+        public List<string> ProjectRelDirsList => ProjectFiles.Values.ToList()
+            .Where(file => file.DataType == Interfaces.ProjectDataType.Directory)
+            .Select(file => file.DataRelPath)
+            .ToList();
+        [JsonIgnore]
+        public List<string> ProjectRelFilePathsList => ProjectFiles.Values.ToList()
+            .Where(file => file.DataType == Interfaces.ProjectDataType.File)
+            .Select(file => file.DataRelPath)
+            .ToList();
+        [JsonIgnore]
+        public List<ProjectFile> ChangedDstFileList
         {
             get
             {
-                if (diffLog == null)
+                List<ProjectFile> changedDstFileList = new List<ProjectFile>();
+                foreach (ChangedFile changes in ChangedFiles)
                 {
-                    diffLog = new ObservableCollection<ProjectFile>();
-                    return diffLog;
+                    if (changes.DstFile != null) changedDstFileList.Add(changes.DstFile);
                 }
-                else
-                    return diffLog;
-            }
-            set
-            {
-                diffLog = value;
+                return changedDstFileList;
             }
         }
-        private List<ProjectData> projectDataList;
-        public List<ProjectData> ProjectDataList 
-        { 
-            get => projectDataList ??= (projectDataList = new List<ProjectData>());
-            set
-            {
-                projectDataList = value;
-            }
-        }
-
-        [MemoryPackConstructor]
-        public ProjectData() 
-        { 
-        }
-
-        public ProjectData(ProjectData srcProjectData, bool isRevert = false)
+        [JsonIgnore]
+        public ObservableCollection<ProjectFile> ChangedProjectFileObservable
         {
-            this.projectName = srcProjectData.projectName;
-            this.projectPath = srcProjectData.projectPath;
-            this.updaterName = srcProjectData.updaterName;
-            this.updatedTime = srcProjectData.updatedTime;
-            this.updatedVersion = srcProjectData.updatedVersion;
-            this.revisionNumber = srcProjectData.revisionNumber;
-            this.updateLog = srcProjectData.updateLog;
-            this.changeLog = srcProjectData.changeLog;
-            this.numberOfChanges = srcProjectData.numberOfChanges;
-            this.ProjectFiles = new ObservableCollection<ProjectFile>();
-
-            if (!isRevert)
+            get
             {
-                this.DiffLog = new ObservableCollection<ProjectFile>();
+                ObservableCollection<ProjectFile> changedFilesObservable = new ObservableCollection<ProjectFile>();
+                foreach (ChangedFile changes in ChangedFiles)
+                {
+                    if (changes.DstFile != null) changedFilesObservable.Add(changes.DstFile);
+                    if (changes.SrcFile != null) changedFilesObservable.Add(changes.SrcFile);
+                }
+                return changedFilesObservable;
+            }
+        }
+#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
+        public ProjectData() { }
+        [JsonConstructor]
+        public ProjectData(string ProjectName, string ProjectPath, string UpdaterName, string ConductedPC, 
+            DateTime UpdatedTime, string UpdatedVersion, string UpdateLog, string ChangeLog, 
+            int RevisionNumber, int NumberOfChanges, List<ChangedFile> ChangedFiles, Dictionary<string, ProjectFile> ProjectFiles)
+        {
+            this.ProjectName = ProjectName;
+            this.ProjectPath = ProjectPath;
+            this.UpdaterName = UpdaterName;
+            this.ConductedPC = ConductedPC;
+            this.UpdatedTime = UpdatedTime;
+            this.UpdatedVersion = UpdatedVersion;
+            this.UpdateLog = UpdateLog;
+            this.ChangeLog = ChangeLog;
+            this.RevisionNumber = RevisionNumber;
+            this.NumberOfChanges = NumberOfChanges;
+            this.ChangedFiles = ChangedFiles;
+            this.ProjectFiles = ProjectFiles;
+        }
+        public ProjectData(string projectPath)
+#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
+        {
+            this.ProjectPath = projectPath;
+            this.RevisionNumber = 0;
+            this.ProjectFiles = new Dictionary<string, ProjectFile>();
+            this.ChangedFiles = new List<ChangedFile>();
+        }
+        public ProjectData(ProjectData srcProjectData)
+        {
+            this.ProjectName = srcProjectData.ProjectName;
+            this.ProjectPath = srcProjectData.ProjectPath;
+            this.UpdaterName = srcProjectData.UpdaterName;
+            this.UpdatedTime = srcProjectData.UpdatedTime;
+            this.UpdatedVersion = srcProjectData.UpdatedVersion;
+            this.ConductedPC = srcProjectData.ConductedPC;
+            this.UpdateLog = srcProjectData.UpdateLog;
+            this.ChangeLog = srcProjectData.ChangeLog;
+            this.NumberOfChanges = srcProjectData.NumberOfChanges;
+            this.RevisionNumber = srcProjectData.RevisionNumber;
+            this.ProjectFiles = srcProjectData.CloneProjectFiles();
+            this.ChangedFiles = srcProjectData.CloneChangedFiles();
+        }
+        public ProjectData(ProjectData srcProjectData, string projectPath, string updaterName, 
+            DateTime updateTime, string updatedVersion, string conductedPC, string updateLog, string? changeLog)
+        {
+            this.ProjectName = srcProjectData.ProjectName;
+            this.ProjectPath = projectPath;
+            this.UpdaterName = updaterName;
+            this.UpdatedTime = updateTime;
+            this.UpdatedVersion = updatedVersion;
+            this.ConductedPC = conductedPC;
+            this.UpdateLog = updateLog;
+            this.ChangeLog = changeLog ?? "";
+            this.NumberOfChanges = srcProjectData.ChangedFiles.Count;
+            this.RevisionNumber = ++srcProjectData.RevisionNumber;
+            this.ProjectFiles = srcProjectData.CloneProjectFiles();
+            this.ChangedFiles = srcProjectData.CloneChangedFiles();
+        }
+        public ProjectData(ProjectData srcProjectData, bool IsReverting)
+        {
+            this.ProjectName = srcProjectData.ProjectName;
+            this.ProjectPath = srcProjectData.ProjectPath;
+            this.UpdaterName = srcProjectData.UpdaterName;
+            this.UpdatedTime = srcProjectData.UpdatedTime;
+            this.UpdatedVersion = srcProjectData.UpdatedVersion;
+            this.ConductedPC = srcProjectData.ConductedPC;
+            this.UpdateLog = srcProjectData.UpdateLog;
+            this.ChangeLog = srcProjectData.ChangeLog;
+            this.NumberOfChanges = srcProjectData.NumberOfChanges;
+            this.RevisionNumber = srcProjectData.RevisionNumber;
+            this.ProjectFiles = srcProjectData.CloneProjectFiles();
+            if (IsReverting)
+            {
+                this.ChangedFiles = srcProjectData.CloneChangedFiles();
             }
             else
             {
-                this.DiffLog = new ObservableCollection<ProjectFile>(srcProjectData.DiffLog);
+                this.ChangedFiles = new List<ChangedFile>();
             }
         }
 
         public bool Equals(ProjectData? other)
         {
             if (other == null) return false;
-            return other.updatedVersion == this.updatedVersion; 
+            return other.UpdatedVersion == this.UpdatedVersion; 
         }
 
         public int Compare(ProjectData? x, ProjectData? y)
         {
-            if (x.revisionNumber.CompareTo(y.revisionNumber) == 0) 
-                return x.updatedTime.CompareTo(y.updatedTime);
-            return x.revisionNumber.CompareTo(y.revisionNumber);
+            if (x == null || y == null)
+            {
+                MessageBox.Show("Invalid Comparison, ProjectData Cannot be Null");
+                return 0;
+            }
+            return x.UpdatedTime.CompareTo(y.UpdatedTime);
+        }
+        private Dictionary<string, ProjectFile> CloneProjectFiles()
+        {
+            Dictionary<string, ProjectFile> clone = new Dictionary<string, ProjectFile>();
+            foreach (ProjectFile srcFile in ProjectFiles.Values)
+            {
+                clone.Add(srcFile.DataRelPath, new ProjectFile(srcFile));
+            }
+            return clone;
         }
 
+        private List<ChangedFile> CloneChangedFiles()
+        {
+            List<ChangedFile> clone = new List<ChangedFile>();
+            foreach (ChangedFile srcChangedFile in ChangedFiles)
+            {
+                clone.Add(new ChangedFile(srcChangedFile));
+            }
+            return clone;
+        }
         public int CompareTo(ProjectData? other)
         {
-            if (this.revisionNumber.CompareTo(other.revisionNumber) == 0)
-                return this.updatedTime.CompareTo(other.updatedTime);
-            if (this.revisionNumber > other.revisionNumber) return -1;
-            return 1; 
+            if (other == null)
+            {
+                MessageBox.Show("Invalid Comparison, ProjectData Cannot be Null");
+                return 0;
+            }
+            return this.UpdatedTime.CompareTo(other.UpdatedTime);
         }
 
-        public void RegisterProjectToDict(Dictionary<string, object> dict)
+        public void RegisterProjectInfo(Dictionary<string, object> dict)
         {
-            dict.Add(nameof(this.projectName), this.projectName);
-            dict.Add(nameof(this.projectPath), this.projectPath);
-            dict.Add(nameof(this.updaterName), this.updaterName);
-            dict.Add(nameof(this.updatedTime), this.updatedTime);
-            dict.Add(nameof(this.updatedVersion), this.updatedVersion);
-            dict.Add(nameof(this.revisionNumber), this.revisionNumber);
-            dict.Add(nameof(this.numberOfChanges), this.numberOfChanges);
+            dict.Add(nameof(this.ProjectName), this.ProjectName);
+            dict.Add(nameof(this.ProjectPath), this.ProjectPath);
+            dict.Add(nameof(this.UpdaterName), this.UpdaterName);
+            dict.Add(nameof(this.ConductedPC), this.ConductedPC);
+            dict.Add(nameof(this.UpdatedTime), this.UpdatedTime);
+            dict.Add(nameof(this.UpdatedVersion), this.UpdatedVersion);
+            dict.Add(nameof(this.NumberOfChanges), this.NumberOfChanges);
+        }
+
+        public void SetProjectFilesSrcPath()
+        {
+            if (ProjectPath == null)
+            {
+                MessageBox.Show("Project Path is Null, Couldn't Set Source Data Path for all Project Files");
+                return;
+            }
+            foreach (ProjectFile file in ProjectFilesObs)
+            {
+                file.DataSrcPath = ProjectPath;
+            }
         }
     }
 }

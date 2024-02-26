@@ -1,18 +1,11 @@
 ﻿using SimpleBinaryVCS.DataComponent;
 using SimpleBinaryVCS.Model;
-using Microsoft.TeamFoundation.MVVM;
-using WinForms = System.Windows.Forms;
-using WPF = System.Windows; 
-using System;
-using System.Collections.Generic;
+using SimpleBinaryVCS.Utils;
+using SimpleBinaryVCS.View;
 using System.Collections.ObjectModel;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Input;
-using System.IO;
-using System.Diagnostics;
-
+using WinForms = System.Windows.Forms;
+using WPF = System.Windows;
 namespace SimpleBinaryVCS.ViewModel
 {
     public enum VMState
@@ -22,8 +15,17 @@ namespace SimpleBinaryVCS.ViewModel
     }
     public class FileTrackViewModel : ViewModelBase
     {
-        private string? updateDirPath; 
-        public ObservableCollection<ProjectFile> ChangedFileList { get; set; }
+        private ObservableCollection<ProjectFile>? changedFileList; 
+        public ObservableCollection<ProjectFile> ChangedFileList 
+        {
+            get => changedFileList ??= new ObservableCollection<ProjectFile>();
+            set
+            {
+                changedFileList = value;
+                OnPropertyChanged("ChangedFileList");
+            }
+        }
+
         private ProjectFile? selectedItem; 
         public ProjectFile? SelectedItem
         {
@@ -34,116 +36,159 @@ namespace SimpleBinaryVCS.ViewModel
                 OnPropertyChanged("SelectedItem"); 
             }
         }
-        private ICommand? clearNewfiles;
-        public ICommand ClearNewfiles
-        {
-            get
-            {
-                clearNewfiles ??= new RelayCommand(ClearFiles, CanUploadFile);
-                return clearNewfiles;
-            }
-        }
 
-        private ICommand? getLocalChanges;
-        public ICommand GetLocalChanges
-        {
-            get
-            {
-                getLocalChanges ??= new RelayCommand(PullLocalFileChanges, CanPullLocalChanges);
-                return getLocalChanges;
-            }
-        }
+        private ICommand? clearNewfiles;
+        public ICommand ClearNewfiles => clearNewfiles ??= new RelayCommand(ClearFiles, CanClearFiles);
 
         private ICommand? checkProjectIntegrity; 
-        public ICommand CheckProjectIntegrity
-        {
-            get
-            {
-                checkProjectIntegrity ??= new RelayCommand(RunProjectVersionIntegrity, CanRunIntegrityTest); 
-                return checkProjectIntegrity;
-                    
-            }
-        }
-        private int detectedFileChange;
-        public int DetectedFileChange
-        {
-            get { return detectedFileChange; }
-            set
-            {
-                detectedFileChange = value;
-                OnPropertyChanged("DetectedFileChange");
-            }
-        }
-        private FileManager fileManager;
-        private VMState currentState; 
+        public ICommand CheckProjectIntegrity => checkProjectIntegrity ??= new RelayCommand(MainProjectIntegrityTest, CanRunIntegrityTest);
+
+        private ICommand? stageChanges;
+        public ICommand StageChanges => stageChanges ??= new RelayCommand(StageNewChanges, CanStageChanges);
+
+        private ICommand? addForRestore;
+        public ICommand AddForRestore => addForRestore ??= new RelayCommand(RestoreFile, CanRestoreFile);
+
+        private ICommand? getDeployedProjectInfo;
+        public ICommand? GetDeployedProjectInfo => getDeployedProjectInfo ??= new RelayCommand(OpenDeployedProjectInfo, CanOpenDeployedProjectInfo);
+        private ICommand? getDeploySrcDir;
+        public ICommand GetDeploySrcDir => getDeploySrcDir ??= new RelayCommand(SetDeploySrcDirectory, CanSetDeployDir);
+        private MetaDataManager metaDataManager;
+        private ProjectData? deployedProjectData;
+
         public FileTrackViewModel()
         {
-            fileManager = App.FileManager;
-            this.ChangedFileList = fileManager.ChangedFileList;
-            fileManager.newLocalFileChange += OnNewLocalFileChange; 
-            currentState = VMState.Idle; 
+            this.metaDataManager = App.MetaDataManager;
+            this.metaDataManager.SrcProjectLoadedEventHandler += SrcProjectDataCallBack;
+            this.metaDataManager.PreStagedChangesEventHandler += PreStagedChangesCallBack;
+            this.metaDataManager.ProjectIntegrityCheckEventHandler += ProjectIntegrityCheckCallBack;
+            this.metaDataManager.FileChangesEventHandler += FileChangeListUpdateCallBack;
         }
-        private void OnNewLocalFileChange(int numFile)
+
+        private bool CanSetDeployDir(object obj)
         {
-            DetectedFileChange = numFile;
+            return true;
         }
-        private bool CanPullLocalChanges(object obj) { return detectedFileChange != 0; }
-        private bool CanUploadFile(object obj) { return true; }
-        private void UploadFile(object obj)
+        private void SetDeploySrcDirectory(object obj)
         {
             try
             {
+                string? updateDirPath;
                 var openUpdateDir = new WinForms.FolderBrowserDialog();
                 if (openUpdateDir.ShowDialog() == DialogResult.OK)
                 {
+                    deployedProjectData = null;
                     updateDirPath = openUpdateDir.SelectedPath;
+                    metaDataManager.RequestSrcDataRetrieval(updateDirPath);
                 }
                 else
                 {
                     openUpdateDir.Dispose();
                     return;
                 }
-                fileManager.RegisterNewFiles(updateDirPath);
-                openUpdateDir.Dispose(); 
+                openUpdateDir.Dispose();
             }
             catch (Exception ex)
             {
-                WPF.MessageBox.Show(ex.Message); 
+                MessageBox.Show(ex.Message);
             }
         }
+        private bool CanStageChanges(object obj) { return ChangedFileList.Count != 0; }
+        private void StageNewChanges(object obj)
+        {
+            metaDataManager.RequestStageChanges();
+        }
 
+        private bool CanOpenDeployedProjectInfo(object obj)
+        {
+            return deployedProjectData != null;
+        }
+
+        public void OpenDeployedProjectInfo(object obj)
+        {
+            var mainWindow = obj as WPF.Window;
+            IntegrityLogWindow logWindow = new IntegrityLogWindow(deployedProjectData);
+            logWindow.Owner = mainWindow;
+            logWindow.WindowStartupLocation = WPF.WindowStartupLocation.CenterOwner;
+            logWindow.Show();
+        }
+
+        private bool CanClearFiles(object obj) { return ChangedFileList.Count != 0; }
         private void ClearFiles(object obj)
         {
-            List<ProjectFile> clearList = new List<ProjectFile>();
-            foreach (ProjectFile file in ChangedFileList)
-            {
-                if ((file.fileChangedState & FileChangedState.IntegrityChecked) == 0)
-                {
-                    clearList.Add(file);
-                }
-            }
-            foreach (ProjectFile file in clearList)
-            {
-                ChangedFileList.Remove(file);
-            }
-            
+            metaDataManager.RequestClearStagedFiles();
         }
 
-        private void PullLocalFileChanges(object parameter)
+        
+        private bool CanRestoreFile(object? obj)
         {
-            currentState = VMState.Calculating;
-            //ChangedFile[]? changedFiles = fileManager.GetChangedFiles();
-            currentState = VMState.Idle;
+            if (obj is ProjectFile projFile &&
+                !projFile.IsDstFile) return true; 
+            else return false;
         }
-        private bool CanRunIntegrityTest(object parameter)
+        private void RestoreFile(object? obj)
         {
-            return currentState == VMState.Idle;
+            if (obj is ProjectFile file)
+            {
+                metaDataManager.RequestFileRestore(file, DataState.Restored);
+            }
         }
-        private void RunProjectVersionIntegrity(object parameter)
+
+        private bool CanRunIntegrityTest(object Sender)
         {
-            currentState = VMState.Calculating;
-            fileManager.PerformIntegrityCheck(parameter); 
-            currentState = VMState.Idle;
+            return true; 
         }
+        private void MainProjectIntegrityTest(object sender)
+        {
+            metaDataManager.RequestProjectIntegrityTest(sender);
+        }
+
+        #region Receive Callback From Model 
+        private void StageRequestCallBack(ObservableCollection<ProjectFile> stagedChanges)
+        {
+            changedFileList = stagedChanges;
+        }
+        private void PreStagedFileOverlapCallBack(object overlappedFileObj)
+        {
+            if (overlappedFileObj is not ProjectFile file) return;
+            MessageBox.Show($"PreStaged file {file.DataName} Already Exists");
+            // User should be able to choose which to update.
+            // Pop List ComboBox
+        }
+
+        private void PreStagedChangesCallBack(object changedFileList)
+        {
+            if (changedFileList is ObservableCollection<ProjectFile> projectFileList)
+            {
+                ChangedFileList = projectFileList;
+            }
+        }
+
+        private void FileChangeListUpdateCallBack(ObservableCollection<ProjectFile> changedFileList)
+        {
+            this.ChangedFileList = changedFileList;
+        }
+
+        private void ProjectIntegrityCheckCallBack(object sender, string changeLog, ObservableCollection<ProjectFile> changedFileList)
+        {
+            if (changedFileList == null) { MessageBox.Show("Model Binding Issue: ChangedList is Empty"); return; }
+            
+            var mainWindow = sender as WPF.Window;
+            IntegrityLogWindow logWindow = new IntegrityLogWindow(changeLog, changedFileList);
+            logWindow.Owner = mainWindow;
+            logWindow.WindowStartupLocation = WPF.WindowStartupLocation.CenterOwner;
+            logWindow.Show();
+        }
+
+        private void SrcProjectDataCallBack(object srcProjectDataObj)
+        {
+            if (srcProjectDataObj is not ProjectData srcProjectData) return;
+            this.deployedProjectData = srcProjectData;
+        }
+        #endregion
     }
 }
+#region Deprecated 
+
+
+#endregion

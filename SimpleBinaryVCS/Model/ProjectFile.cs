@@ -1,36 +1,51 @@
-﻿using MemoryPack;
-using SimpleBinaryVCS.DataComponent;
-using System;
-using System.Collections.Generic;
+﻿using SimpleBinaryVCS.DataComponent;
+using SimpleBinaryVCS.Interfaces;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Text.Json.Serialization;
 
 namespace SimpleBinaryVCS.Model
 {
-    [MemoryPackable]
-    public partial class ProjectFile : IEquatable<ProjectFile>
+    public class ProjectFile : IEquatable<ProjectFile>, IComparable<ProjectFile>, IProjectData
     {
-        public bool isNew { get; set; }
-        public long fileSize { get; set; }
-        public string fileName {  get; set; }
-        /// <summary>
-        /// File Build Version
-        /// </summary>
-        public string? fileBuildVersion {  get; set; }
-        public string fileSrcPath {  get; set; }
-        /// <summary>
-        /// RelativePath to the ProjectFolder Directory
-        /// </summary>
-        public string fileRelPath {  get; set; }
-        public string? fileHash { get; set; }
-        public string? deployedProjectVersion { get; set; }
-        public DateTime updatedTime {  get; set; }
-        public FileChangedState fileChangedState { get; set; }
+        #region Serialize constructor variables
+        public ProjectDataType DataType { get; private set; }
+        public long DataSize { get; set; }
+        public string BuildVersion {  get; set; }
+        public string DeployedProjectVersion { get; set; }
+        public DateTime UpdatedTime { get; set; }
+        public bool IsDstFile { get; set; }
+        #endregion
+        public DataState DataState { get; set; }
+        public string DataName { get; set; }
+        public string DataSrcPath { get; set; }
+        public string DataRelPath { get; set; }
+        public string DataHash { get; set; }
+        #region Json Constructor ignored. 
 
+        [JsonIgnore] 
+        public string DataAbsPath => Path.Combine(DataSrcPath, DataRelPath);
+        #endregion
+#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         public ProjectFile() { }
+#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
+        [JsonConstructor]
+        public ProjectFile(ProjectDataType DataType, long DataSize, string BuildVersion, string DeployedProjectVersion, 
+            DateTime UpdatedTime, DataState DataState, string dataName, string dataSrcPath, string dataRelPath, string dataHash, bool IsDstFile) 
+        {
+            this.DataType = DataType;
+            this.DataSize = DataSize;
+            this.BuildVersion = BuildVersion;
+            this.DeployedProjectVersion = DeployedProjectVersion;
+            this.UpdatedTime = UpdatedTime;
+            this.DataState = DataState;
+            this.DataName = dataName;
+            this.DataSrcPath = dataSrcPath;
+            this.DataRelPath = dataRelPath;
+            this.DataHash = dataHash;
+            this.IsDstFile = IsDstFile;
+        }
+        #region Constructors
         /// <summary>
         /// Lacks FileHash, DeployedProjectVersion, FileChangedState
         /// </summary>
@@ -39,92 +54,135 @@ namespace SimpleBinaryVCS.Model
         /// <param name="fileName"></param>
         /// <param name="filePath"></param>
         /// <param name="fileVersion"></param>
-        public ProjectFile(bool isNew, long fileSize, string fileName, string fileSrcPath, string fileRelPath, string? fileVersion, FileChangedState changedState)
+        public ProjectFile(long fileSize, string? fileVersion, string fileName, string fileSrcPath, string fileRelPath, DataState changedState)
         {
-            this.isNew = isNew;
-            this.fileSize = fileSize;
-            this.fileName = fileName;
-            this.fileBuildVersion = fileVersion;
-            this.fileSrcPath = fileSrcPath;
-            this.fileRelPath = fileRelPath;
-            this.updatedTime = DateTime.Now;
-            this.fileChangedState = changedState;
+            this.DataSize = fileSize;
+            this.BuildVersion = fileVersion ?? "";
+            this.DataName = fileName;
+            this.DataSrcPath = fileSrcPath;
+            this.DataRelPath = fileRelPath;
+            this.DataHash = "";
+            this.DeployedProjectVersion = "";
+            this.UpdatedTime = DateTime.Now;
+            this.DataState = changedState;
         }
-
-        [MemoryPackConstructor]
-        public ProjectFile(bool isNew, long fileSize, string fileName, string? fileBuildVersion, string fileSrcPath, string fileRelPath, string fileHash, string? deployedProjectVersion, DateTime updatedTime)
+        /// <summary>
+        /// For PreStagedProjectFile Data Type = File 
+        /// </summary>
+        /// <param name="DataType"></param>
+        /// <param name="DataSize"></param>
+        /// <param name="BuildVersion"></param>
+        /// <param name="DeployedProjectVersion"></param>
+        /// <param name="UpdateTime"></param>
+        /// <param name="DataState"></param>
+        /// <param name="DataName"></param>
+        /// <param name="DataSrcPath"></param>
+        /// <param name="DataRelPath"></param>
+        /// <param name="DataHash"></param>
+        public ProjectFile(long DataSize, string? BuildVersion, string DataName, string DataSrcPath, string DataRelPath)
         {
-            this.isNew = isNew;
-            this.fileSize = fileSize;
-            this.fileName = fileName;
-            this.fileBuildVersion = fileBuildVersion;
-            this.fileSrcPath = fileSrcPath;
-            this.fileRelPath = fileRelPath;
-            this.fileHash = fileHash;
-            this.deployedProjectVersion = deployedProjectVersion;
-            this.updatedTime = updatedTime; 
+            this.DataType = ProjectDataType.File;
+            this.DataSize = DataSize;
+            this.BuildVersion = BuildVersion ?? "";
+            this.DeployedProjectVersion = "";
+            this.UpdatedTime = DateTime.MinValue;
+            this.DataState = DataState.PreStaged;
+            this.DataName = DataName;
+            this.DataSrcPath = DataSrcPath;
+            this.DataRelPath= DataRelPath;
+            this.DataHash = "";
+        }
+        /// <summary>
+        /// For PreStagedProjectFile Data Type = Directory 
+        /// </summary>
+        /// <param name="DataType"></param>
+        /// <param name="DataSize"></param>
+        /// <param name="BuildVersion"></param>
+        /// <param name="DeployedProjectVersion"></param>
+        /// <param name="UpdateTime"></param>
+        /// <param name="DataState"></param>
+        /// <param name="DataName"></param>
+        /// <param name="DataSrcPath"></param>
+        /// <param name="DataRelPath"></param>
+        /// <param name="DataHash"></param>
+        public ProjectFile(string DataName, string DataSrcPath, string DataRelPath)
+        {
+            this.DataType = ProjectDataType.Directory;
+            this.DataSize = 0;
+            this.BuildVersion = "";
+            this.DeployedProjectVersion = "";
+            this.UpdatedTime = DateTime.MinValue;
+            this.DataState = DataState.PreStaged;
+            this.DataName = DataName;
+            this.DataSrcPath = DataSrcPath;
+            this.DataRelPath = DataRelPath;
+            this.DataHash = "";
         }
         /// <summary>
         /// Deep Copy of ProjectFile
         /// </summary>
-        /// <param name="srcFile">Copying File</param>
-        public ProjectFile(ProjectFile srcFile)
+        /// <param name="srcData">Copying File</param>
+        public ProjectFile(ProjectFile srcData)
         {
-            this.isNew = srcFile.isNew;
-            this.fileSize = srcFile.fileSize;
-            this.fileName = srcFile.fileName;
-            this.fileBuildVersion = srcFile.fileBuildVersion;
-            this.fileSrcPath= srcFile.fileSrcPath;
-            this.fileRelPath = srcFile.fileRelPath;
-            this.fileHash = srcFile.fileHash;
-            this.deployedProjectVersion = srcFile.deployedProjectVersion;
-            this.updatedTime = srcFile.updatedTime;
-            this.fileChangedState = srcFile.fileChangedState;
+            this.DataType = srcData.DataType;
+            this.DataSize = srcData.DataSize;
+            this.BuildVersion = srcData.BuildVersion;
+            this.DeployedProjectVersion = srcData.DeployedProjectVersion;
+            this.UpdatedTime = srcData.UpdatedTime;
+            this.DataState = srcData.DataState;
+            this.DataName = srcData.DataName;
+            this.DataSrcPath = srcData.DataSrcPath;
+            this.DataRelPath = srcData.DataRelPath;
+            this.DataHash = srcData.DataHash;
         }
-
-        public ProjectFile(string fileSrcPath, string fileRelPath, string fileHash, FileChangedState state)
+        public ProjectFile(ProjectFile srcData, DataState state)
         {
-            this.isNew = true;
+            this.DataType = srcData.DataType;
+            this.DataSize = srcData.DataSize;
+            this.BuildVersion = srcData.BuildVersion;
+            this.DeployedProjectVersion = srcData.DeployedProjectVersion;
+            this.UpdatedTime = DateTime.Now;
+            this.DataState = state;
+            this.DataName = srcData.DataName;
+            this.DataSrcPath = srcData.DataSrcPath;
+            this.DataRelPath = srcData.DataRelPath;
+            this.DataHash = srcData.DataHash;
+        }
+        public ProjectFile(ProjectFile srcData, DataState DataState, string dataSrcPath)
+        {
+            this.DataType = srcData.DataType;
+            this.DataSize = srcData.DataSize;
+            this.BuildVersion = srcData.BuildVersion;
+            this.DeployedProjectVersion = srcData.DeployedProjectVersion;
+            this.UpdatedTime = DateTime.Now;
+            this.DataState = DataState;
+            this.DataName = srcData.DataName;
+            this.DataSrcPath = dataSrcPath;
+            this.DataRelPath = srcData.DataRelPath;
+            this.DataHash = srcData.DataHash;
+        }
+        public ProjectFile(string fileSrcPath, string fileRelPath, string? fileHash, DataState DataState, ProjectDataType dataType)
+        {
             string fileFullPath = Path.Combine(fileSrcPath, fileRelPath);
             var fileInfo = FileVersionInfo.GetVersionInfo(fileFullPath);
-            this.fileSize = new FileInfo(fileFullPath).Length; 
-            this.fileBuildVersion = fileInfo.FileVersion;
-            this.fileSrcPath = fileSrcPath; 
-            this.fileName = Path.GetFileName(fileFullPath);
-            this.fileRelPath = fileRelPath;
-            this.fileHash= fileHash;
-            this.updatedTime = DateTime.Now;
-            this.fileChangedState = state;
+            this.DataSize = new FileInfo(fileFullPath).Length; 
+            this.BuildVersion = fileInfo.FileVersion ?? "";
+            this.DeployedProjectVersion = "";
+            this.DataSrcPath = fileSrcPath; 
+            this.DataName = Path.GetFileName(fileFullPath);
+            this.DataRelPath = fileRelPath;
+            this.DataHash = fileHash ?? "";
+            this.UpdatedTime = DateTime.Now;
+            this.DataState = DataState;
+            this.DataType = dataType;
         }
+        #endregion
 
-        /// <summary>
-        /// using ChangedFile Class, converts to ProjectFile, Sets isNew to true
-        /// </summary>
-        /// <param name="changedFile"></param>
-        public ProjectFile(ChangedFile changedFile, FileChangedState fileChangedState)
+        public int CompareTo(ProjectFile? other) 
         {
-            this.isNew = true;
-            this.fileChangedState = fileChangedState; 
-            var fileInfo = FileVersionInfo.GetVersionInfo(changedFile.fileFullPath());
-            this.fileSize = new FileInfo(changedFile.fileFullPath()).Length;
-            this.fileBuildVersion = fileInfo.FileVersion;
-            this.fileSrcPath = changedFile.fileSrcPath;
-            this.fileName = changedFile.fileName;
-            this.fileRelPath = changedFile.fileRelPath;
-            this.fileHash = changedFile.FileHash;
-            this.updatedTime = changedFile.changedTime;
-        }
-        /// <summary>
-        /// First compares fileVersion, then the updatedTime; 
-        /// smaller fileVersion corresponds to newer file
-        /// </summary>
-        /// <param name="other"></param>
-        /// <returns></returns>
-        public int CompareTo(ProjectFile other) 
-        {
-            if (this.updatedTime.CompareTo(other.updatedTime) == 0)
-                return this.fileSize.CompareTo(other.fileSize);
-            return this.updatedTime.CompareTo(other.updatedTime);
+            if (this.UpdatedTime.CompareTo(other.UpdatedTime) == 0)
+                return this.DataSize.CompareTo(other.DataSize);
+            return this.UpdatedTime.CompareTo(other.UpdatedTime);
         }
         /// <summary>
         /// Checks 1. fileName, 2. fileVersion 
@@ -134,9 +192,12 @@ namespace SimpleBinaryVCS.Model
         /// < returns ></ returns >
         public bool Equals(ProjectFile? other)
         {
-            //if (other?.fileRelPath == this.fileRelPath) 
-            //    return other.fileHash == this.fileHash;
-            return other?.fileRelPath == this.fileRelPath;
+            if (other == null)
+            {
+                MessageBox.Show($"Presented ProjectFile is Null for comparision with {this.DataName}"); 
+                return false;
+            }
+            return other.DataRelPath == this.DataRelPath;
         }
         /// <summary>
         /// Returns False if not Same
@@ -145,20 +206,7 @@ namespace SimpleBinaryVCS.Model
         /// <returns></returns>
         public bool CheckSize(ProjectFile other)
         {
-            return other.fileSize == this.fileSize;
-        }
-
-        public string fileFullPath()
-        {
-            try
-            {
-                return $"{fileSrcPath}\\{fileRelPath}";
-            }
-            catch (Exception ex) 
-            {
-                MessageBox.Show($"Couldn't get File's Full Path {ex.Message}");
-                return "";
-            }
+            return other.DataSize == this.DataSize;
         }
     }
 }
