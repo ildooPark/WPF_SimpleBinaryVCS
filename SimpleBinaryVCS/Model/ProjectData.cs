@@ -1,7 +1,4 @@
-﻿using MemoryPack;
-using Microsoft.VisualBasic.Logging;
-using System.Collections.ObjectModel;
-using System.Runtime.CompilerServices;
+﻿using System.Collections.ObjectModel;
 using System.Text.Json.Serialization;
 
 namespace SimpleBinaryVCS.Model
@@ -18,22 +15,22 @@ namespace SimpleBinaryVCS.Model
         public string ChangeLog { get; set; }
         public int RevisionNumber { get; set; } = 0;
         public int NumberOfChanges { get; set; }
-        public List<ChangedFile> ChangedFiles {  get; set; } = new List<ChangedFile>();
+        public List<ChangedFile> ChangedFiles {  get; set; }
         public Dictionary<string, ProjectFile> ProjectFiles { get; set; }
 
-        /// <summary>
-        /// Key : Data Relative Path 
-        /// Value : ProjectFile
-        /// </summary>
+        [JsonIgnore]
         public ObservableCollection<ProjectFile> ProjectFilesObs => new ObservableCollection<ProjectFile>(ProjectFiles.Values.ToList());
+        [JsonIgnore]
         public List<string> ProjectRelDirsList => ProjectFiles.Values.ToList()
             .Where(file => file.DataType == Interfaces.ProjectDataType.Directory)
             .Select(file => file.DataRelPath)
             .ToList();
+        [JsonIgnore]
         public List<string> ProjectRelFilePathsList => ProjectFiles.Values.ToList()
             .Where(file => file.DataType == Interfaces.ProjectDataType.File)
             .Select(file => file.DataRelPath)
             .ToList();
+        [JsonIgnore]
         public List<ProjectFile> ChangedDstFileList
         {
             get
@@ -46,6 +43,7 @@ namespace SimpleBinaryVCS.Model
                 return changedDstFileList;
             }
         }
+        [JsonIgnore]
         public ObservableCollection<ProjectFile> ChangedProjectFileObservable
         {
             get
@@ -61,6 +59,7 @@ namespace SimpleBinaryVCS.Model
         }
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         public ProjectData() { }
+        [JsonConstructor]
         public ProjectData(string ProjectName, string ProjectPath, string UpdaterName, string ConductedPC, 
             DateTime UpdatedTime, string UpdatedVersion, string UpdateLog, string ChangeLog, 
             int RevisionNumber, int NumberOfChanges, List<ChangedFile> ChangedFiles, Dictionary<string, ProjectFile> ProjectFiles)
@@ -78,7 +77,6 @@ namespace SimpleBinaryVCS.Model
             this.ChangedFiles = ChangedFiles;
             this.ProjectFiles = ProjectFiles;
         }
-
         public ProjectData(string projectPath)
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         {
@@ -87,7 +85,6 @@ namespace SimpleBinaryVCS.Model
             this.ProjectFiles = new Dictionary<string, ProjectFile>();
             this.ChangedFiles = new List<ChangedFile>();
         }
-
         public ProjectData(ProjectData srcProjectData)
         {
             this.ProjectName = srcProjectData.ProjectName;
@@ -103,11 +100,8 @@ namespace SimpleBinaryVCS.Model
             this.ProjectFiles = srcProjectData.CloneProjectFiles();
             this.ChangedFiles = srcProjectData.CloneChangedFiles();
         }
-        [JsonConstructor]
         public ProjectData(ProjectData srcProjectData, string projectPath, string updaterName, 
-            DateTime updateTime, string updatedVersion, string conductedPC, string updateLog, string? changeLog,
-            Dictionary<string, ProjectFile> projectFiles,
-            List<ChangedFile> changedFiles)
+            DateTime updateTime, string updatedVersion, string conductedPC, string updateLog, string? changeLog)
         {
             this.ProjectName = srcProjectData.ProjectName;
             this.ProjectPath = projectPath;
@@ -117,12 +111,11 @@ namespace SimpleBinaryVCS.Model
             this.ConductedPC = conductedPC;
             this.UpdateLog = updateLog;
             this.ChangeLog = changeLog ?? "";
-            this.NumberOfChanges = changedFiles.Count;
+            this.NumberOfChanges = srcProjectData.ChangedFiles.Count;
             this.RevisionNumber = ++srcProjectData.RevisionNumber;
             this.ProjectFiles = srcProjectData.CloneProjectFiles();
             this.ChangedFiles = srcProjectData.CloneChangedFiles();
         }
-
         public ProjectData(ProjectData srcProjectData, bool IsReverting)
         {
             this.ProjectName = srcProjectData.ProjectName;
@@ -166,7 +159,7 @@ namespace SimpleBinaryVCS.Model
             Dictionary<string, ProjectFile> clone = new Dictionary<string, ProjectFile>();
             foreach (ProjectFile srcFile in ProjectFiles.Values)
             {
-                clone.Add(srcFile.DataRelPath, (ProjectFile)srcFile.Clone());
+                clone.Add(srcFile.DataRelPath, new ProjectFile(srcFile));
             }
             return clone;
         }
@@ -174,9 +167,9 @@ namespace SimpleBinaryVCS.Model
         private List<ChangedFile> CloneChangedFiles()
         {
             List<ChangedFile> clone = new List<ChangedFile>();
-            foreach (ChangedFile srcFile in ChangedFiles)
+            foreach (ChangedFile srcChangedFile in ChangedFiles)
             {
-                clone.Add((ChangedFile)srcFile.Clone());
+                clone.Add(new ChangedFile(srcChangedFile));
             }
             return clone;
         }

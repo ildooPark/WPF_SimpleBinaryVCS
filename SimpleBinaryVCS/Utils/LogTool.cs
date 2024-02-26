@@ -19,7 +19,7 @@ namespace SimpleBinaryVCS.Utils
             }
             else
             {
-                log.AppendLine($"srcData.ToString() {srcData.DataName} at {srcData.UpdatedTime}");
+                log.AppendLine($"{srcData.DataName} at {srcData.UpdatedTime}");
                 log.AppendLine($"From : Build Version: {srcData.BuildVersion} Hash : {srcData.DataHash}");
                 log.AppendLine($"To : Build Version: {dstData.BuildVersion} Hash : {dstData.DataHash}");
             }

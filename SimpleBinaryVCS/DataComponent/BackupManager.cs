@@ -1,5 +1,4 @@
-﻿using MemoryPack;
-using SimpleBinaryVCS.Interfaces;
+﻿using SimpleBinaryVCS.Interfaces;
 using SimpleBinaryVCS.Model;
 using SimpleBinaryVCS.Utils;
 using System.Collections.ObjectModel;
@@ -58,22 +57,25 @@ namespace SimpleBinaryVCS.DataComponent
 
         private void BackupProject(ProjectData projectData)
         {
+            if (backupProjectDataList == null || projectMetaData == null)
+            { Console.WriteLine("Failed to Load ProjectMetaData: BackupProjectList is Null"); return; }
             bool hasBackup = backupProjectDataList.Contains(projectData);
             if (!hasBackup)
             {
                 RegisterBackupFiles(projectData);
-
                 projectMetaData.ProjectDataList.AddFirst(new ProjectData(projectData));
                 projectMetaData.UpdateCount++;
             }
+            string projectMetaDataPath = $"{projectMetaData.ProjectPath}\\ProjectMetaData.bin";
+            bool serializeSuccess = fileHandlerTool.TrySerializeProjectMetaData(projectMetaData, projectMetaDataPath);
+            if (serializeSuccess)
+            {
+                projectMetaData.ProjectMain = projectData;
+            }
+            else
+                projectMetaData.ProjectMain = null; 
+                FetchCompleteEventHandler?.Invoke(ProjectBackupListObservable);
 
-            byte[] serializedFile = MemoryPackSerializer.Serialize(projectMetaData);
-            File.WriteAllBytes($"{projectMetaData.ProjectPath}\\ProjectMetaData.bin", serializedFile);
-
-            projectData.ChangedFiles.Clear();
-            projectMetaData.ProjectMain = projectData;
-
-            FetchCompleteEventHandler?.Invoke(ProjectBackupListObservable);
         }
         #region Callbacks
         // Save BackUp 
@@ -105,7 +107,7 @@ namespace SimpleBinaryVCS.DataComponent
                 if (file.DataType == ProjectDataType.Directory) continue;
                 if (!BackupFiles.TryGetValue(file.DataHash, out ProjectFile? backupFile))
                 {
-                    ProjectFile newBackupFile = new ProjectFile(file, DataState.None, backupSrcPath);
+                    ProjectFile newBackupFile = new ProjectFile(file, DataState.Backup, backupSrcPath);
                     BackupFiles.Add(newBackupFile.DataHash, newBackupFile);
                     fileHandlerTool.HandleData(file.DataAbsPath, newBackupFile.DataAbsPath, ProjectDataType.File, DataState.Backup);
                 }
@@ -117,12 +119,6 @@ namespace SimpleBinaryVCS.DataComponent
         {
             string backupPath = $"{Directory.GetParent(projectData.ProjectPath)}\\Backup_{Path.GetFileName(projectData.ProjectName)}\\Backup_{projectData.UpdatedVersion}";
             return backupPath; 
-        }
-
-        public void BackupProjectData(ProjectData backupFile)
-        {
-            //Try Adding 
-            //Else, Update Backup Path Info 
         }
         #region Link To View Model 
         public bool FetchBackupProjectList()

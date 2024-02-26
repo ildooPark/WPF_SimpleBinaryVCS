@@ -1,11 +1,8 @@
-﻿using MemoryPack;
-using SimpleBinaryVCS;
-using SimpleBinaryVCS.DataComponent;
+﻿using SimpleBinaryVCS.DataComponent;
 using SimpleBinaryVCS.Model;
 using SimpleBinaryVCS.Utils;
 using SimpleBinaryVCS.View;
 using System.Collections.ObjectModel;
-using System.IO;
 using System.Windows.Input;
 using WPF = System.Windows;
 

@@ -1,15 +1,15 @@
-﻿using MemoryPack;
-using SimpleBinaryVCS.Interfaces;
-using System.Collections.ObjectModel;
-using System.Text.Json.Serialization;
+﻿using System.Text.Json.Serialization;
 
 namespace SimpleBinaryVCS.Model
 {
     public class ProjectMetaData
     {
-        public int UpdateCount;
-        public string ProjectName;
-        public string ProjectPath;
+        private int updateCount;
+        public int UpdateCount { get => updateCount; set => updateCount = value; }  
+        private string projectName;
+        public string ProjectName { get => projectName; set => projectName = value; }
+        private string projectPath; 
+        public string ProjectPath { get => projectPath; set => projectPath = value;}
         public ProjectData ProjectMain {  get; set; }
         public LinkedList<ProjectData> ProjectDataList {  get; set; }   
         public Dictionary<string, ProjectFile> BackupFiles { get; set; }

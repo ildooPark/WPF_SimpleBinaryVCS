@@ -1,16 +1,32 @@
-﻿using MemoryPack;
-using SimpleBinaryVCS.DataComponent;
+﻿using SimpleBinaryVCS.DataComponent;
 using System.Text.Json.Serialization;
 
 namespace SimpleBinaryVCS.Model
 {
-    public class ChangedFile: ICloneable
+    public class ChangedFile
     {
-        public ProjectFile? SrcFile;
-        public ProjectFile? DstFile;
+        public ProjectFile? SrcFile { get; set; }
+        public ProjectFile? DstFile { get; set;}
         public DataState DataState {  get; set; }
-        [JsonConstructor]
         public ChangedFile() { }
+        public ChangedFile(ChangedFile srcChangedfile)
+        {
+            if (srcChangedfile.SrcFile != null)
+            {
+                this.SrcFile = new ProjectFile(srcChangedfile.SrcFile);
+                this.SrcFile.IsDstFile = false; 
+            }
+            else
+                this.SrcFile = null;
+            if (srcChangedfile.DstFile != null)
+            {
+                this.DstFile = new ProjectFile(srcChangedfile.DstFile);
+                this.DstFile.IsDstFile = true; 
+            }
+            else
+                this.DstFile = null;
+            this.DataState = srcChangedfile.DataState;
+        }
         public ChangedFile(ProjectFile DstFile, DataState DataState)
         {
             this.SrcFile = null;
@@ -18,7 +34,7 @@ namespace SimpleBinaryVCS.Model
             DstFile.IsDstFile = true; 
             this.DataState = DataState;
         }
-        public ChangedFile(ProjectFile SrcFile,  ProjectFile DstFile, DataState DataState)
+        public ChangedFile(ProjectFile SrcFile,  ProjectFile DstFile, DataState DataState, bool RegisterChanges)
         {
             this.SrcFile = SrcFile;
             SrcFile.IsDstFile = false; 
@@ -26,14 +42,12 @@ namespace SimpleBinaryVCS.Model
             DstFile.IsDstFile = true;
             this.DataState = DataState;
         }
-
-        public object Clone()
+        [JsonConstructor]
+        public ChangedFile(ProjectFile SrcFile, ProjectFile DstFile, DataState DataState)
         {
-            ChangedFile clone = new ChangedFile();
-            if (this.SrcFile != null) clone.SrcFile = (ProjectFile) this.SrcFile.Clone();
-            if (this.DstFile != null) clone.DstFile = (ProjectFile) this.DstFile.Clone();
-            clone.DataState = this.DataState;
-            return clone;
+            this.SrcFile = SrcFile;
+            this.DstFile = DstFile;
+            this.DataState = DataState;
         }
     }
 }

@@ -1,7 +1,6 @@
 ﻿using SimpleBinaryVCS.Interfaces;
 using SimpleBinaryVCS.Model;
 using SimpleBinaryVCS.Utils;
-using System.Collections.ObjectModel;
 using System.Text;
 
 namespace SimpleBinaryVCS.DataComponent
@@ -58,27 +57,31 @@ namespace SimpleBinaryVCS.DataComponent
         /// <param name="updateLog"></param>
         public void UpdateProjectMain(string updaterName, string updateLog, string currentProjectPath)
         {
-            if (ProjectMain == null || CurrentProjectFileChanges == null)
+            if (ProjectMain == null)
             {
                 MessageBox.Show("Project Data on Update Manager is Missing"); return;
+            }
+            else if (CurrentProjectFileChanges == null)
+            {
+                MessageBox.Show("File Changes does not exist"); return; 
             }
 
             RegisterFileChanges(ProjectMain, CurrentProjectFileChanges, out StringBuilder? changeLog);
             fileHandlerTool.ApplyFileChanges(CurrentProjectFileChanges);
+
             string newVersionName = GetProjectVersionName(ProjectMain);
             string conductedId = HashTool.GetUniqueComputerID(Environment.MachineName);
+            ProjectMain.ChangedFiles = CurrentProjectFileChanges;
             ProjectData newProjectData = new ProjectData
                 (
                 ProjectMain,
                 currentProjectPath,
                 updaterName,
-                DateTime.Now,
+                DateTime.Now,   
                 newVersionName,
                 conductedId,
                 updateLog,
-                changeLog?.ToString(),
-                ProjectMain.ProjectFiles,
-                CurrentProjectFileChanges
+                changeLog?.ToString()
                 );
 
             ProjectUpdateEventHandler?.Invoke(newProjectData);

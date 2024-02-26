@@ -1,5 +1,4 @@
-﻿using MemoryPack;
-using SimpleBinaryVCS.Interfaces;
+﻿using SimpleBinaryVCS.Interfaces;
 using SimpleBinaryVCS.Model;
 using SimpleBinaryVCS.Utils;
 using System.Collections.ObjectModel;
@@ -13,7 +12,7 @@ namespace SimpleBinaryVCS.DataComponent
     {
         public string? CurrentProjectPath {  get; set; }
 
-        public event Action<object>? FileChangesEventHandler;
+        public event Action<ObservableCollection<ProjectFile>>? FileChangesEventHandler;
         public event Action<object>? StagedChangesEventHandler;
         public event Action<object>? PreStagedChangesEventHandler;
         public event Action<object>? SrcProjectLoadedEventHandler;
@@ -62,6 +61,7 @@ namespace SimpleBinaryVCS.DataComponent
         private FileManager fileManager;
         private BackupManager backupManager;
         private UpdateManager updateManager;
+        private FileHandlerTool fileHandlerTool;
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         public MetaDataManager()
@@ -74,6 +74,7 @@ namespace SimpleBinaryVCS.DataComponent
             backupManager = App.BackupManager;
             fileManager = App.FileManager;
             updateManager = App.UpdateManager;
+            fileHandlerTool = new FileHandlerTool();
 
             MetaDataLoadedEventHandler += backupManager.MetaDataLoadedCallBack;
             MetaDataLoadedEventHandler += fileManager.MetaDataLoadedCallBack;
@@ -84,11 +85,11 @@ namespace SimpleBinaryVCS.DataComponent
             ProjectLoadedEventHandler += updateManager.ProjectLoadedCallback;
 
             SrcProjectLoadedEventHandler += updateManager.SrcProjectLoadedCallBack;
-
             StagedChangesEventHandler += updateManager.DataStagedCallBack;
-            //DataStagedEventHandler += backupManager.
+
             backupManager.ProjectRevertEventHandler += ProjectChangeCallBack;
             backupManager.FetchCompleteEventHandler += FetchRequestCallBack;
+
             updateManager.ProjectUpdateEventHandler += ProjectChangeCallBack;
 
             fileManager.IntegrityCheckEventHandler += ProjectIntegrityCheckCallBack;
@@ -100,36 +101,28 @@ namespace SimpleBinaryVCS.DataComponent
         #region View Model Request Calls
         public bool RequestProjectRetrieval(string projectPath)
         {
-            string projectRepoBin;
+            string projectMetaDataPath = $"{projectPath}\\ProjectMetaData.bin";
 
+            
             CurrentProjectPath = projectPath;
-            string[] binFiles = Directory.GetFiles(CurrentProjectPath, "ProjectMetaData.*", SearchOption.AllDirectories);
 
-            if (binFiles.Length > 0)
+            try
             {
-                projectRepoBin = binFiles[0];
-                try
+                fileHandlerTool.TryDeserializeProjectMetaData(projectMetaDataPath, out ProjectMetaData? retrievedData);
+                if (retrievedData != null)
                 {
-                    var stream = File.ReadAllBytes(projectRepoBin);
-                    ProjectMetaData? loadedProjectMetaData = MemoryPackSerializer.Deserialize<ProjectMetaData>(stream);
-                    if (loadedProjectMetaData != null)
-                    {
-                        ProjectMetaData = loadedProjectMetaData;
-                        MainProjectData = loadedProjectMetaData.ProjectMain;
-                        ProjectLoadedEventHandler?.Invoke(MainProjectData);
-                    }
+                    ProjectMetaData = retrievedData;
+                    MainProjectData = retrievedData.ProjectMain;
                 }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"MetaDataManager TryRetrieveProject Error {ex.Message}");
+                else 
                     return false;
-                }
-                return true;
             }
-            else
+            catch (Exception ex)
             {
+                MessageBox.Show($"MetaDataManager TryRetrieveProject Error {ex.Message}");
                 return false;
             }
+            return true;
         }
         public void RequestProjectInitialization(string projectPath)
         {
@@ -150,7 +143,7 @@ namespace SimpleBinaryVCS.DataComponent
                 ProjectData newProjectData = new ProjectData(projectPath);
                 newProjectData.ProjectName = Path.GetFileName(projectPath);
                 newProjectData.ConductedPC = HashTool.GetUniqueComputerID(Environment.MachineName);
-                newProjectData.UpdatedVersion = GetProjectVersionName(newProjectData);
+                newProjectData.UpdatedVersion = GetProjectVersionName(newProjectData, true);
 
                 foreach (string filePath in newProjectFiles)
                 {
@@ -224,6 +217,7 @@ namespace SimpleBinaryVCS.DataComponent
                 return;
             }
             List<ChangedFile>? fileDifferences = fileManager.FindVersionDifferences(targetProject, MainProjectData, true);
+            
             backupManager.RevertProject(targetProject, fileDifferences);
         }
         public void RequestStageChanges()
@@ -261,9 +255,9 @@ namespace SimpleBinaryVCS.DataComponent
         {
             if (!isNewProject)
             {
-                return $"{HashTool.GetUniqueComputerID(Environment.MachineName)}_{DateTime.Now.ToString("yyyy_MM_dd")}_{projData.RevisionNumber + 1}";
+                return $"{HashTool.GetUniqueComputerID(Environment.MachineName)}_{DateTime.Now.ToString("yyyy_MM_dd")}_v{projData.RevisionNumber + 1}";
             }
-            return $"{HashTool.GetUniqueComputerID(Environment.MachineName)}_{DateTime.Now.ToString("yyyy_MM_dd")}_v{projData.RevisionNumber + 1}";
+            return $"{HashTool.GetUniqueComputerID(Environment.MachineName)}_{DateTime.Now.ToString("yyyy_MM_dd")}_v{projData.RevisionNumber}";
         }
 
         #endregion
@@ -290,7 +284,7 @@ namespace SimpleBinaryVCS.DataComponent
             ObservableCollection<ProjectFile> stagedChangesObs = new ObservableCollection<ProjectFile>();
             foreach (ChangedFile file in stagedFiles)
             {
-                if (file.DstFile == null) stagedChangesObs.Add(file.DstFile);
+                if (file.DstFile != null) stagedChangesObs.Add(file.DstFile);
             }
             FileChangesEventHandler?.Invoke(stagedChangesObs);
             StagedChangesEventHandler?.Invoke(stagedFiles);

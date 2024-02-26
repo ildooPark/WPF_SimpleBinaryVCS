@@ -1,5 +1,4 @@
 ﻿using SimpleBinaryVCS.DataComponent;
-using SimpleBinaryVCS.Interfaces;
 using SimpleBinaryVCS.Model;
 using SimpleBinaryVCS.Utils;
 using SimpleBinaryVCS.View;
@@ -52,7 +51,8 @@ namespace SimpleBinaryVCS.ViewModel
 
         private ICommand? getDeployedProjectInfo;
         public ICommand? GetDeployedProjectInfo => getDeployedProjectInfo ??= new RelayCommand(OpenDeployedProjectInfo, CanOpenDeployedProjectInfo);
-
+        private ICommand? getDeploySrcDir;
+        public ICommand GetDeploySrcDir => getDeploySrcDir ??= new RelayCommand(SetDeploySrcDirectory, CanSetDeployDir);
         private MetaDataManager metaDataManager;
         private ProjectData? deployedProjectData;
 
@@ -60,10 +60,39 @@ namespace SimpleBinaryVCS.ViewModel
         {
             this.metaDataManager = App.MetaDataManager;
             this.metaDataManager.SrcProjectLoadedEventHandler += SrcProjectDataCallBack;
+            this.metaDataManager.PreStagedChangesEventHandler += PreStagedChangesCallBack;
             this.metaDataManager.ProjectIntegrityCheckEventHandler += ProjectIntegrityCheckCallBack;
             this.metaDataManager.FileChangesEventHandler += FileChangeListUpdateCallBack;
         }
 
+        private bool CanSetDeployDir(object obj)
+        {
+            return true;
+        }
+        private void SetDeploySrcDirectory(object obj)
+        {
+            try
+            {
+                string? updateDirPath;
+                var openUpdateDir = new WinForms.FolderBrowserDialog();
+                if (openUpdateDir.ShowDialog() == DialogResult.OK)
+                {
+                    deployedProjectData = null;
+                    updateDirPath = openUpdateDir.SelectedPath;
+                    metaDataManager.RequestSrcDataRetrieval(updateDirPath);
+                }
+                else
+                {
+                    openUpdateDir.Dispose();
+                    return;
+                }
+                openUpdateDir.Dispose();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
+        }
         private bool CanStageChanges(object obj) { return ChangedFileList.Count != 0; }
         private void StageNewChanges(object obj)
         {
@@ -87,18 +116,7 @@ namespace SimpleBinaryVCS.ViewModel
         private bool CanClearFiles(object obj) { return ChangedFileList.Count != 0; }
         private void ClearFiles(object obj)
         {
-            List<ProjectFile> clearList = new List<ProjectFile>();
-            foreach (ProjectFile file in ChangedFileList)
-            {
-                if ((file.DataState & DataState.IntegrityChecked) == 0)
-                {
-                    clearList.Add(file);
-                }
-            }
-            foreach (ProjectFile file in clearList)
-            {
-                ChangedFileList.Remove(file);
-            }
+            metaDataManager.RequestClearStagedFiles();
         }
 
         
@@ -126,7 +144,10 @@ namespace SimpleBinaryVCS.ViewModel
         }
 
         #region Receive Callback From Model 
-
+        private void StageRequestCallBack(ObservableCollection<ProjectFile> stagedChanges)
+        {
+            changedFileList = stagedChanges;
+        }
         private void PreStagedFileOverlapCallBack(object overlappedFileObj)
         {
             if (overlappedFileObj is not ProjectFile file) return;
@@ -135,10 +156,17 @@ namespace SimpleBinaryVCS.ViewModel
             // Pop List ComboBox
         }
 
-        private void FileChangeListUpdateCallBack(object changedFileListObj)
+        private void PreStagedChangesCallBack(object changedFileList)
         {
-            if (changedFileListObj is ObservableCollection<ProjectFile> changedFileList)
-                this.ChangedFileList = changedFileList;
+            if (changedFileList is ObservableCollection<ProjectFile> projectFileList)
+            {
+                ChangedFileList = projectFileList;
+            }
+        }
+
+        private void FileChangeListUpdateCallBack(ObservableCollection<ProjectFile> changedFileList)
+        {
+            this.ChangedFileList = changedFileList;
         }
 
         private void ProjectIntegrityCheckCallBack(object sender, string changeLog, ObservableCollection<ProjectFile> changedFileList)
@@ -161,35 +189,6 @@ namespace SimpleBinaryVCS.ViewModel
     }
 }
 #region Deprecated 
-//private ICommand? getDeploySrcDir;
-//public ICommand GetDeploySrcDir => getDeploySrcDir ??= new RelayCommand(SetDeploySrcDirectory, CanSetDeployDir);
-//private bool CanSetDeployDir(object obj)
-//{
-//    return true;
-//}
-//private void SetDeploySrcDirectory(object obj)
-//{
-//    try
-//    {
-//        string? updateDirPath;
-//        var openUpdateDir = new WinForms.FolderBrowserDialog();
-//        if (openUpdateDir.ShowDialog() == DialogResult.OK)
-//        {
-//            deployedProjectData = null; 
-//            updateDirPath = openUpdateDir.SelectedPath;
-//            fileManager.RetrieveDataSrc(updateDirPath);
-//        }
-//        else
-//        {
-//            openUpdateDir.Dispose();
-//            return;
-//        }
-//        openUpdateDir.Dispose();
-//    }
-//    catch (Exception ex)
-//    {
-//        MessageBox.Show(ex.Message);
-//    }
-//}
+
 
 #endregion

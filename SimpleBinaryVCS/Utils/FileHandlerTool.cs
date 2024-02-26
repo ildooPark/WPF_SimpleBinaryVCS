@@ -2,8 +2,7 @@
 using SimpleBinaryVCS.Interfaces;
 using SimpleBinaryVCS.Model;
 using System.IO;
-using System.Xml.Serialization;
-using System.Xml;
+using System.Text;
 using System.Text.Json;
 
 namespace SimpleBinaryVCS.Utils
@@ -16,9 +15,6 @@ namespace SimpleBinaryVCS.Utils
             {
                 string jsonString = JsonSerializer.Serialize(data);
                 byte[] jsonData = System.Text.Encoding.UTF8.GetBytes(jsonString);
-
-                // Optional: Encrypt the data before saving (consider using a strong encryption algorithm and key management practices)
-
                 File.WriteAllBytes(filePath, jsonData);
                 return true; 
             }
@@ -28,15 +24,11 @@ namespace SimpleBinaryVCS.Utils
                 return false;
             }
         }
-
         public bool TryDeserializeProjectData(string filePath, out ProjectData? projectData)
         {
             try
             {
                 byte[] jsonData = File.ReadAllBytes(filePath);
-
-                // Optional: Decrypt the data before deserialization
-
                 string jsonString = System.Text.Encoding.UTF8.GetString(jsonData);
                 ProjectData? data = JsonSerializer.Deserialize<ProjectData>(jsonString);
                 if (data != null)
@@ -54,17 +46,13 @@ namespace SimpleBinaryVCS.Utils
                 return false;
             }
         }
-
-        public bool TrySerializeProjectMetaData(ProjectData data, string filePath)
+        public bool TrySerializeProjectMetaData(ProjectMetaData data, string filePath)
         {
             try
             {
-                string jsonString = JsonSerializer.Serialize(data);
-                byte[] jsonData = System.Text.Encoding.UTF8.GetBytes(jsonString);
-
-                // Optional: Encrypt the data before saving (consider using a strong encryption algorithm and key management practices)
-
-                File.WriteAllBytes(filePath, jsonData);
+                var jsonData = JsonSerializer.Serialize(data);
+                var base64EncodedData = Convert.ToBase64String(Encoding.UTF8.GetBytes(jsonData));
+                File.WriteAllText(filePath, base64EncodedData);
                 return true;
             }
             catch (Exception ex)
@@ -73,17 +61,14 @@ namespace SimpleBinaryVCS.Utils
                 return false; 
             }
         }
-
         public bool TryDeserializeProjectMetaData(string filePath, out ProjectMetaData? projectMetaData)
         {
             try
             {
-                byte[] jsonData = File.ReadAllBytes(filePath);
-
-                // Optional: Decrypt the data before deserialization
-
-                string jsonString = System.Text.Encoding.UTF8.GetString(jsonData);
-                ProjectMetaData? data = JsonSerializer.Deserialize<ProjectMetaData>(jsonString);
+                var jsonDataBase64 = File.ReadAllText(filePath);
+                var jsonDataBytes = Convert.FromBase64String(jsonDataBase64);
+                string jsonData = System.Text.Encoding.UTF8.GetString(jsonDataBytes);
+                ProjectMetaData? data = JsonSerializer.Deserialize<ProjectMetaData>(jsonData);
                 if (data != null)
                 {
                     projectMetaData = data;
@@ -95,12 +80,11 @@ namespace SimpleBinaryVCS.Utils
             }
             catch (Exception ex)
             {
-                Console.WriteLine("Error deserializing ProjectData: " + ex.Message);
+                Console.WriteLine("Error deserializing ProjectMetaData: " + ex.Message);
                 projectMetaData = null; 
                 return false;
             }
         }
-
         public void ApplyFileChanges(List<ChangedFile> Changes)
         {
             if (Changes == null) return;
@@ -110,7 +94,6 @@ namespace SimpleBinaryVCS.Utils
                 HandleData(file.SrcFile, file.DstFile, file.DataState);
             }
         }
-
         public void HandleData(IProjectData dstData, DataState state)
         {
             if (dstData.DataType == ProjectDataType.File)

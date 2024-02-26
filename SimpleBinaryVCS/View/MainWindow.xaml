@@ -157,10 +157,15 @@
                     </DataGrid.Columns>
                 </DataGrid>
                 <Button 
-                        x:Name="RevertButton"
-                        Content="Checkout"
-                        Command="{Binding BackupVM.CheckoutBackup}"
+                    x:Name="RevertButton"
+                    Content="Checkout"
+                    Command="{Binding BackupVM.CheckoutBackup}"
                     />
+                <!--<Button 
+                    x:Name="ExportButton"
+                    Content="Export"
+                    Command="{Binding BackupVM.CheckoutBackup}"
+                    />-->
             </StackPanel>
 
             <GridSplitter Grid.Column="1"
