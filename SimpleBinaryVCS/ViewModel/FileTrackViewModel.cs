@@ -25,6 +25,16 @@ namespace SimpleBinaryVCS.ViewModel
                 OnPropertyChanged("ChangedFileList");
             }
         }
+        private ProjectFile? _srcProjectData;
+        public ProjectFile? SrcProjectData
+        {
+            get => _srcProjectData ??= null;
+            set
+            {
+                _srcProjectData = value;
+                OnPropertyChanged("SelectedItem");
+            }
+        }
 
         private ProjectFile? _selectedItem; 
         public ProjectFile? SelectedItem
@@ -123,7 +133,8 @@ namespace SimpleBinaryVCS.ViewModel
         private bool CanRestoreFile(object? obj)
         {
             if (obj is ProjectFile projFile &&
-                !projFile.IsDstFile) return true; 
+                (projFile.DataState == DataState.Deleted ||
+                !projFile.IsDstFile)) return true; 
             else return false;
         }
         private void RestoreFile(object? obj)

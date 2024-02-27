@@ -7,39 +7,15 @@ namespace SimpleBinaryVCS.DataComponent
 {
     public class UpdateManager : IManager
     {
-        private ProjectData? _projectMain; 
-        public ProjectData? ProjectMain
-        {
-            get
-            {
-                if (_projectMain == null)
-                {
-                    MessageBox.Show("Project Main Not Set for Update Manager");
-                    return null; 
-                }
-                return _projectMain;
-            }
-            private set
-            {
-                _projectMain = value; 
-            }
-        }
-        private Dictionary<string, ProjectFile> BackupFiles { get; set; }
-        private ProjectData? SrcProjectData { get; set; }
-        private List<ChangedFile>? currentProjectFileChanges;
-        public List<ChangedFile>? CurrentProjectFileChanges
-        {
-            get => currentProjectFileChanges;
-            private set 
-            { 
-                currentProjectFileChanges = value; 
-            }
-        }
-
-        public Action<object>? ProjectUpdateEventHandler;
-
+        private ProjectMetaData? _projectMetaData;
+        private ProjectData? _projectMain;
+        private Dictionary<string, ProjectFile> _backupFiles;
+        private ProjectData? _srcProjectData;
+        private List<ChangedFile>? _currentProjectFileChanges;
         private FileHandlerTool _fileHandlerTool;
 
+        public event Action<object>? ProjectUpdateEventHandler;
+        public event Action<string>? IssueEventHandler;
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         public UpdateManager() 
         { 
@@ -57,24 +33,19 @@ namespace SimpleBinaryVCS.DataComponent
         /// <param name="updateLog"></param>
         public void UpdateProjectMain(string updaterName, string updateLog, string currentProjectPath)
         {
-            if (ProjectMain == null)
-            {
-                MessageBox.Show("Project Data on Update Manager is Missing"); return;
-            }
-            else if (CurrentProjectFileChanges == null)
-            {
-                MessageBox.Show("File Changes does not exist"); return; 
-            }
+            if (_projectMetaData == null) { MessageBox.Show("Project MetaData on Update Manager is Missing"); return; }
+            if (_projectMain == null) { MessageBox.Show("Project Data on Update Manager is Missing"); return; }
+            else if (_currentProjectFileChanges == null) { MessageBox.Show("File Changes does not exist"); return; }
 
-            RegisterFileChanges(ProjectMain, CurrentProjectFileChanges, out StringBuilder? changeLog);
-            _fileHandlerTool.ApplyFileChanges(CurrentProjectFileChanges);
+            RegisterFileChanges(_projectMain, _currentProjectFileChanges, out StringBuilder? changeLog);
+            _fileHandlerTool.ApplyFileChanges(_currentProjectFileChanges);
 
-            string newVersionName = GetProjectVersionName(ProjectMain);
-            string conductedId = HashTool.GetUniqueComputerID(Environment.MachineName);
-            ProjectMain.ChangedFiles = CurrentProjectFileChanges;
+            string newVersionName = GetProjectVersionName(_projectMain, _projectMetaData.LocalUpdateCount);
+            string conductedId = Environment.MachineName;
+            _projectMain.ChangedFiles = _currentProjectFileChanges;
             ProjectData newProjectData = new ProjectData
                 (
-                ProjectMain,
+                _projectMain,
                 currentProjectPath,
                 updaterName,
                 DateTime.Now,   
@@ -84,8 +55,15 @@ namespace SimpleBinaryVCS.DataComponent
                 changeLog?.ToString()
                 );
 
+            _projectMetaData.LocalUpdateCount++; 
             ProjectUpdateEventHandler?.Invoke(newProjectData);
         }
+
+        public void MergeProjectMain(string updaterName, string updateLog, string currentProjectPath)
+        {
+
+        }
+
         private void RegisterFileChanges(ProjectData currentProject, List<ChangedFile> fileChanges, out StringBuilder? changeLog)
         {
             if (fileChanges.Count <= 0)
@@ -95,7 +73,7 @@ namespace SimpleBinaryVCS.DataComponent
             }
             StringBuilder newChangeLog = new StringBuilder();
 
-                foreach (ChangedFile changes in fileChanges)
+            foreach (ChangedFile changes in fileChanges)
             {
                 if (changes.DstFile == null) continue; 
                 if (!currentProject.ProjectFiles.TryGetValue(changes.DstFile.DataRelPath, out ProjectFile? existingFile))
@@ -109,13 +87,9 @@ namespace SimpleBinaryVCS.DataComponent
             }
             changeLog = newChangeLog; 
         }
-        private string GetProjectVersionName(ProjectData projData, bool isNewProject = false)
+        private string GetProjectVersionName(ProjectData projData, int currentUpdateCount)
         {
-            if (!isNewProject)
-            {
-                return $"{HashTool.GetUniqueComputerID(Environment.MachineName)}_{DateTime.Now.ToString("yyyy_MM_dd")}_{projData.RevisionNumber + 1}";
-            }
-            return $"{HashTool.GetUniqueComputerID(Environment.MachineName)}_{DateTime.Now.ToString("yyyy_MM_dd")}_v{projData.RevisionNumber + 1}";
+            return $"{Environment.MachineName}_{projData.ProjectName}_{DateTime.Now.ToString("yyyy_MM_dd")}_v{currentUpdateCount + 1}";
         }
         #region MetaData CallBack 
         public void DataStagedCallBack(object fileChangeListObj)
@@ -126,7 +100,7 @@ namespace SimpleBinaryVCS.DataComponent
         public void MetaDataLoadedCallBack(object projMetaDataObj)
         {
             if (projMetaDataObj is not ProjectMetaData projectMetaData) return;
-            BackupFiles = projectMetaData.BackupFiles;
+            _backupFiles = projectMetaData.BackupFiles;
         }
         public void ProjectLoadedCallback(object obj)
         {
@@ -135,9 +109,9 @@ namespace SimpleBinaryVCS.DataComponent
                 MessageBox.Show("Invalid Parameter has entered on Update Manager");
                 return;
             }
-            ProjectMain = loadedProject;
-            CurrentProjectFileChanges = null; 
-            SrcProjectData = null;
+            _projectMain = loadedProject;
+            _currentProjectFileChanges = null; 
+            _srcProjectData = null;
         }
         public void SrcProjectLoadedCallBack(object srcProjDataObj)
         {
@@ -145,8 +119,9 @@ namespace SimpleBinaryVCS.DataComponent
             {
                 return;
             }
-            this.SrcProjectData = srcProjectData;
+            this._srcProjectData = srcProjectData;
         }
+
         #endregion
     }
 }

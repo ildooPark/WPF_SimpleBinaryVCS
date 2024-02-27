@@ -18,63 +18,50 @@ namespace SimpleBinaryVCS.DataComponent
         Modified = 1 << 3,
         PreStaged = 1 << 4,
         IntegrityChecked = 1 << 5,
-        Backup = 1 << 6
+        Backup = 1 << 6, 
+        Overlapped = 1 << 7
     }
     public class FileManager : IManager
     {
-        public event Action<object>? SrcProjectDataEventHandler;
-        public event Action<object>? DataStagedEventHandler;
-        public event Action<object>? DataPreStagedEventHandler;
-        public event Action<object>? PreStagedDataOverlapEventHandler;
-        public event Action<object, string, List<ProjectFile>>? IntegrityCheckEventHandler;
-
+        #region Class Variables 
         private Dictionary<string, ProjectFile> _backupFiles;
         private Dictionary<string, ProjectFile> _projectFilesDict;
         private Dictionary<string, ProjectFile> _preStagedFilesDict;
         private Dictionary<string, ChangedFile> _registeredChangesDict; 
         private SemaphoreSlim _asyncControl;
-
-        private ProjectData? _currentProjectData;
-        public ProjectData? CurrentProjectData
-        {
-            get
-            {
-                if (_currentProjectData == null)
-                {
-                    MessageBox.Show("Project Data is unreachable from FileManager");
-                    return null;
-                }
-                return _currentProjectData;
-            }
-        }
-        private bool _hasIntegrityIssue; 
-        public bool HasIntegrityIssue
-        {
-            get => _hasIntegrityIssue;
-            set
-            {
-                _hasIntegrityIssue = value;
-            }
-        }
         private FileHandlerTool _fileHandlerTool;
+        private ProjectData? _dstProjectData;
+        private ProjectData? _srcProjectData;
+        private bool _hasIntegrityIssue;
+        #endregion
+
+        #region Manager Events 
+        public event Action<ProjectData>? SrcProjectDataLoadedEventHandler;
+        public event Action<List<ChangedFile>>? OverlappedFileFoundEventHandler;
+        public event Action<object>? DataStagedEventHandler;
+        public event Action<object>? DataPreStagedEventHandler;
+        public event Action<object>? PreStagedDataOverlapEventHandler;
+        public event Action<object, string, List<ProjectFile>>? IntegrityCheckEventHandler;
+        public event Action<string> IssueEventHandler;
+        #endregion
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         public FileManager()
-#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         {
             _projectFilesDict = new Dictionary<string, ProjectFile>();
             _preStagedFilesDict = new Dictionary<string, ProjectFile>();
             _registeredChangesDict = new Dictionary<string, ChangedFile>();
             _fileHandlerTool = new FileHandlerTool();
-            _asyncControl = new SemaphoreSlim(5);
+            _asyncControl = new SemaphoreSlim(8);
         }
+#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         public void Awake()
         {
         }
-        #region Identifying file differences against given version(s)
-        public void MainProjectIntegrityCheck(object sender)
+        #region Calls For File Differences
+        public async void MainProjectIntegrityCheck(object sender)
         {
-            ProjectData? mainProject = _currentProjectData;
+            ProjectData? mainProject = _dstProjectData;
             if (mainProject == null)
             {
                 MessageBox.Show("Main Project is Missing");
@@ -95,13 +82,13 @@ namespace SimpleBinaryVCS.DataComponent
                 List<string> directoryFiles = new List<string>();
                 List<string> directoryDirs = new List<string>();
 
-                string[]? rawFiles = Directory.GetFiles(mainProject.ProjectPath, "*", SearchOption.AllDirectories);
+                string[]? rawFiles = await Task.Run( () => Directory.GetFiles(mainProject.ProjectPath, "*", SearchOption.AllDirectories));
                 foreach (string absPathFile in rawFiles)
                 {
                     directoryFiles.Add(Path.GetRelativePath(mainProject.ProjectPath, absPathFile));
                 }
 
-                string[]? rawDirs = Directory.GetDirectories(mainProject.ProjectPath, "*", SearchOption.AllDirectories);
+                string[]? rawDirs = await Task.Run( () => Directory.GetDirectories(mainProject.ProjectPath, "*", SearchOption.AllDirectories));
                 foreach (string absPathFile in rawDirs)
                 {
                     directoryDirs.Add(Path.GetRelativePath(mainProject.ProjectPath, absPathFile));
@@ -164,14 +151,9 @@ namespace SimpleBinaryVCS.DataComponent
                         _registeredChangesDict.Add(dstFile.DataRelPath, new ChangedFile(srcFile, dstFile, DataState.Modified | DataState.IntegrityChecked, true));
                     }
                 }
-
                 fileIntegrityLog.AppendLine("Integrity Check Complete");
                 DataStagedEventHandler?.Invoke(_registeredChangesDict.Values.ToList());
                 IntegrityCheckEventHandler?.Invoke(sender, fileIntegrityLog.ToString(), _preStagedFilesDict.Values.ToList());
-                if (_preStagedFilesDict.Count > 0)
-                    HasIntegrityIssue = false;
-                else 
-                    HasIntegrityIssue = true; 
             }
             catch (Exception ex)
             {
@@ -343,8 +325,9 @@ namespace SimpleBinaryVCS.DataComponent
             }
         }
         #endregion
-        #region Calls For File Check
-        public bool RetrieveDataSrc(string srcPath)
+
+        #region Calls For File PreStage Update
+        public async void RetrieveDataSrc(string srcPath)
         {
             try
             {
@@ -358,31 +341,28 @@ namespace SimpleBinaryVCS.DataComponent
                         srcProjectData.ProjectPath = srcPath;
                         srcProjectData.SetProjectFilesSrcPath();
                         RegisterNewData(srcProjectData);
-                        DataPreStagedEventHandler?.Invoke(_preStagedFilesDict.Values.ToList());
+                        _srcProjectData = srcProjectData;
+                        SrcProjectDataLoadedEventHandler?.Invoke(srcProjectData);
                     }
                 }
                 else
                 {
-                    RegisterNewData(srcPath);
+                    await RegisterNewData(srcPath);
                 }
-                DataPreStagedEventHandler?.Invoke(_preStagedFilesDict.Values.ToList());
-                return true; 
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"File Manager RetrieveDataSrc Error: {ex.Message}");
-                return false;
             }
-
         }
-        public void RegisterNewData(string updateDirPath)
+        public async Task RegisterNewData(string updateDirPath)
         {
             string[]? filesFullPaths;
             string[]? dirsFullPaths;
             try
             {
-                filesFullPaths = Directory.GetFiles(updateDirPath, "*", SearchOption.AllDirectories);
-                dirsFullPaths = Directory.GetDirectories(updateDirPath, "*", SearchOption.AllDirectories);
+                filesFullPaths = await Task.Run(() => Directory.GetFiles(updateDirPath, "*", SearchOption.AllDirectories));
+                dirsFullPaths = await Task.Run(() => Directory.GetDirectories(updateDirPath, "*", SearchOption.AllDirectories));
             }
             catch (Exception ex)
             {
@@ -414,6 +394,7 @@ namespace SimpleBinaryVCS.DataComponent
                     }
                     else continue;
                 }
+
                 foreach (string dirAbsPath in dirsFullPaths)
                 {
                     ProjectFile newFile = new ProjectFile
@@ -428,6 +409,7 @@ namespace SimpleBinaryVCS.DataComponent
                     }
                     else continue;
                 }
+                DataPreStagedEventHandler?.Invoke(_preStagedFilesDict.Values.ToList());
             }
             catch (Exception ex)
             {
@@ -448,6 +430,7 @@ namespace SimpleBinaryVCS.DataComponent
                     }
                     else continue;
                 }
+                DataPreStagedEventHandler?.Invoke(_preStagedFilesDict.Values.ToList());
             }
             catch (Exception ex)
             {
@@ -455,13 +438,6 @@ namespace SimpleBinaryVCS.DataComponent
                 return;
             }
         }
-
-        public async void StageNewFilesAsync()
-        {
-            await HashPreStagedFilesAsync();
-            UpdateStageFileList();
-        }
-
         public void RegisterNewfile(ProjectFile projectFile, DataState fileState)
         {
             ProjectFile newfile = new ProjectFile(projectFile, fileState | DataState.PreStaged);
@@ -474,7 +450,18 @@ namespace SimpleBinaryVCS.DataComponent
         }
 
         #endregion
-        #region Update File Model
+
+        #region Calls for File Stage Update
+        public async void StageNewFilesAsync()
+        {
+            if (_dstProjectData == null)
+            {
+                MessageBox.Show("Project Data is unreachable from FileManager");
+                return;
+            }
+            await HashPreStagedFilesAsync();
+            UpdateStageFileList();
+        }
         private async Task HashPreStagedFilesAsync()
         {
             try
@@ -504,7 +491,14 @@ namespace SimpleBinaryVCS.DataComponent
             {
                 WPF.MessageBox.Show($"File Manager UpdateHashFromChangedList Error: {ex.Message}");
             }
-            
+            finally
+            {
+                Console.WriteLine(_asyncControl.CurrentCount);
+            }
+        }
+        private void CheckFileOverlap()
+        {
+
         }
         private void UpdateStageFileList()
         {
@@ -529,7 +523,7 @@ namespace SimpleBinaryVCS.DataComponent
                         else
                         {
                             ProjectFile srcFile = new ProjectFile(registerdFile, DataState.Backup, backupFile.DataSrcPath);
-                            ProjectFile dstFile = new ProjectFile(registerdFile, DataState.Restored, CurrentProjectData.ProjectPath);
+                            ProjectFile dstFile = new ProjectFile(registerdFile, DataState.Restored, _dstProjectData.ProjectPath);
                             ChangedFile newChange = new ChangedFile(srcFile, dstFile, DataState.Restored, true);
                             _registeredChangesDict.TryAdd(registerdFile.DataRelPath, newChange);
                         }
@@ -557,12 +551,46 @@ namespace SimpleBinaryVCS.DataComponent
                 else
                 {
                     ProjectFile srcFile = new ProjectFile(registerdFile, DataState.None);
-                    ProjectFile dstFile = new ProjectFile(registerdFile, DataState.Added, CurrentProjectData.ProjectPath);
+                    ProjectFile dstFile = new ProjectFile(registerdFile, DataState.Added, _dstProjectData.ProjectPath);
                     _registeredChangesDict.TryAdd(registerdFile.DataRelPath, new ChangedFile(srcFile, dstFile, DataState.Added));
                 }
             }
             _preStagedFilesDict.Clear();
             DataStagedEventHandler?.Invoke(_registeredChangesDict.Values.ToList());
+        }
+
+        public async void StageNewFilesAsync(string deployPath)
+        {
+            if (_dstProjectData == null)
+            {
+                MessageBox.Show("Project Data is unreachable from FileManager");
+                return;
+            }
+            await HashPreStagedFilesAsync();
+            UpdateStageFileList();
+            (bool result, List<string>? failedDataList) = DeployFileIntegrityCheck(deployPath);
+            if (!result)
+            {
+                MessageBox.Show("Failed to Stage Changes: DeployFiles Integrity Check Failed"); 
+                return;
+            }
+        }
+
+        private (bool, List<string>? failedFileList) DeployFileIntegrityCheck(string deployPath)
+        {
+            try
+            {
+                List<string> failedList = new List<string>();
+                foreach(ChangedFile changes in _registeredChangesDict.Values)
+                {
+                    if (changes.SrcFile == null && changes.DstFile != null) failedList.Add(changes.DstFile.DataName); 
+                    
+                }
+            }
+            catch (Exception ex)
+            {
+                WPF.MessageBox.Show($"{ex.Message}, Failed SrcFileIntegrityCheck On FileManager");
+            }
         }
         /// <summary>
         /// Clears All the prestagedFiles, Clears StagedFiles Except those registered as IntegrityChecked
@@ -586,6 +614,7 @@ namespace SimpleBinaryVCS.DataComponent
             DataStagedEventHandler?.Invoke(_registeredChangesDict.Values.ToList());
         }
         #endregion
+
         #region CallBacks From Parent Model 
         public void ProjectLoadedCallback(object projObj)
         {
@@ -593,8 +622,8 @@ namespace SimpleBinaryVCS.DataComponent
 
             _preStagedFilesDict.Clear();
             _registeredChangesDict.Clear();
-            this._currentProjectData = loadedProject;
-            this._projectFilesDict = _currentProjectData.ProjectFiles;
+            this._dstProjectData = loadedProject;
+            this._projectFilesDict = _dstProjectData.ProjectFiles;
             DataStagedEventHandler?.Invoke(_registeredChangesDict.Values.ToList());
         }
         public void MetaDataLoadedCallBack(object metaDataObj)

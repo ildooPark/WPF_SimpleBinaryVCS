@@ -5,7 +5,9 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:SimpleBinaryVCS.View"
         mc:Ignorable="d"
-        Title="MainWindow" Height="1200" Width="1500">
+        Title="MainWindow" Height="900" Width="1500"
+        MinHeight="850"
+        MinWidth="1450">
 
     <Grid>
         <Grid.RowDefinitions>
@@ -78,7 +80,7 @@
                         <DataGridTextColumn Header="HashValue" Binding="{Binding DataHash}" Width ="1*"/>
                     </DataGrid.Columns>
                 </DataGrid>
-                
+
                 <DataGrid Grid.Row="2"
                     Name="DiffLog" 
                     ItemsSource='{Binding BackupVM.DiffLog}'
@@ -155,6 +157,13 @@
                         <DataGridTextColumn Header="Revision Number" Binding="{Binding RevisionNumber}" Width ="1*"/>
                         <DataGridTextColumn Header="Changes" Binding="{Binding NumberOfChanges}" Width ="1*"/>
                     </DataGrid.Columns>
+                    <DataGrid.ContextMenu>
+                        <ContextMenu>
+                            <MenuItem Header="Export Full Version" Name="Export" Command="{Binding BackupVM.ExportVersion}"/>
+                            <MenuItem Header="Extract Version Log" Name="Extract" Command="{Binding BackupVM.ExtractLog}"/>
+                            <MenuItem Header="Checkout Version" Name="CheckOut" Command="{Binding BackupVM.CheckoutBackup}"/>
+                        </ContextMenu>
+                    </DataGrid.ContextMenu>
                 </DataGrid>
                 <Button 
                     x:Name="RevertButton"
@@ -282,9 +291,8 @@
         </Grid>
         <Grid>
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="240*"/>
-                <ColumnDefinition Width="240*"/>
-                <ColumnDefinition Width="29*"/>
+                <ColumnDefinition Width="400*"/>
+                <ColumnDefinition Width="150*"/>
                 <ColumnDefinition Width="291*"/>
             </Grid.ColumnDefinitions>
             <StackPanel Grid.Column="0" Orientation="Horizontal">
@@ -294,31 +302,37 @@
                     Content="GetDeploySrcDir" 
                     Height="Auto" 
                     Command="{Binding FileTrackVM.GetDeploySrcDir}"
-                    Width="Auto" />
+                    Width="175" />
+                <Button
+                    x:Name="SrcProjectLog" 
+                    Content="SrcProjectLog" 
+                    HorizontalAlignment="Left"
+                    Height="Auto" 
+                    Command="{Binding FileTrackVM.GetDeployedProjectInfo}"
+                    Width="100" />
                 <Button
                     x:Name="GetProject" 
                     Content="GetProjectDir" 
                     HorizontalAlignment="Left"
                     Height="Auto" 
                     Command="{Binding MetaDataVM.GetProject}"
-                    Width="Auto" />
+                    Width="175" />
                 <Button
                     x:Name="FetchButton" 
                     Content="Fetch" 
                     HorizontalAlignment="Left"
                     Height="Auto" 
                     Command="{Binding BackupVM.FetchBackup}"
-                    Width="Auto" />
+                    Width="50" />
                 <Button
                     x:Name="FullLogButton" 
-                    Content="Full Log" 
-                    HorizontalAlignment="Right"
+                    Content="Full Log"
                     Height="Auto" 
                     Command="{Binding BackupVM.ViewFullLog}"
-                    Width="Auto" />
+                    Width="100" />
             </StackPanel>
-            
-<Button Grid.Column="1"
+
+            <Button Grid.Column="1"
                 x:Name="IntegrityCheckButton" 
                 Content="Version Integrity Check" 
                 HorizontalAlignment="Center"

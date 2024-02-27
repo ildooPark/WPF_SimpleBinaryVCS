@@ -20,8 +20,8 @@ namespace SimpleBinaryVCS.DataComponent
         public event Action<object>? MetaDataLoadedEventHandler;
         public event Action<object>? FetchRequestEventHandler;
         public event Action<object, string, ObservableCollection<ProjectFile>>? IntegrityCheckCompleteEventHandler;
+        public event Action<string> IssueEventHandler;
 
-        public Action? VersionCheckFinished;
         private ProjectMetaData? _projectMetaData;
         public ProjectMetaData? ProjectMetaData
         {
@@ -30,6 +30,7 @@ namespace SimpleBinaryVCS.DataComponent
             {
                 if (value == null) throw new ArgumentNullException(nameof(ProjectMetaData));
                 _projectMetaData = value;
+                CurrentProjectPath = value.ProjectPath;
                 MetaDataLoadedEventHandler?.Invoke(value);
             }
         }
@@ -95,7 +96,7 @@ namespace SimpleBinaryVCS.DataComponent
             _fileManager.IntegrityCheckEventHandler += ProjectIntegrityCheckCallBack;
             _fileManager.DataPreStagedEventHandler += DataPreStagedCallBack;
             _fileManager.DataStagedEventHandler += DataStagedCallBack;
-            _fileManager.SrcProjectDataEventHandler += SrcProjectLoadedCallBack;
+            _fileManager.SrcProjectDataLoadedEventHandler += SrcProjectLoadedCallBack;
         }
 
         #region View Model Request Calls
@@ -103,14 +104,12 @@ namespace SimpleBinaryVCS.DataComponent
         {
             string projectMetaDataPath = $"{projectPath}\\ProjectMetaData.bin";
 
-            
-            CurrentProjectPath = projectPath;
-
             try
             {
                 _fileHandlerTool.TryDeserializeProjectMetaData(projectMetaDataPath, out ProjectMetaData? retrievedData);
                 if (retrievedData != null)
                 {
+                    retrievedData.ProjectPath = projectPath;
                     ProjectMetaData = retrievedData;
                     MainProjectData = retrievedData.ProjectMain;
                 }
@@ -166,6 +165,7 @@ namespace SimpleBinaryVCS.DataComponent
                     newProjectData.ChangedFiles.Add(new ChangedFile(new ProjectFile(newFile), DataState.Added));
                     changeLog.AppendLine($"Added {newFile.DataName}");
                 }
+
                 foreach (string dirPath in newProjectDirs)
                 {
                     ProjectFile newFile = new ProjectFile
@@ -186,6 +186,7 @@ namespace SimpleBinaryVCS.DataComponent
                     newProjectData.ChangedFiles.Add(new ChangedFile(new ProjectFile(newFile), DataState.Added));
                     changeLog.AppendLine($"Added {newFile.DataName}");
                 }
+
                 newProjectData.UpdatedTime = DateTime.Now;
                 newProjectData.ChangeLog = changeLog.ToString();
                 newProjectData.NumberOfChanges = newProjectData.ProjectFilesObs.Count;
@@ -197,12 +198,14 @@ namespace SimpleBinaryVCS.DataComponent
                 return;
             }
         }
-        public bool RequestSrcDataRetrieval(string deployedPath)
+        public void RequestSrcDataRetrieval(string deployedPath)
         {
-            bool result = _fileManager.RetrieveDataSrc(deployedPath);
-            if (!result) return false;
-            return true; 
+            _fileManager.RetrieveDataSrc(deployedPath);
         }
+        /// <summary>
+        /// Triggers FetchRequestEventHandler if True
+        /// </summary>
+        /// <returns></returns>
         public bool RequestFetchBackup()
         {
             bool result = _backupManager.FetchBackupProjectList();
@@ -216,8 +219,8 @@ namespace SimpleBinaryVCS.DataComponent
                 MessageBox.Show("Invalid Request For Backup: Targeting Project is Null");
                 return;
             }
+
             List<ChangedFile>? fileDifferences = _fileManager.FindVersionDifferences(targetProject, MainProjectData, true);
-            
             _backupManager.RevertProject(targetProject, fileDifferences);
         }
         public void RequestStageChanges()
@@ -230,6 +233,7 @@ namespace SimpleBinaryVCS.DataComponent
             _fileManager.ClearDeployedFileChanges();
         }
 
+        public void Request
         public void RequestProjectIntegrityTest(object requester)
         {
             _fileManager.MainProjectIntegrityCheck(requester);

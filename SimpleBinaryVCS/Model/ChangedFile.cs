@@ -27,19 +27,19 @@ namespace SimpleBinaryVCS.Model
                 this.DstFile = null;
             this.DataState = srcChangedfile.DataState;
         }
-        public ChangedFile(ProjectFile DstFile, DataState DataState)
+        public ChangedFile(ProjectFile DstFile, DataState _DataState)
         {
             this.SrcFile = null;
             this.DstFile = DstFile;
-            DstFile.IsDstFile = true; 
+            DstFile.IsDstFile = (_DataState & DataState.Overlapped) == 0 ? true : false; 
             this.DataState = DataState;
         }
-        public ChangedFile(ProjectFile SrcFile,  ProjectFile DstFile, DataState DataState, bool RegisterChanges)
+        public ChangedFile(ProjectFile SrcFile,  ProjectFile DstFile, DataState _DataState, bool RegisterChanges)
         {
             this.SrcFile = SrcFile;
             SrcFile.IsDstFile = false; 
             this.DstFile = DstFile;
-            DstFile.IsDstFile = true;
+            DstFile.IsDstFile = (_DataState & DataState.Overlapped) == 0 ? true : false;
             this.DataState = DataState;
         }
         [JsonConstructor]

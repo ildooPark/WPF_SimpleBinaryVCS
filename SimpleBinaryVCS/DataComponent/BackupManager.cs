@@ -8,26 +8,8 @@ namespace SimpleBinaryVCS.DataComponent
 {
     public class BackupManager : IManager
     {
-        private ProjectMetaData? _projectMetaData;
-        public ProjectMetaData? ProjectMetaData
-        {
-            get
-            {
-                if (_projectMetaData == null)
-                {
-                    MessageBox.Show("Missing ProjectMetaData on BackupManager");
-                    return null;
-                }
-                return _projectMetaData;
-            }
-            private set
-            {
-                _projectMetaData = value;
-            }
-        }
-
+        public ProjectMetaData? ProjectMetaData { get; set; }
         public Dictionary<string, ProjectFile>? BackupFiles => ProjectMetaData?.BackupFiles;
-
         private LinkedList<ProjectData>? BackupProjectDataList => ProjectMetaData?.ProjectDataList;
         public ObservableCollection<ProjectData>? ProjectBackupListObservable
         {
@@ -37,9 +19,12 @@ namespace SimpleBinaryVCS.DataComponent
                 return new ObservableCollection<ProjectData>(BackupProjectDataList);
             }
         }
+
         //public event Action? ExportBackupEventHandler; 
         public event Action<object>? ProjectRevertEventHandler;
-        public event Action<object>? FetchCompleteEventHandler; 
+        public event Action<object>? FetchCompleteEventHandler;
+        public event Action<string> IssueEventHandler;
+
         private FileHandlerTool _fileHandlerTool;
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         public BackupManager()
@@ -47,50 +32,43 @@ namespace SimpleBinaryVCS.DataComponent
         {
             _fileHandlerTool = new FileHandlerTool();
         }
-        public void Awake()
-        {
-        }
-
+        public void Awake(){}
         private void BackupProject(ProjectData projectData)
         {
-            if (BackupProjectDataList == null || _projectMetaData == null)
-            { Console.WriteLine("Failed to Load ProjectMetaData: BackupProjectList is Null"); return; }
+            if (BackupProjectDataList == null || ProjectMetaData == null)
+            { 
+                Console.WriteLine("Failed to Load ProjectMetaData: BackupProjectList is Null"); 
+                return; 
+            }
             bool hasBackup = BackupProjectDataList.Contains(projectData);
             if (!hasBackup)
             {
                 RegisterBackupFiles(projectData);
-                _projectMetaData.ProjectDataList.AddFirst(new ProjectData(projectData));
-                _projectMetaData.UpdateCount++;
+                ProjectMetaData.ProjectDataList.AddFirst(new ProjectData(projectData));
             }
-            string projectMetaDataPath = $"{_projectMetaData.ProjectPath}\\ProjectMetaData.bin";
-            bool serializeSuccess = _fileHandlerTool.TrySerializeProjectMetaData(_projectMetaData, projectMetaDataPath);
+            string projectMetaDataPath = $"{ProjectMetaData.ProjectPath}\\ProjectMetaData.bin";
+            bool serializeSuccess = _fileHandlerTool.TrySerializeProjectMetaData(ProjectMetaData, projectMetaDataPath);
             if (serializeSuccess)
             {
-                _projectMetaData.ProjectMain = projectData;
+                ProjectMetaData.ProjectMain = projectData;
             }
-            else
-                _projectMetaData.ProjectMain = null; 
-                FetchCompleteEventHandler?.Invoke(ProjectBackupListObservable);
-
+            FetchCompleteEventHandler?.Invoke(ProjectBackupListObservable);
         }
         #region Callbacks
-        // Save BackUp 
-
         /// <summary>
         /// By Default should Point to ProjectMain, Make backup of the ucrrent project main before applying new changes. 
         /// </summary>
-        /// <param name="projectData">Should Point to ProjectMain</param>
         public void ProjectLoadedCallback (object? projectObj)
         {
             if (projectObj is not ProjectData newMainProject) return;
-            if (_projectMetaData == null || BackupProjectDataList == null || BackupFiles == null) return;
+            if (ProjectMetaData == null || BackupProjectDataList == null || BackupFiles == null) return;
             BackupProject(newMainProject);
         }
         public void MetaDataLoadedCallBack(object metaDataObj)
         {
             if (metaDataObj is not ProjectMetaData projectMetaData) return;
             if (projectMetaData == null) return;
-            this._projectMetaData = projectMetaData;
+            this.ProjectMetaData = projectMetaData;
         }
         #endregion
         private void RegisterBackupFiles(ProjectData projectData)
@@ -117,7 +95,7 @@ namespace SimpleBinaryVCS.DataComponent
         #region Link To View Model 
         public bool FetchBackupProjectList()
         {
-            if (_projectMetaData == null || _projectMetaData.ProjectDataList == null) return false;
+            if (ProjectMetaData == null || ProjectMetaData.ProjectDataList == null) return false;
             FetchCompleteEventHandler?.Invoke(ProjectBackupListObservable);
             return true;
         }

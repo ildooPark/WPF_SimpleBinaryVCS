@@ -49,11 +49,6 @@ namespace SimpleBinaryVCS.Model
         /// <summary>
         /// Lacks FileHash, DeployedProjectVersion, FileChangedState
         /// </summary>
-        /// <param name="isNew"></param>
-        /// <param name="fileSize"></param>
-        /// <param name="fileName"></param>
-        /// <param name="filePath"></param>
-        /// <param name="fileVersion"></param>
         public ProjectFile(long fileSize, string? fileVersion, string fileName, string fileSrcPath, string fileRelPath, DataState changedState)
         {
             this.DataSize = fileSize;
@@ -69,16 +64,6 @@ namespace SimpleBinaryVCS.Model
         /// <summary>
         /// For PreStagedProjectFile Data Type = File 
         /// </summary>
-        /// <param name="DataType"></param>
-        /// <param name="DataSize"></param>
-        /// <param name="BuildVersion"></param>
-        /// <param name="DeployedProjectVersion"></param>
-        /// <param name="UpdateTime"></param>
-        /// <param name="DataState"></param>
-        /// <param name="DataName"></param>
-        /// <param name="DataSrcPath"></param>
-        /// <param name="DataRelPath"></param>
-        /// <param name="DataHash"></param>
         public ProjectFile(long DataSize, string? BuildVersion, string DataName, string DataSrcPath, string DataRelPath)
         {
             this.DataType = ProjectDataType.File;
@@ -95,16 +80,6 @@ namespace SimpleBinaryVCS.Model
         /// <summary>
         /// For PreStagedProjectFile Data Type = Directory 
         /// </summary>
-        /// <param name="DataType"></param>
-        /// <param name="DataSize"></param>
-        /// <param name="BuildVersion"></param>
-        /// <param name="DeployedProjectVersion"></param>
-        /// <param name="UpdateTime"></param>
-        /// <param name="DataState"></param>
-        /// <param name="DataName"></param>
-        /// <param name="DataSrcPath"></param>
-        /// <param name="DataRelPath"></param>
-        /// <param name="DataHash"></param>
         public ProjectFile(string DataName, string DataSrcPath, string DataRelPath)
         {
             this.DataType = ProjectDataType.Directory;
@@ -190,7 +165,6 @@ namespace SimpleBinaryVCS.Model
             this.DataType = dataType;
         }
         #endregion
-
         public int CompareTo(ProjectFile? other) 
         {
             if (this.UpdatedTime.CompareTo(other.UpdatedTime) == 0)
@@ -201,8 +175,6 @@ namespace SimpleBinaryVCS.Model
         /// Checks 1. fileName, 2. fileVersion 
         /// IF all returns as true, then MD5 checksum is used to compute the differences.
         /// </summary>
-        /// <param name = "other" ></ param >
-        /// < returns ></ returns >
         public bool Equals(ProjectFile? other)
         {
             if (other == null)
@@ -215,8 +187,6 @@ namespace SimpleBinaryVCS.Model
         /// <summary>
         /// Returns False if not Same
         /// </summary>
-        /// <param name="other"></param>
-        /// <returns></returns>
         public bool CheckSize(ProjectFile other)
         {
             return other.DataSize == this.DataSize;
