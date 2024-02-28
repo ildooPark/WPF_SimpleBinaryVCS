@@ -187,6 +187,7 @@ namespace SimpleBinaryVCS.Utils
                 {
                     if (!Directory.Exists(Path.GetDirectoryName(dstPath)))
                         Directory.CreateDirectory(Path.GetDirectoryName(dstPath));
+                    if (srcPath == dstPath) return;
                     File.Copy(srcPath, dstPath, true);
                 }
             }
