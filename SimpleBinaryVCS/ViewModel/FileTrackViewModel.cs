@@ -15,24 +15,34 @@ namespace SimpleBinaryVCS.ViewModel
     }
     public class FileTrackViewModel : ViewModelBase
     {
-        private ObservableCollection<ProjectFile>? changedFileList; 
+        private ObservableCollection<ProjectFile>? _changedFileList; 
         public ObservableCollection<ProjectFile> ChangedFileList 
         {
-            get => changedFileList ??= new ObservableCollection<ProjectFile>();
+            get => _changedFileList ??= new ObservableCollection<ProjectFile>();
             set
             {
-                changedFileList = value;
+                _changedFileList = value;
                 OnPropertyChanged("ChangedFileList");
             }
         }
-
-        private ProjectFile? selectedItem; 
-        public ProjectFile? SelectedItem
+        private ProjectFile? _srcProjectData;
+        public ProjectFile? SrcProjectData
         {
-            get => selectedItem ??= null; 
+            get => _srcProjectData ??= null;
             set
             {
-                selectedItem = value;
+                _srcProjectData = value;
+                OnPropertyChanged("SelectedItem");
+            }
+        }
+
+        private ProjectFile? _selectedItem; 
+        public ProjectFile? SelectedItem
+        {
+            get => _selectedItem ??= null; 
+            set
+            {
+                _selectedItem = value;
                 OnPropertyChanged("SelectedItem"); 
             }
         }
@@ -53,16 +63,17 @@ namespace SimpleBinaryVCS.ViewModel
         public ICommand? GetDeployedProjectInfo => getDeployedProjectInfo ??= new RelayCommand(OpenDeployedProjectInfo, CanOpenDeployedProjectInfo);
         private ICommand? getDeploySrcDir;
         public ICommand GetDeploySrcDir => getDeploySrcDir ??= new RelayCommand(SetDeploySrcDirectory, CanSetDeployDir);
-        private MetaDataManager metaDataManager;
-        private ProjectData? deployedProjectData;
-
+        
+        private MetaDataManager _metaDataManager;
+        private ProjectData? _deployedProjectData;
         public FileTrackViewModel()
         {
-            this.metaDataManager = App.MetaDataManager;
-            this.metaDataManager.SrcProjectLoadedEventHandler += SrcProjectDataCallBack;
-            this.metaDataManager.PreStagedChangesEventHandler += PreStagedChangesCallBack;
-            this.metaDataManager.ProjectIntegrityCheckEventHandler += ProjectIntegrityCheckCallBack;
-            this.metaDataManager.FileChangesEventHandler += FileChangeListUpdateCallBack;
+            this._metaDataManager = App.MetaDataManager;
+            this._metaDataManager.OverlappedFileSortEventHandler += OverlapFileSortCallBack; 
+            this._metaDataManager.SrcProjectLoadedEventHandler += SrcProjectDataCallBack;
+            this._metaDataManager.PreStagedChangesEventHandler += PreStagedChangesCallBack;
+            this._metaDataManager.IntegrityCheckCompleteEventHandler += ProjectIntegrityCheckCallBack;
+            this._metaDataManager.FileChangesEventHandler += FileChangeListUpdateCallBack;
         }
 
         private bool CanSetDeployDir(object obj)
@@ -77,9 +88,9 @@ namespace SimpleBinaryVCS.ViewModel
                 var openUpdateDir = new WinForms.FolderBrowserDialog();
                 if (openUpdateDir.ShowDialog() == DialogResult.OK)
                 {
-                    deployedProjectData = null;
+                    _deployedProjectData = null;
                     updateDirPath = openUpdateDir.SelectedPath;
-                    metaDataManager.RequestSrcDataRetrieval(updateDirPath);
+                    _metaDataManager.RequestSrcDataRetrieval(updateDirPath);
                 }
                 else
                 {
@@ -96,18 +107,18 @@ namespace SimpleBinaryVCS.ViewModel
         private bool CanStageChanges(object obj) { return ChangedFileList.Count != 0; }
         private void StageNewChanges(object obj)
         {
-            metaDataManager.RequestStageChanges();
+            _metaDataManager.RequestStageChanges();
         }
 
         private bool CanOpenDeployedProjectInfo(object obj)
         {
-            return deployedProjectData != null;
+            return _deployedProjectData != null;
         }
 
         public void OpenDeployedProjectInfo(object obj)
         {
             var mainWindow = obj as WPF.Window;
-            IntegrityLogWindow logWindow = new IntegrityLogWindow(deployedProjectData);
+            IntegrityLogWindow logWindow = new IntegrityLogWindow(_deployedProjectData);
             logWindow.Owner = mainWindow;
             logWindow.WindowStartupLocation = WPF.WindowStartupLocation.CenterOwner;
             logWindow.Show();
@@ -116,21 +127,22 @@ namespace SimpleBinaryVCS.ViewModel
         private bool CanClearFiles(object obj) { return ChangedFileList.Count != 0; }
         private void ClearFiles(object obj)
         {
-            metaDataManager.RequestClearStagedFiles();
+            _metaDataManager.RequestClearStagedFiles();
         }
 
         
         private bool CanRestoreFile(object? obj)
         {
             if (obj is ProjectFile projFile &&
-                !projFile.IsDstFile) return true; 
+                (projFile.DataState == DataState.Deleted ||
+                !projFile.IsDstFile)) return true; 
             else return false;
         }
         private void RestoreFile(object? obj)
         {
             if (obj is ProjectFile file)
             {
-                metaDataManager.RequestFileRestore(file, DataState.Restored);
+                _metaDataManager.RequestFileRestore(file, DataState.Restored);
             }
         }
 
@@ -140,20 +152,20 @@ namespace SimpleBinaryVCS.ViewModel
         }
         private void MainProjectIntegrityTest(object sender)
         {
-            metaDataManager.RequestProjectIntegrityTest(sender);
+            _metaDataManager.RequestProjectIntegrityTest(sender);
         }
 
         #region Receive Callback From Model 
         private void StageRequestCallBack(ObservableCollection<ProjectFile> stagedChanges)
         {
-            changedFileList = stagedChanges;
+            _changedFileList = stagedChanges;
         }
-        private void PreStagedFileOverlapCallBack(object overlappedFileObj)
+        private void OverlapFileSortCallBack(List<ChangedFile> overlappedFileObj)
         {
-            if (overlappedFileObj is not ProjectFile file) return;
-            MessageBox.Show($"PreStaged file {file.DataName} Already Exists");
-            // User should be able to choose which to update.
-            // Pop List ComboBox
+            OverlapFileWindow overlapFileWindow = new OverlapFileWindow(overlappedFileObj);
+            overlapFileWindow.Owner = App.Current.MainWindow;
+            overlapFileWindow.WindowStartupLocation = WPF.WindowStartupLocation.CenterOwner;
+            overlapFileWindow.Show();
         }
 
         private void PreStagedChangesCallBack(object changedFileList)
@@ -183,7 +195,7 @@ namespace SimpleBinaryVCS.ViewModel
         private void SrcProjectDataCallBack(object srcProjectDataObj)
         {
             if (srcProjectDataObj is not ProjectData srcProjectData) return;
-            this.deployedProjectData = srcProjectData;
+            this._deployedProjectData = srcProjectData;
         }
         #endregion
     }

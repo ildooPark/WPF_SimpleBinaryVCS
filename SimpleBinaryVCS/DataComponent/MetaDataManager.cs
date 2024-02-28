@@ -13,38 +13,40 @@ namespace SimpleBinaryVCS.DataComponent
         public string? CurrentProjectPath {  get; set; }
 
         public event Action<ObservableCollection<ProjectFile>>? FileChangesEventHandler;
+        public event Action<List<ChangedFile>>? OverlappedFileSortEventHandler; 
         public event Action<object>? StagedChangesEventHandler;
         public event Action<object>? PreStagedChangesEventHandler;
         public event Action<object>? SrcProjectLoadedEventHandler;
         public event Action<object>? ProjectLoadedEventHandler;
         public event Action<object>? MetaDataLoadedEventHandler;
         public event Action<object>? FetchRequestEventHandler;
-        public event Action<object, string, ObservableCollection<ProjectFile>>? ProjectIntegrityCheckEventHandler;
+        public event Action<object, string, ObservableCollection<ProjectFile>>? IntegrityCheckCompleteEventHandler;
+        public event Action<string> IssueEventHandler;
 
-        public Action? VersionCheckFinished;
-        private ProjectMetaData? projectMetaData;
+        private ProjectMetaData? _projectMetaData;
         public ProjectMetaData? ProjectMetaData
         {
-            get => projectMetaData;
+            get => _projectMetaData;
             private set
             {
                 if (value == null) throw new ArgumentNullException(nameof(ProjectMetaData));
-                projectMetaData = value;
+                _projectMetaData = value;
+                CurrentProjectPath = value.ProjectPath;
                 MetaDataLoadedEventHandler?.Invoke(value);
             }
         }
 
-        private ProjectData? mainProjectData; 
+        private ProjectData? _mainProjectData; 
         public ProjectData? MainProjectData 
         {
-            get => mainProjectData;
+            get => _mainProjectData;
             private set
             {
-                if (value == null || value is not ProjectData) throw new ArgumentNullException(nameof(mainProjectData));
+                if (value == null || value is not ProjectData) throw new ArgumentNullException(nameof(_mainProjectData));
                 else if (ProjectMetaData == null) throw new ArgumentNullException(nameof(ProjectMetaData));
-                mainProjectData = new ProjectData(value);
-                ProjectMetaData.ProjectMain = mainProjectData;
-                ProjectLoadedEventHandler?.Invoke(mainProjectData);
+                _mainProjectData = new ProjectData(value);
+                ProjectMetaData.ProjectMain = _mainProjectData;
+                ProjectLoadedEventHandler?.Invoke(_mainProjectData);
             }
         }
 
@@ -58,10 +60,10 @@ namespace SimpleBinaryVCS.DataComponent
             }
         }
 
-        private FileManager fileManager;
-        private BackupManager backupManager;
-        private UpdateManager updateManager;
-        private FileHandlerTool fileHandlerTool;
+        private FileManager _fileManager;
+        private BackupManager _backupManager;
+        private UpdateManager _updateManager;
+        private FileHandlerTool _fileHandlerTool;
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         public MetaDataManager()
@@ -71,31 +73,33 @@ namespace SimpleBinaryVCS.DataComponent
 
         public void Awake()
         {
-            backupManager = App.BackupManager;
-            fileManager = App.FileManager;
-            updateManager = App.UpdateManager;
-            fileHandlerTool = new FileHandlerTool();
+            _backupManager = App.BackupManager;
+            _fileManager = App.FileManager;
+            _updateManager = App.UpdateManager;
+            _fileHandlerTool = new FileHandlerTool();
 
-            MetaDataLoadedEventHandler += backupManager.MetaDataLoadedCallBack;
-            MetaDataLoadedEventHandler += fileManager.MetaDataLoadedCallBack;
-            MetaDataLoadedEventHandler += updateManager.MetaDataLoadedCallBack;
+            MetaDataLoadedEventHandler += _backupManager.MetaDataLoadedCallBack;
+            MetaDataLoadedEventHandler += _fileManager.MetaDataLoadedCallBack;
+            MetaDataLoadedEventHandler += _updateManager.MetaDataLoadedCallBack;
 
-            ProjectLoadedEventHandler += backupManager.ProjectLoadedCallback;
-            ProjectLoadedEventHandler += fileManager.ProjectLoadedCallback;
-            ProjectLoadedEventHandler += updateManager.ProjectLoadedCallback;
+            ProjectLoadedEventHandler += _backupManager.ProjectLoadedCallback;
+            ProjectLoadedEventHandler += _fileManager.ProjectLoadedCallback;
+            ProjectLoadedEventHandler += _updateManager.ProjectLoadedCallback;
 
-            SrcProjectLoadedEventHandler += updateManager.SrcProjectLoadedCallBack;
-            StagedChangesEventHandler += updateManager.DataStagedCallBack;
+            SrcProjectLoadedEventHandler += _updateManager.SrcProjectLoadedCallBack;
+            StagedChangesEventHandler += _updateManager.DataStagedCallBack;
 
-            backupManager.ProjectRevertEventHandler += ProjectChangeCallBack;
-            backupManager.FetchCompleteEventHandler += FetchRequestCallBack;
+            _backupManager.ProjectRevertEventHandler += ProjectChangeCallBack;
+            _backupManager.FetchCompleteEventHandler += FetchRequestCallBack;
 
-            updateManager.ProjectUpdateEventHandler += ProjectChangeCallBack;
+            _updateManager.ProjectUpdateEventHandler += ProjectChangeCallBack;
 
-            fileManager.IntegrityCheckEventHandler += ProjectIntegrityCheckCallBack;
-            fileManager.DataPreStagedEventHandler += DataPreStagedCallBack;
-            fileManager.DataStagedEventHandler += DataStagedCallBack;
-            fileManager.SrcProjectDataEventHandler += SrcProjectLoadedCallBack;
+            _fileManager.DataPreStagedEventHandler += DataPreStagedCallBack;
+            _fileManager.DataStagedEventHandler += DataStagedCallBack;
+            _fileManager.OverlappedFileFoundEventHandler += OverlapFileFoundCallBack; 
+            _fileManager.IntegrityCheckEventHandler += ProjectIntegrityCheckCallBack;
+
+            _fileManager.SrcProjectDataLoadedEventHandler += SrcProjectLoadedCallBack;
         }
 
         #region View Model Request Calls
@@ -103,14 +107,12 @@ namespace SimpleBinaryVCS.DataComponent
         {
             string projectMetaDataPath = $"{projectPath}\\ProjectMetaData.bin";
 
-            
-            CurrentProjectPath = projectPath;
-
             try
             {
-                fileHandlerTool.TryDeserializeProjectMetaData(projectMetaDataPath, out ProjectMetaData? retrievedData);
+                _fileHandlerTool.TryDeserializeProjectMetaData(projectMetaDataPath, out ProjectMetaData? retrievedData);
                 if (retrievedData != null)
                 {
+                    retrievedData.ProjectPath = projectPath;
                     ProjectMetaData = retrievedData;
                     MainProjectData = retrievedData.ProjectMain;
                 }
@@ -166,6 +168,7 @@ namespace SimpleBinaryVCS.DataComponent
                     newProjectData.ChangedFiles.Add(new ChangedFile(new ProjectFile(newFile), DataState.Added));
                     changeLog.AppendLine($"Added {newFile.DataName}");
                 }
+
                 foreach (string dirPath in newProjectDirs)
                 {
                     ProjectFile newFile = new ProjectFile
@@ -186,6 +189,7 @@ namespace SimpleBinaryVCS.DataComponent
                     newProjectData.ChangedFiles.Add(new ChangedFile(new ProjectFile(newFile), DataState.Added));
                     changeLog.AppendLine($"Added {newFile.DataName}");
                 }
+
                 newProjectData.UpdatedTime = DateTime.Now;
                 newProjectData.ChangeLog = changeLog.ToString();
                 newProjectData.NumberOfChanges = newProjectData.ProjectFilesObs.Count;
@@ -197,15 +201,17 @@ namespace SimpleBinaryVCS.DataComponent
                 return;
             }
         }
-        public bool RequestSrcDataRetrieval(string deployedPath)
+        public void RequestSrcDataRetrieval(string deployedPath)
         {
-            bool result = fileManager.RetrieveDataSrc(deployedPath);
-            if (!result) return false;
-            return true; 
+             _fileManager.RetrieveDataSrc(deployedPath);
         }
+        /// <summary>
+        /// Triggers FetchRequestEventHandler if True
+        /// </summary>
+        /// <returns></returns>
         public bool RequestFetchBackup()
         {
-            bool result = backupManager.FetchBackupProjectList();
+            bool result = _backupManager.FetchBackupProjectList();
             if (!result) return false;
             return true;
         }
@@ -216,28 +222,33 @@ namespace SimpleBinaryVCS.DataComponent
                 MessageBox.Show("Invalid Request For Backup: Targeting Project is Null");
                 return;
             }
-            List<ChangedFile>? fileDifferences = fileManager.FindVersionDifferences(targetProject, MainProjectData, true);
-            
-            backupManager.RevertProject(targetProject, fileDifferences);
+
+            List<ChangedFile>? fileDifferences = _fileManager.FindVersionDifferences(targetProject, MainProjectData, true);
+            _backupManager.RevertProject(targetProject, fileDifferences);
         }
         public void RequestStageChanges()
         {
-            fileManager.StageNewFilesAsync();
+            _fileManager.StageNewFilesAsync();
         }
 
         public void RequestClearStagedFiles()
         {
-            fileManager.ClearDeployedFileChanges();
+            _fileManager.ClearDeployedFileChanges();
+        }
+
+        public void RequestOverlappedFileAllocation(List<ChangedFile> overlapSorted)
+        {
+            _fileManager.RegisterOverlapped(overlapSorted);
         }
 
         public void RequestProjectIntegrityTest(object requester)
         {
-            fileManager.MainProjectIntegrityCheck(requester);
+            _fileManager.MainProjectIntegrityCheck(requester);
         }
 
         public void RequestFileRestore(ProjectFile targetFile, DataState state)
         {
-            fileManager.RegisterNewfile(targetFile, state);
+            _fileManager.RegisterNewfile(targetFile, state);
         }
 
         public void RequestUpdate(string? updaterName, string? updateLog, string? currentProjectPath)
@@ -247,7 +258,7 @@ namespace SimpleBinaryVCS.DataComponent
                 MessageBox.Show("Project Path must be set for Update Request");
                 return;
             }
-            updateManager.UpdateProjectMain(updaterName, updateLog, currentProjectPath);
+            _updateManager.UpdateProjectMain(updaterName, updateLog, currentProjectPath);
         }
         #endregion
         #region Version Management Tools
@@ -255,16 +266,16 @@ namespace SimpleBinaryVCS.DataComponent
         {
             if (!isNewProject)
             {
-                return $"{HashTool.GetUniqueComputerID(Environment.MachineName)}_{DateTime.Now.ToString("yyyy_MM_dd")}_v{projData.RevisionNumber + 1}";
+                return $"{projData.ProjectName}_{Environment.MachineName}_{DateTime.Now.ToString("yyyy_MM_dd")}_v{projData.RevisionNumber + 1}";
             }
-            return $"{HashTool.GetUniqueComputerID(Environment.MachineName)}_{DateTime.Now.ToString("yyyy_MM_dd")}_v{projData.RevisionNumber}";
+            return $"{projData.ProjectName}_{Environment.MachineName}_{DateTime.Now.ToString("yyyy_MM_dd")}_v{projData.RevisionNumber}";
         }
 
         #endregion
         #region Callbacks
         private void ProjectIntegrityCheckCallBack(object sender, string changeLog, List<ProjectFile> changedFileList)
         {
-            ProjectIntegrityCheckEventHandler?.Invoke(sender, changeLog, new ObservableCollection<ProjectFile>(changedFileList));
+            IntegrityCheckCompleteEventHandler?.Invoke(sender, changeLog, new ObservableCollection<ProjectFile>(changedFileList));
         }
 
         private void DataPreStagedCallBack(object preStagedFileListObj)
@@ -290,6 +301,12 @@ namespace SimpleBinaryVCS.DataComponent
             StagedChangesEventHandler?.Invoke(stagedFiles);
         }
 
+        private void OverlapFileFoundCallBack(object overlapFileListObj)
+        {
+            if (overlapFileListObj is not List<ChangedFile> overlapFileList) return;
+            OverlappedFileSortEventHandler?.Invoke(overlapFileList);
+        }
+
         private void ProjectChangeCallBack(object projObj)
         {
             if (projObj is not ProjectData projData) return;
@@ -308,6 +325,7 @@ namespace SimpleBinaryVCS.DataComponent
             FetchRequestEventHandler?.Invoke(backupListObj);
         }
         #endregion
+
         #region Planned
         #region Exports
         /// <summary>
@@ -320,14 +338,12 @@ namespace SimpleBinaryVCS.DataComponent
         {
             // Requests for all the registerd project files, 
             // Copy paste to the 
-            backupManager.Try
             return true; 
         }
         public void ExportProjectRepo(ProjectMetaData projectRepository)
         {
 
         }
-
         public void GenerateProjectDataHash(object obj)
         {
 

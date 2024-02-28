@@ -7,6 +7,13 @@ using System.Text.Json;
 
 namespace SimpleBinaryVCS.Utils
 {
+    public struct OverlapFile
+    {
+        string DataRelPath;
+        string DataAbsPath;
+        string DataName; 
+    }
+
     public class FileHandlerTool
     {
         public bool TrySerializeProjectData(ProjectData data, string filePath)
@@ -186,6 +193,20 @@ namespace SimpleBinaryVCS.Utils
             catch (Exception ex)
             {
                 MessageBox.Show(ex.Message);
+            }
+        }
+
+        public void MoveFile(string? srcPath, string dstPath)
+        {
+            try
+            {
+                if (!Directory.Exists(Path.GetDirectoryName(dstPath)))
+                    Directory.CreateDirectory(Path.GetDirectoryName(dstPath));
+                File.Move(srcPath, dstPath, true);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Couldn't Move File {ex.Message}");
             }
         }
     }

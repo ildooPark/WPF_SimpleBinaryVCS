@@ -1,11 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Security.Cryptography;
-using System.Linq;
-using System.Text;
+﻿using SimpleBinaryVCS.Model;
 using System.IO;
-using System.Threading.Tasks;
-using SimpleBinaryVCS.Model;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace SimpleBinaryVCS.Utils
 {
@@ -88,6 +84,30 @@ namespace SimpleBinaryVCS.Utils
                 MessageBox.Show($"Error occured {ex.Message} \nwhile Computing hash async by this file {file.DataName}");
             }
         }
+        public static void GetFileMD5CheckSum(ProjectFile file)
+        {
+            try
+            {
+                byte[] srcHashBytes;
+                using MD5 md5 = MD5.Create();
+                if (md5 == null)
+                {
+                    MessageBox.Show("Failed to Initialize MD5");
+                    return;
+                }
+                using (var srcStream = File.OpenRead(file.DataAbsPath))
+                {
+                    srcHashBytes = md5.ComputeHash(srcStream);
+                }
+                string resultHash = BitConverter.ToString(srcHashBytes).Replace("-", "");
+                file.DataHash = resultHash;
+                md5.Dispose();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error occured {ex.Message} \nwhile Computing hash by this file {file.DataName}");
+            }
+        }
         public static async Task<string?> GetFileMD5CheckSumAsync(string fileFullPath)
         {
             try
@@ -128,6 +148,27 @@ namespace SimpleBinaryVCS.Utils
                 }
                 return builder.ToString();
             }
+        }
+        public static string GetUniqueProjectDataID(ProjectData projectData)
+        {
+            StringBuilder filesListWithHash = new StringBuilder();
+            foreach (ProjectFile file in projectData.ProjectFiles.Values)
+            {
+                filesListWithHash.Append($"{file.DataRelPath}\\{file.DataHash}");
+            }
+            using SHA256 sha256 = SHA256.Create();
+            if (sha256 == null)
+            {
+                MessageBox.Show($"Failed to Initialize MD5 for ProjectData Hash {projectData.ProjectName}");
+                return "";
+            }
+            byte[] filesByte = Encoding.UTF8.GetBytes((string) filesListWithHash.ToString());
+            filesListWithHash.Clear();
+            for (int i = 0; i < filesByte.Length; i++)
+            {
+                filesListWithHash.Append(filesByte[i].ToString("x2")); // "x2" formats the byte as a hexadecimal string
+            }
+            return filesListWithHash.ToString();
         }
     }
 }

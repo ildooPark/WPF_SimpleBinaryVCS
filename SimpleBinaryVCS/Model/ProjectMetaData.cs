@@ -4,8 +4,8 @@ namespace SimpleBinaryVCS.Model
 {
     public class ProjectMetaData
     {
-        private int updateCount;
-        public int UpdateCount { get => updateCount; set => updateCount = value; }  
+        private int localUpdateCount;
+        public int LocalUpdateCount { get => localUpdateCount; set => localUpdateCount = value; }  
         private string projectName;
         public string ProjectName { get => projectName; set => projectName = value; }
         private string projectPath; 
@@ -20,7 +20,7 @@ namespace SimpleBinaryVCS.Model
 
         public ProjectMetaData(string projectName, string projectPath)
         {
-            this.UpdateCount = 0;
+            this.LocalUpdateCount = 0;
             this.ProjectName = projectName;
             this.ProjectPath = projectPath;
             this.ProjectMain = new ProjectData();

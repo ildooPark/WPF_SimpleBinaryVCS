@@ -3,6 +3,7 @@ using SimpleBinaryVCS.Model;
 using SimpleBinaryVCS.Utils;
 using SimpleBinaryVCS.View;
 using System.Collections.ObjectModel;
+using System.Text.RegularExpressions;
 using System.Windows.Input;
 using WPF = System.Windows;
 
@@ -40,22 +41,20 @@ namespace SimpleBinaryVCS.ViewModel
         }
 
         private ICommand? fetchBackup;
-        public ICommand FetchBackup
-        {
-            get => fetchBackup ??= new RelayCommand(Fetch, CanFetch);
-        }
+        public ICommand FetchBackup => fetchBackup ??= new RelayCommand(Fetch, CanFetch);
+
         private ICommand? checkoutBackup;
-        public ICommand CheckoutBackup
-        {
-            get => checkoutBackup ??= new RelayCommand(Revert, CanRevert);
-        }
+        public ICommand CheckoutBackup => checkoutBackup ??= new RelayCommand(Revert, CanRevert);
+
+        private ICommand? exportVersionFull;
+        public ICommand ExportVersionFull => exportVersionFull ??= new RelayCommand(Revert, CanRevert);
+
+        private ICommand? extractVersionLog;
+        public ICommand ExtractVersionLog => extractVersionLog ??= new RelayCommand(Revert, CanRevert);
+
         private ICommand? viewFullLog;
-        public ICommand ViewFullLog
-        {
-            get => viewFullLog ??= new RelayCommand(OnViewFullLog, CanRevert);
-        }
+        public ICommand ViewFullLog => viewFullLog ??= new RelayCommand(OnViewFullLog, CanRevert);
         
-        private string? updateLog;
         private string? updaterName;
         public string UpdaterName
         {
@@ -67,6 +66,7 @@ namespace SimpleBinaryVCS.ViewModel
             }
         }
 
+        private string? updateLog;
         public string UpdateLog
         {
             get => updateLog ??= "";
