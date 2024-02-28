@@ -172,8 +172,7 @@ namespace SimpleBinaryVCS.Model
             return this.UpdatedTime.CompareTo(other.UpdatedTime);
         }
         /// <summary>
-        /// Checks 1. fileName, 2. fileVersion 
-        /// IF all returns as true, then MD5 checksum is used to compute the differences.
+        /// Checks fileName
         /// </summary>
         public bool Equals(ProjectFile? other)
         {
@@ -182,7 +181,7 @@ namespace SimpleBinaryVCS.Model
                 MessageBox.Show($"Presented ProjectFile is Null for comparision with {this.DataName}"); 
                 return false;
             }
-            return other.DataRelPath == this.DataRelPath;
+            return other.DataName == this.DataName;
         }
         /// <summary>
         /// Returns False if not Same

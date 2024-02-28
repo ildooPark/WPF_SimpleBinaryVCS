@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:SimpleBinaryVCS.View"
         mc:Ignorable="d"
-        Title="MainWindow" Height="900" Width="1500"
+        Title="Deploy Manager" Height="900" Width="1500"
         MinHeight="850"
         MinWidth="1450">
 
@@ -251,7 +251,7 @@
                                 <DataTrigger Binding="{Binding DataState}" Value="Added">
                                     <Setter Property="Background" Value="LightBlue"/>
                                 </DataTrigger>
-                                <DataTrigger Binding="{Binding DataState}" Value="Uploaded">
+                                <DataTrigger Binding="{Binding DataState}" Value="Restored">
                                     <Setter Property="Background" Value="LightGoldenrodYellow"/>
                                 </DataTrigger>
                                 <DataTrigger Binding="{Binding DataState}" Value="Modified">

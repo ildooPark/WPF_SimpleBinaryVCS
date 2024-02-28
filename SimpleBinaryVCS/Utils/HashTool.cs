@@ -84,6 +84,30 @@ namespace SimpleBinaryVCS.Utils
                 MessageBox.Show($"Error occured {ex.Message} \nwhile Computing hash async by this file {file.DataName}");
             }
         }
+        public static void GetFileMD5CheckSum(ProjectFile file)
+        {
+            try
+            {
+                byte[] srcHashBytes;
+                using MD5 md5 = MD5.Create();
+                if (md5 == null)
+                {
+                    MessageBox.Show("Failed to Initialize MD5");
+                    return;
+                }
+                using (var srcStream = File.OpenRead(file.DataAbsPath))
+                {
+                    srcHashBytes = md5.ComputeHash(srcStream);
+                }
+                string resultHash = BitConverter.ToString(srcHashBytes).Replace("-", "");
+                file.DataHash = resultHash;
+                md5.Dispose();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error occured {ex.Message} \nwhile Computing hash by this file {file.DataName}");
+            }
+        }
         public static async Task<string?> GetFileMD5CheckSumAsync(string fileFullPath)
         {
             try

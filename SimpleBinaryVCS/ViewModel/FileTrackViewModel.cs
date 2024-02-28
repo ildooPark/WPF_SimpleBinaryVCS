@@ -63,12 +63,13 @@ namespace SimpleBinaryVCS.ViewModel
         public ICommand? GetDeployedProjectInfo => getDeployedProjectInfo ??= new RelayCommand(OpenDeployedProjectInfo, CanOpenDeployedProjectInfo);
         private ICommand? getDeploySrcDir;
         public ICommand GetDeploySrcDir => getDeploySrcDir ??= new RelayCommand(SetDeploySrcDirectory, CanSetDeployDir);
+        
         private MetaDataManager _metaDataManager;
         private ProjectData? _deployedProjectData;
-
         public FileTrackViewModel()
         {
             this._metaDataManager = App.MetaDataManager;
+            this._metaDataManager.OverlappedFileSortEventHandler += OverlapFileSortCallBack; 
             this._metaDataManager.SrcProjectLoadedEventHandler += SrcProjectDataCallBack;
             this._metaDataManager.PreStagedChangesEventHandler += PreStagedChangesCallBack;
             this._metaDataManager.IntegrityCheckCompleteEventHandler += ProjectIntegrityCheckCallBack;
@@ -159,12 +160,12 @@ namespace SimpleBinaryVCS.ViewModel
         {
             _changedFileList = stagedChanges;
         }
-        private void PreStagedFileOverlapCallBack(object overlappedFileObj)
+        private void OverlapFileSortCallBack(List<ChangedFile> overlappedFileObj)
         {
-            if (overlappedFileObj is not ProjectFile file) return;
-            MessageBox.Show($"PreStaged file {file.DataName} Already Exists");
-            // User should be able to choose which to update.
-            // Pop List ComboBox
+            OverlapFileWindow overlapFileWindow = new OverlapFileWindow(overlappedFileObj);
+            overlapFileWindow.Owner = App.Current.MainWindow;
+            overlapFileWindow.WindowStartupLocation = WPF.WindowStartupLocation.CenterOwner;
+            overlapFileWindow.Show();
         }
 
         private void PreStagedChangesCallBack(object changedFileList)

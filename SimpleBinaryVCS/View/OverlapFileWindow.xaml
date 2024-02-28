@@ -5,25 +5,37 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:SimpleBinaryVCS.View"
         mc:Ignorable="d"
-        Title="OverlapFileWindow" Height="450" Width="800"
+        Title="Overlap File Window" Height="450" Width="800"
         MinHeight="450"
         MinWidth="800"
         >
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="2*"/>
-            <RowDefinition Height="7*"/>
+            <RowDefinition Height="1*"/>
+            <RowDefinition Height="8*"/>
             <RowDefinition Height="1*"/>
         </Grid.RowDefinitions>
 
-        <ListBox Grid.Row="1" 
-                 
-                 
-                 ItemsSource="{Binding Overlap}" SelectionChanged="ListBox_SelectionChanged"/>
+        <ListBox Grid.Row="1" ItemsSource="{Binding OverlapFilesList}">
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Src: "/>
+                        <TextBlock Text="{Binding SrcFile.DataName}"/>
+                        <TextBlock Text="=>"/>
+                        <TextBlock Text="     "/>
+                        <TextBlock Text="Dst: "/>
+                        <TextBlock Text="{Binding DstFile.DataRelPath}"/>
+                        <CheckBox IsChecked="{Binding DstFile.IsDstFile}"/>
+                    </StackPanel>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
         <Button Grid.Row="2"
-            Content="Confirm"
+                Width="180"
+                Content="Confirm"
+                IsEnabled="True"
                 HorizontalAlignment="Right"
-    Command="{Binding DataContext.FileTrackVM.AddForRestore, 
-       RelativeSource = {RelativeSource AncestorType={x:Type Window}}}"/>
+                Command="{Binding ConfirmCommand}" />
     </Grid>
 </Window>

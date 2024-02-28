@@ -13,6 +13,7 @@ namespace SimpleBinaryVCS.DataComponent
         public string? CurrentProjectPath {  get; set; }
 
         public event Action<ObservableCollection<ProjectFile>>? FileChangesEventHandler;
+        public event Action<List<ChangedFile>>? OverlappedFileSortEventHandler; 
         public event Action<object>? StagedChangesEventHandler;
         public event Action<object>? PreStagedChangesEventHandler;
         public event Action<object>? SrcProjectLoadedEventHandler;
@@ -93,9 +94,11 @@ namespace SimpleBinaryVCS.DataComponent
 
             _updateManager.ProjectUpdateEventHandler += ProjectChangeCallBack;
 
-            _fileManager.IntegrityCheckEventHandler += ProjectIntegrityCheckCallBack;
             _fileManager.DataPreStagedEventHandler += DataPreStagedCallBack;
             _fileManager.DataStagedEventHandler += DataStagedCallBack;
+            _fileManager.OverlappedFileFoundEventHandler += OverlapFileFoundCallBack; 
+            _fileManager.IntegrityCheckEventHandler += ProjectIntegrityCheckCallBack;
+
             _fileManager.SrcProjectDataLoadedEventHandler += SrcProjectLoadedCallBack;
         }
 
@@ -200,7 +203,7 @@ namespace SimpleBinaryVCS.DataComponent
         }
         public void RequestSrcDataRetrieval(string deployedPath)
         {
-            _fileManager.RetrieveDataSrc(deployedPath);
+             _fileManager.RetrieveDataSrc(deployedPath);
         }
         /// <summary>
         /// Triggers FetchRequestEventHandler if True
@@ -233,7 +236,11 @@ namespace SimpleBinaryVCS.DataComponent
             _fileManager.ClearDeployedFileChanges();
         }
 
-        public void Request
+        public void RequestOverlappedFileAllocation(List<ChangedFile> overlapSorted)
+        {
+            _fileManager.RegisterOverlapped(overlapSorted);
+        }
+
         public void RequestProjectIntegrityTest(object requester)
         {
             _fileManager.MainProjectIntegrityCheck(requester);
@@ -259,9 +266,9 @@ namespace SimpleBinaryVCS.DataComponent
         {
             if (!isNewProject)
             {
-                return $"{HashTool.GetUniqueComputerID(Environment.MachineName)}_{DateTime.Now.ToString("yyyy_MM_dd")}_v{projData.RevisionNumber + 1}";
+                return $"{projData.ProjectName}_{Environment.MachineName}_{DateTime.Now.ToString("yyyy_MM_dd")}_v{projData.RevisionNumber + 1}";
             }
-            return $"{HashTool.GetUniqueComputerID(Environment.MachineName)}_{DateTime.Now.ToString("yyyy_MM_dd")}_v{projData.RevisionNumber}";
+            return $"{projData.ProjectName}_{Environment.MachineName}_{DateTime.Now.ToString("yyyy_MM_dd")}_v{projData.RevisionNumber}";
         }
 
         #endregion
@@ -294,6 +301,12 @@ namespace SimpleBinaryVCS.DataComponent
             StagedChangesEventHandler?.Invoke(stagedFiles);
         }
 
+        private void OverlapFileFoundCallBack(object overlapFileListObj)
+        {
+            if (overlapFileListObj is not List<ChangedFile> overlapFileList) return;
+            OverlappedFileSortEventHandler?.Invoke(overlapFileList);
+        }
+
         private void ProjectChangeCallBack(object projObj)
         {
             if (projObj is not ProjectData projData) return;
@@ -312,6 +325,7 @@ namespace SimpleBinaryVCS.DataComponent
             FetchRequestEventHandler?.Invoke(backupListObj);
         }
         #endregion
+
         #region Planned
         #region Exports
         /// <summary>
@@ -330,7 +344,6 @@ namespace SimpleBinaryVCS.DataComponent
         {
 
         }
-
         public void GenerateProjectDataHash(object obj)
         {
 

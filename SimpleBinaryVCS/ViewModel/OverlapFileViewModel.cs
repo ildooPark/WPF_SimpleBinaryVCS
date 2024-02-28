@@ -1,6 +1,7 @@
 ﻿using SimpleBinaryVCS.DataComponent;
 using SimpleBinaryVCS.Model;
 using SimpleBinaryVCS.Utils;
+using SimpleBinaryVCS.View;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -26,22 +27,19 @@ namespace SimpleBinaryVCS.ViewModel
 
         private ICommand? confirmCommand;
         public ICommand ConfirmCommand => confirmCommand ??= new RelayCommand(ConfirmChoices);
+        public event Action TaskFinishedEventHandler; 
+        private MetaDataManager metaDataManager;
 
-        public event Action? ConfirmEventHandler;
-
-        private void ConfirmChoices(object? obj)
-        {
-            throw new NotImplementedException();
-            ConfirmEventHandler?.Invoke();
-        }
-
-        private MetaDataManager metaDataManager; 
         public OverlapFileViewModel(List<ChangedFile> registeredOverlaps)
         {
             this.overlapFilesList = registeredOverlaps;
-            metaDataManager = App.MetaDataManager; 
+            metaDataManager = App.MetaDataManager;
         }
 
-
+        private void ConfirmChoices(object? obj)
+        {
+            metaDataManager.RequestOverlappedFileAllocation(overlapFilesList);
+            TaskFinishedEventHandler?.Invoke();
+        }
     }
 }

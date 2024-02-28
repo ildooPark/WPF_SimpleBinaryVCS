@@ -4,6 +4,7 @@ using SimpleBinaryVCS.Utils;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
+using System.Windows.Forms.VisualStyles;
 using WPF = System.Windows;
 
 namespace SimpleBinaryVCS.DataComponent
@@ -24,9 +25,18 @@ namespace SimpleBinaryVCS.DataComponent
     public class FileManager : IManager
     {
         #region Class Variables 
-        private Dictionary<string, ProjectFile> _backupFiles;
+        private Dictionary<string, ProjectFile> _backupFilesDict;
+        /// <summary>
+        /// Imported ProjectMainFilesDict
+        /// </summary>
         private Dictionary<string, ProjectFile> _projectFilesDict;
+        /// <summary>
+        /// Key: DataRelPath Value: ProjectFile
+        /// </summary>
         private Dictionary<string, ProjectFile> _preStagedFilesDict;
+        /// <summary>
+        /// Key: DstFile DataRelPath Value: ChangedFile
+        /// </summary>
         private Dictionary<string, ChangedFile> _registeredChangesDict; 
         private SemaphoreSlim _asyncControl;
         private FileHandlerTool _fileHandlerTool;
@@ -104,16 +114,16 @@ namespace SimpleBinaryVCS.DataComponent
                 {
                     ProjectFile dstFile = new ProjectFile(mainProject.ProjectPath, dirRelPath, null, DataState.Added | DataState.IntegrityChecked, ProjectDataType.Directory);
                     ChangedFile newChange = new ChangedFile(dstFile, DataState.Added | DataState.IntegrityChecked);
-                    _registeredChangesDict.Add(dstFile.DataRelPath, newChange);
-                    _preStagedFilesDict.Add(dirRelPath, dstFile);
+                    _registeredChangesDict.TryAdd(dstFile.DataRelPath, newChange);
+                    _preStagedFilesDict.TryAdd(dirRelPath, dstFile);
                 }
 
                 foreach (string dirRelPath in deletedDirs)
                 {
                     ProjectFile dstFile = new ProjectFile(mainProject.ProjectPath, dirRelPath, null, DataState.Deleted | DataState.IntegrityChecked, ProjectDataType.Directory);
                     ChangedFile newChange = new ChangedFile(dstFile, DataState.Deleted | DataState.IntegrityChecked);
-                    _preStagedFilesDict.Add(dirRelPath, dstFile);
-                    _registeredChangesDict.Add(dstFile.DataRelPath, newChange);
+                    _preStagedFilesDict.TryAdd(dirRelPath, dstFile);
+                    _registeredChangesDict.TryAdd(dstFile.DataRelPath, newChange);
                 }
 
                 foreach (string fileRelPath in addedFiles)
@@ -121,9 +131,9 @@ namespace SimpleBinaryVCS.DataComponent
                     if (fileRelPath == "ProjectMetaData.bin") continue;
                     fileIntegrityLog.AppendLine($"{fileRelPath} has been Added");
                     string? fileHash = HashTool.GetFileMD5CheckSum(mainProject.ProjectPath, fileRelPath);
-                    ProjectFile dstFile = new ProjectFile(mainProject.ProjectPath, fileRelPath, fileHash, DataState.Added | DataState.IntegrityChecked, ProjectDataType.Directory);
-                    _preStagedFilesDict.Add(fileRelPath, dstFile);
-                    _registeredChangesDict.Add(dstFile.DataRelPath, new ChangedFile(dstFile, DataState.Added | DataState.IntegrityChecked));
+                    ProjectFile dstFile = new ProjectFile(mainProject.ProjectPath, fileRelPath, fileHash, DataState.Added | DataState.IntegrityChecked, ProjectDataType.File);
+                    _preStagedFilesDict.TryAdd(fileRelPath, dstFile);
+                    _registeredChangesDict.TryAdd(dstFile.DataRelPath, new ChangedFile(dstFile, DataState.Added | DataState.IntegrityChecked));
                 }
 
                 foreach (string fileRelPath in deletedFiles)
@@ -132,8 +142,8 @@ namespace SimpleBinaryVCS.DataComponent
                     ProjectFile srcFile = new ProjectFile(projectFilesDict[fileRelPath], DataState.None);
                     ProjectFile dstFile = new ProjectFile(projectFilesDict[fileRelPath], DataState.Deleted | DataState.IntegrityChecked);
                     dstFile.UpdatedTime = DateTime.Now;
-                    _preStagedFilesDict.Add(fileRelPath, dstFile);
-                    _registeredChangesDict.Add(dstFile.DataRelPath, new ChangedFile(srcFile, dstFile, DataState.Deleted | DataState.IntegrityChecked, true));
+                    _preStagedFilesDict.TryAdd(fileRelPath, dstFile);
+                    _registeredChangesDict.TryAdd(dstFile.DataRelPath, new ChangedFile(srcFile, dstFile, DataState.Deleted | DataState.IntegrityChecked, true));
                 }
 
                 foreach (string fileRelPath in intersectFiles)
@@ -147,8 +157,8 @@ namespace SimpleBinaryVCS.DataComponent
                         ProjectFile dstFile = new ProjectFile(projectFilesDict[fileRelPath], DataState.Modified | DataState.IntegrityChecked);
                         dstFile.DataHash = dirFileHash;
                         dstFile.UpdatedTime = new FileInfo(srcFile.DataAbsPath).LastAccessTime;
-                        _preStagedFilesDict.Add(fileRelPath, dstFile);
-                        _registeredChangesDict.Add(dstFile.DataRelPath, new ChangedFile(srcFile, dstFile, DataState.Modified | DataState.IntegrityChecked, true));
+                        _preStagedFilesDict.TryAdd(fileRelPath, dstFile);
+                        _registeredChangesDict.TryAdd(dstFile.DataRelPath, new ChangedFile(srcFile, dstFile, DataState.Modified | DataState.IntegrityChecked, true));
                     }
                 }
                 fileIntegrityLog.AppendLine("Integrity Check Complete");
@@ -160,12 +170,9 @@ namespace SimpleBinaryVCS.DataComponent
                 System.Windows.MessageBox.Show($"{ex.Message}. Couldn't Run File Integrity Check");
             }
         }
-
         /// <summary>
         /// Merging Src => Dst, Occurs in version Reversion or Merging from outer source. 
         /// </summary>
-        /// <param name="srcData"></param>
-        /// <param name="dstData"></param>
         /// <param name="isRevert"> True if Reverting, else (Merge) false.</param>
         public List<ChangedFile>? FindVersionDifferences(ProjectData srcData, ProjectData dstData, bool isProjectRevert)
         {
@@ -208,14 +215,15 @@ namespace SimpleBinaryVCS.DataComponent
 
                 foreach (string fileRelPath in filesToAdd)
                 {
-                    if (!_backupFiles.TryGetValue(srcDict[fileRelPath].DataHash, out ProjectFile? backupFile))
+                    if (!_backupFilesDict.TryGetValue(srcDict[fileRelPath].DataHash, out ProjectFile? backupFile))
                     {
                         MessageBox.Show($"Following Previous Project Version {srcData.UpdatedVersion}\n" +
                             $"Lacks Backup File {srcDict[fileRelPath].DataName}");
                         return null;
                     }
                     ProjectFile srcFile = new ProjectFile(backupFile, DataState.Backup, backupFile.DataSrcPath);
-                    ProjectFile dstFile = new ProjectFile(dstDict[fileRelPath], DataState.Restored);
+                    srcDict.TryGetValue(fileRelPath, out ProjectFile? recordedSrcFile);
+                    ProjectFile dstFile = new ProjectFile(recordedSrcFile, DataState.Restored, dstData.ProjectPath);
                     fileChanges.Add(new ChangedFile(srcFile, dstFile, DataState.Restored, true));
                 }
 
@@ -229,7 +237,7 @@ namespace SimpleBinaryVCS.DataComponent
                 {
                     if (srcDict[fileRelPath].DataHash != dstDict[fileRelPath].DataHash)
                     {
-                        if (!_backupFiles.TryGetValue(srcDict[fileRelPath].DataHash, out ProjectFile? backupFile))
+                        if (!_backupFilesDict.TryGetValue(srcDict[fileRelPath].DataHash, out ProjectFile? backupFile))
                         {
                             MessageBox.Show($"Following Previous Project Version {srcData.UpdatedVersion} Lacks Backup File {srcDict[fileRelPath].DataName}");
                             return null;
@@ -327,7 +335,7 @@ namespace SimpleBinaryVCS.DataComponent
         #endregion
 
         #region Calls For File PreStage Update
-        public async void RetrieveDataSrc(string srcPath)
+        public void RetrieveDataSrc(string srcPath)
         {
             try
             {
@@ -347,7 +355,7 @@ namespace SimpleBinaryVCS.DataComponent
                 }
                 else
                 {
-                    await RegisterNewData(srcPath);
+                    RegisterNewData(srcPath);
                 }
             }
             catch (Exception ex)
@@ -355,38 +363,45 @@ namespace SimpleBinaryVCS.DataComponent
                 MessageBox.Show($"File Manager RetrieveDataSrc Error: {ex.Message}");
             }
         }
-        public async Task RegisterNewData(string updateDirPath)
+        private void RegisterNewData(string srcDirPath)
         {
-            string[]? filesFullPaths;
+            string[]? filesAllDirectories;
+            string[]? filesTopDirectories;
             string[]? dirsFullPaths;
+
             try
             {
-                filesFullPaths = await Task.Run(() => Directory.GetFiles(updateDirPath, "*", SearchOption.AllDirectories));
-                dirsFullPaths = await Task.Run(() => Directory.GetDirectories(updateDirPath, "*", SearchOption.AllDirectories));
+                filesAllDirectories = Directory.GetFiles(srcDirPath, "*", SearchOption.AllDirectories);
+                filesTopDirectories = Directory.GetFiles(srcDirPath, "*", SearchOption.TopDirectoryOnly);
+                dirsFullPaths = Directory.GetDirectories(srcDirPath, "*", SearchOption.AllDirectories);
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"FileManager RegisterNewData Error {ex.Message}");
-                filesFullPaths = null;
+                filesAllDirectories = null;
+                filesTopDirectories = null; 
                 dirsFullPaths = null;
             }
-            if (filesFullPaths == null || dirsFullPaths == null)
+            if (filesAllDirectories == null || filesTopDirectories == null || dirsFullPaths == null)
             {
-                WPF.MessageBox.Show($"Couldn't get files or dirrectories from given Directory {updateDirPath}");
+                WPF.MessageBox.Show($"Couldn't get files or dirrectories from given Directory {srcDirPath}");
                 return;
             }
 
             try
             {
-                foreach (string fileAbsPath in filesFullPaths)
+                var filesSubDirectories = filesAllDirectories.Except(filesTopDirectories);
+                GetOverlappingFiles(srcDirPath, filesTopDirectories.ToArray());
+
+                foreach (string subDirFileAbsPath in filesSubDirectories)
                 {
                     ProjectFile newFile = new ProjectFile
                         (
-                        new FileInfo(fileAbsPath).Length,
-                        FileVersionInfo.GetVersionInfo(fileAbsPath).FileVersion,
-                        Path.GetFileName(fileAbsPath),
-                        updateDirPath,
-                        Path.GetRelativePath(updateDirPath, fileAbsPath)
+                        new FileInfo(subDirFileAbsPath).Length,
+                        FileVersionInfo.GetVersionInfo(subDirFileAbsPath).FileVersion,
+                        Path.GetFileName(subDirFileAbsPath),
+                        srcDirPath,
+                        Path.GetRelativePath(srcDirPath, subDirFileAbsPath)
                         );
                     if (!_preStagedFilesDict.TryAdd(newFile.DataRelPath, newFile))
                     {
@@ -400,8 +415,8 @@ namespace SimpleBinaryVCS.DataComponent
                     ProjectFile newFile = new ProjectFile
                         (
                         Path.GetFileName(dirAbsPath),
-                        updateDirPath,
-                        Path.GetRelativePath(updateDirPath, dirAbsPath)
+                        srcDirPath,
+                        Path.GetRelativePath(srcDirPath, dirAbsPath)
                         );
                     if (!_preStagedFilesDict.TryAdd(newFile.DataRelPath, newFile))
                     {
@@ -417,7 +432,7 @@ namespace SimpleBinaryVCS.DataComponent
                 return;
             }
         }
-        public void RegisterNewData(ProjectData srcProjectData)
+        private void RegisterNewData(ProjectData srcProjectData)
         {
             try
             {
@@ -438,6 +453,80 @@ namespace SimpleBinaryVCS.DataComponent
                 return;
             }
         }
+        private void GetOverlappingFiles(string srcPath, string[] topDirFilePaths)
+        {
+            List<ChangedFile> registeredOverlapsList = new List<ChangedFile>();
+            for (int i = 0; i < topDirFilePaths.Length; i++)
+            {
+                int count = 0; 
+                string? fileName = Path.GetFileName(topDirFilePaths[i]);
+                List<ProjectFile>? overlappingFiles = null;
+                if (fileName == null)
+                {
+                    MessageBox.Show($"Couldn't Process file name for overlapping file check on {topDirFilePaths[i]}");
+                    return;
+                }
+                foreach (ProjectFile file in _projectFilesDict.Values)
+                {
+                    if (file.DataName == fileName)
+                    {
+                        if (overlappingFiles == null) overlappingFiles = new List<ProjectFile>();
+                        overlappingFiles.Add(file);
+                        count++; 
+                    }
+                }
+                // File Overlaps
+                if (count >= 2 && overlappingFiles != null)
+                {
+                    ProjectFile newFile = new ProjectFile
+                        (
+                        new FileInfo(topDirFilePaths[i]).Length,
+                        FileVersionInfo.GetVersionInfo(topDirFilePaths[i]).FileVersion,
+                        Path.GetFileName(topDirFilePaths[i]),
+                        srcPath,
+                        Path.GetRelativePath(srcPath, topDirFilePaths[i])
+                        );
+                    foreach (ProjectFile file in overlappingFiles)
+                    {
+                        ChangedFile newOverlap = new ChangedFile(newFile, new ProjectFile(file), DataState.Overlapped);
+                        registeredOverlapsList.Add(newOverlap);
+                    }
+                }
+                // Modification 
+                else if (count == 1 && overlappingFiles != null)
+                {
+                    string newSrcFilePath = Path.Combine(srcPath, overlappingFiles[0].DataRelPath);
+                    _fileHandlerTool.MoveFile(topDirFilePaths[i], newSrcFilePath);
+
+                    ProjectFile newFile = new ProjectFile
+                        (
+                        new FileInfo(newSrcFilePath).Length,
+                        FileVersionInfo.GetVersionInfo(newSrcFilePath).FileVersion,
+                        Path.GetFileName(newSrcFilePath),
+                        srcPath,
+                        Path.GetRelativePath(srcPath, newSrcFilePath)
+                        );
+                    _preStagedFilesDict.TryAdd(newFile.DataRelPath, newFile);
+                }
+                // New File
+                else
+                {
+                    ProjectFile newFile = new ProjectFile
+                        (
+                        new FileInfo(topDirFilePaths[i]).Length,
+                        FileVersionInfo.GetVersionInfo(topDirFilePaths[i]).FileVersion,
+                        Path.GetFileName(topDirFilePaths[i]),
+                        srcPath,
+                        Path.GetRelativePath(srcPath, topDirFilePaths[i])
+                        );
+                    _preStagedFilesDict.TryAdd(newFile.DataRelPath, newFile);
+                }
+            }
+            if (registeredOverlapsList.Count >= 1)
+            {
+                OverlappedFileFoundEventHandler?.Invoke(registeredOverlapsList);
+            }
+        }
         public void RegisterNewfile(ProjectFile projectFile, DataState fileState)
         {
             ProjectFile newfile = new ProjectFile(projectFile, fileState | DataState.PreStaged);
@@ -448,7 +537,23 @@ namespace SimpleBinaryVCS.DataComponent
             }
             DataPreStagedEventHandler?.Invoke(_preStagedFilesDict.Values.ToList());
         }
+        public void RegisterOverlapped(List<ChangedFile> sortedOverlaps)
+        {
+            foreach (ChangedFile file in sortedOverlaps)
+            {
+                Console.WriteLine(file.DstFile.DataRelPath);
+                if (file.DstFile.IsDstFile)
+                {
+                    string newSrcFilePath = Path.Combine(file.SrcFile.DataSrcPath, file.DstFile.DataRelPath);
+                    _fileHandlerTool.HandleFile(file.SrcFile.DataAbsPath, newSrcFilePath, DataState.PreStaged);
 
+                    ProjectFile newPreStagedFile = new ProjectFile(file.SrcFile, DataState.PreStaged);
+                    newPreStagedFile.DataRelPath = file.DstFile.DataRelPath;
+                    //Make new prestagedFile For computations 
+                    _preStagedFilesDict.TryAdd(newPreStagedFile.DataRelPath, newPreStagedFile);
+                }
+            }
+        }
         #endregion
 
         #region Calls for File Stage Update
@@ -459,9 +564,11 @@ namespace SimpleBinaryVCS.DataComponent
                 MessageBox.Show("Project Data is unreachable from FileManager");
                 return;
             }
+            Console.WriteLine(_asyncControl.CurrentCount);
             await HashPreStagedFilesAsync();
             UpdateStageFileList();
         }
+
         private async Task HashPreStagedFilesAsync()
         {
             try
@@ -471,17 +578,19 @@ namespace SimpleBinaryVCS.DataComponent
                 //Update changedFilesDict
                 foreach (ProjectFile file in _preStagedFilesDict.Values)
                 {
+                    Console.WriteLine(_asyncControl.CurrentCount);
                     if (file.DataType == ProjectDataType.Directory || file.DataHash != "") continue;
                     asyncTasks.Add(Task.Run(async () =>
                     {
                         await _asyncControl.WaitAsync();
                         try
                         {
-                            await HashTool.GetFileMD5CheckSumAsync(file);
+                            HashTool.GetFileMD5CheckSum(file);
                         }
                         finally
                         {
                             _asyncControl.Release();
+                            Console.WriteLine(_asyncControl.CurrentCount);
                         }
                     }));
                 }
@@ -493,13 +602,11 @@ namespace SimpleBinaryVCS.DataComponent
             }
             finally
             {
+                _asyncControl.Release();
                 Console.WriteLine(_asyncControl.CurrentCount);
             }
         }
-        private void CheckFileOverlap()
-        {
-
-        }
+        
         private void UpdateStageFileList()
         {
             if (_preStagedFilesDict.Count <= 0) return;
@@ -509,7 +616,7 @@ namespace SimpleBinaryVCS.DataComponent
                 registerdFile.DataState &= ~DataState.PreStaged;
                 if ((registerdFile.DataState & DataState.Restored) != 0 && registerdFile.DataType != ProjectDataType.Directory)
                 {
-                    _backupFiles.TryGetValue(registerdFile.DataHash, out ProjectFile? backupFile);
+                    _backupFilesDict.TryGetValue(registerdFile.DataHash, out ProjectFile? backupFile);
                     if (backupFile != null)
                     {
                         //File Modified 
@@ -558,42 +665,9 @@ namespace SimpleBinaryVCS.DataComponent
             _preStagedFilesDict.Clear();
             DataStagedEventHandler?.Invoke(_registeredChangesDict.Values.ToList());
         }
-
-        public async void StageNewFilesAsync(string deployPath)
-        {
-            if (_dstProjectData == null)
-            {
-                MessageBox.Show("Project Data is unreachable from FileManager");
-                return;
-            }
-            await HashPreStagedFilesAsync();
-            UpdateStageFileList();
-            (bool result, List<string>? failedDataList) = DeployFileIntegrityCheck(deployPath);
-            if (!result)
-            {
-                MessageBox.Show("Failed to Stage Changes: DeployFiles Integrity Check Failed"); 
-                return;
-            }
-        }
-
-        private (bool, List<string>? failedFileList) DeployFileIntegrityCheck(string deployPath)
-        {
-            try
-            {
-                List<string> failedList = new List<string>();
-                foreach(ChangedFile changes in _registeredChangesDict.Values)
-                {
-                    if (changes.SrcFile == null && changes.DstFile != null) failedList.Add(changes.DstFile.DataName); 
-                    
-                }
-            }
-            catch (Exception ex)
-            {
-                WPF.MessageBox.Show($"{ex.Message}, Failed SrcFileIntegrityCheck On FileManager");
-            }
-        }
+        
         /// <summary>
-        /// Clears All the prestagedFiles, Clears StagedFiles Except those registered as IntegrityChecked
+        /// Clears StagedFiles Except those registered as IntegrityChecked
         /// </summary>
         public void ClearDeployedFileChanges()
         {
@@ -630,7 +704,45 @@ namespace SimpleBinaryVCS.DataComponent
         {
             if (metaDataObj is not ProjectMetaData projectMetaData) return;
             if (projectMetaData == null) return;
-            this._backupFiles = projectMetaData.BackupFiles;
+            this._backupFilesDict = projectMetaData.BackupFiles;
+        }
+        #endregion
+
+        #region Planned 
+        public async void StageNewFilesAsync(string deployPath)
+        {
+            if (_dstProjectData == null)
+            {
+                MessageBox.Show("Project Data is unreachable from FileManager");
+                return;
+            }
+            await HashPreStagedFilesAsync();
+            UpdateStageFileList();
+            (bool result, List<string>? failedDataList) = DeployFileIntegrityCheck(deployPath);
+            if (!result)
+            {
+                MessageBox.Show("Failed to Stage Changes: DeployFiles Integrity Check Failed");
+                return;
+            }
+        }
+
+        private (bool, List<string>? failedFileList) DeployFileIntegrityCheck(string deployPath)
+        {
+            try
+            {
+                List<string> failedList = new List<string>();
+                foreach (ChangedFile changes in _registeredChangesDict.Values)
+                {
+                    if (changes.SrcFile == null && changes.DstFile != null) failedList.Add(changes.DstFile.DataName);
+
+                }
+                return (true, failedList);
+            }
+            catch (Exception ex)
+            {
+                WPF.MessageBox.Show($"{ex.Message}, Failed SrcFileIntegrityCheck On FileManager");
+                return (true, null);
+            }
         }
         #endregion
     }

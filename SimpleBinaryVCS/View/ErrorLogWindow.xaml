@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:SimpleBinaryVCS.View"
         mc:Ignorable="d"
-        Title="ErrorLogWindow" Height="450" Width="800">
+        Title="Error Log Window" Height="450" Width="800">
     <Grid>
         
     </Grid>
