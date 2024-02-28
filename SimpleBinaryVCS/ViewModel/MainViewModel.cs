@@ -1,25 +1,21 @@
-﻿using SimpleBinaryVCS.DataComponent;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using SimpleBinaryVCS.Interfaces;
 
 namespace SimpleBinaryVCS.ViewModel
 {
     public class MainViewModel : ViewModelBase
     {
-        private VCSViewModel vcsVM;
-        private UploaderViewModel uploaderVM;
-        private BackupViewModel backupVM;
-        public VCSViewModel VcsVM => vcsVM;
-        public UploaderViewModel UploaderVM => uploaderVM;
-        public BackupViewModel BackupVM => backupVM; 
+        private MetaDataViewModel _metaDataVM;
+        private FileTrackViewModel _fileTrackVM;
+        private BackupViewModel _backupVM;
+        public MetaDataViewModel MetaDataVM => _metaDataVM;
+        public FileTrackViewModel FileTrackVM => _fileTrackVM;
+        public BackupViewModel BackupVM => _backupVM; 
         public MainViewModel()
         {
-            vcsVM = new VCSViewModel();
-            uploaderVM = new UploaderViewModel();
-            backupVM = new BackupViewModel();
+            _metaDataVM = new MetaDataViewModel();
+            _fileTrackVM = new FileTrackViewModel();
+            _backupVM = new BackupViewModel();
+            App.AwakeManagers();
         }
     }
 }

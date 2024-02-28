@@ -1,0 +1,354 @@
+﻿<Window x:Class="SimpleBinaryVCS.View.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:SimpleBinaryVCS.View"
+        mc:Ignorable="d"
+        Title="Deploy Manager" Height="900" Width="1500"
+        MinHeight="850"
+        MinWidth="1450">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height = "1*" />
+            <RowDefinition Height = "9*" />
+        </Grid.RowDefinitions>
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="3*"/>
+                <ColumnDefinition Width="3*"/>
+                <ColumnDefinition Width="2*"/>
+                <ColumnDefinition Width="2*"/>
+            </Grid.ColumnDefinitions>
+            <Grid Grid.Column="0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="3*"/>
+                    <RowDefinition Height="4*"/>
+                    <RowDefinition Height="3*"/>
+                </Grid.RowDefinitions>
+
+                <StackPanel 
+                Grid.Row="0"
+                Orientation="Vertical"
+                >
+                    <Label
+                    Height="Auto"
+                    VerticalAlignment="Top"
+                    x:Name="updaterTag"
+                    Content = "Updater">
+                    </Label>
+                    <TextBox
+                    Height="Auto"
+                    TextWrapping="Wrap"
+                    VerticalAlignment="Top"
+                    x:Name="UpdaterName"
+                    Text = "{Binding Path = BackupVM.UpdaterName}">
+                    </TextBox>
+                    <Label
+                    Height="Auto"
+                    VerticalAlignment="Top"
+                    x:Name="updaterNameTag"
+                    Content = "Update Log">
+                    </Label>
+                    <TextBox
+                        Height="Auto"
+                        TextWrapping="Wrap"
+                        x:Name="UpdateLog"
+                        Text = "{Binding Path = BackupVM.UpdateLog}"
+                        ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                        ScrollViewer.VerticalScrollBarVisibility="Auto"
+                        ScrollViewer.CanContentScroll="True"
+                    />
+                </StackPanel>
+                <DataGrid Grid.Row="1"
+                    Name="BackupLog" 
+                    ItemsSource='{Binding BackupVM.SelectedItem.ProjectFilesObs}'
+                    BorderBrush="#cdcdcd"
+                    ScrollViewer.CanContentScroll="True"
+                    ScrollViewer.VerticalScrollBarVisibility="Auto"
+                    ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                    CanUserAddRows="False"
+                    CanUserDeleteRows="False"
+                    AutoGenerateColumns="False"
+                    >
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Filename" Binding="{Binding DataName}" Width ="2*"/>
+                        <DataGridTextColumn Header="Version" Binding="{Binding DeployedProjectVersion}" Width ="2*"/>
+                        <DataGridTextColumn Header="Build Version" Binding="{Binding BuildVersion}" Width ="2*"/>
+                        <DataGridTextColumn Header="Deployed Date" Binding="{Binding UpdatedTime}" Width ="3*"/>
+                        <DataGridTextColumn Header="HashValue" Binding="{Binding DataHash}" Width ="1*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+
+                <DataGrid Grid.Row="2"
+                    Name="DiffLog" 
+                    ItemsSource='{Binding BackupVM.DiffLog}'
+                    BorderBrush="#cdcdcd"
+                    ScrollViewer.CanContentScroll="True"
+                    ScrollViewer.VerticalScrollBarVisibility="Auto"
+                    ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                    CanUserAddRows="False"
+                    CanUserDeleteRows="False"
+                    AutoGenerateColumns="False"
+                    >
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Filename" Binding="{Binding DataName}" Width ="2*"/>
+                        <DataGridTextColumn Header="Version" Binding="{Binding DataSrcPath}" Width ="2*"/>
+                        <DataGridTextColumn Header="Build Version" Binding="{Binding BuildVersion}" Width ="2*"/>
+                        <DataGridTextColumn Header="Updated Date" Binding="{Binding UpdatedTime}" Width ="3*"/>
+                        <DataGridTextColumn Header="HashValue" Binding="{Binding DataHash}" Width ="1*"/>
+                        <DataGridTextColumn Header="ChangedState" Binding="{Binding DataState}" Width ="1*"/>
+                        <DataGridTemplateColumn Header="Restore">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Button Content="Restore" 
+                                            Command="{Binding DataContext.FileTrackVM.AddForRestore, 
+                                        RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
+                                            IsEnabled="{Binding DataContext.FileTrackVM.AddForRestore.CanExecute}"
+                                            CommandParameter="{Binding}" />
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                    <DataGrid.CellStyle>
+                        <Style TargetType="DataGridCell">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsDstFile}" Value="True">
+                                    <Setter Property="Background">
+                                        <Setter.Value>
+                                            <SolidColorBrush Color="LightGreen" Opacity="0.5"/>
+                                        </Setter.Value>
+                                    </Setter>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding IsDstFile}" Value="False">
+                                    <Setter Property="Background">
+                                        <Setter.Value>
+                                            <SolidColorBrush Color="LightCoral" Opacity="0.5"/>
+                                        </Setter.Value>
+                                    </Setter>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DataGrid.CellStyle>
+                </DataGrid>
+            </Grid>
+            <GridSplitter Grid.Column="0"
+                          BorderThickness="1"
+                          BorderBrush="Black"
+                          />
+            <StackPanel Grid.Column="1">
+                <DataGrid
+                    Name="backupList" 
+                    ItemsSource="{Binding BackupVM.BackupProjectDataList}"
+                    SelectedItem="{Binding BackupVM.SelectedItem}"
+                    BorderBrush="#cdcdcd"
+                    ScrollViewer.CanContentScroll="True"
+                    ScrollViewer.VerticalScrollBarVisibility="Auto"
+                    ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                    CanUserAddRows="False"
+                    CanUserDeleteRows="False"
+                    AutoGenerateColumns="False"
+                    >
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Updater" Binding="{Binding UpdaterName}" Width ="2*"/>
+                        <DataGridTextColumn Header="Version" Binding="{Binding UpdatedVersion}" Width ="3*"/>
+                        <DataGridTextColumn Header="Deployed Date" Binding="{Binding UpdatedTime}" Width ="3*"/>
+                        <DataGridTextColumn Header="Revision Number" Binding="{Binding RevisionNumber}" Width ="1*"/>
+                        <DataGridTextColumn Header="Changes" Binding="{Binding NumberOfChanges}" Width ="1*"/>
+                    </DataGrid.Columns>
+                    <DataGrid.ContextMenu>
+                        <ContextMenu>
+                            <MenuItem Header="Export Full Version" Name="Export" Command="{Binding BackupVM.ExportVersion}"/>
+                            <MenuItem Header="Extract Version Log" Name="Extract" Command="{Binding BackupVM.ExtractLog}"/>
+                            <MenuItem Header="Checkout Version" Name="CheckOut" Command="{Binding BackupVM.CheckoutBackup}"/>
+                        </ContextMenu>
+                    </DataGrid.ContextMenu>
+                </DataGrid>
+                <Button 
+                    x:Name="RevertButton"
+                    Content="Checkout"
+                    Command="{Binding BackupVM.CheckoutBackup}"
+                    />
+                <!--<Button 
+                    x:Name="ExportButton"
+                    Content="Export"
+                    Command="{Binding BackupVM.CheckoutBackup}"
+                    />-->
+            </StackPanel>
+
+            <GridSplitter Grid.Column="1"
+                    BorderThickness="1"
+                    BorderBrush="Black"
+                    />
+            <DataGrid Grid.Column="2"
+                Name="nextProjectVersionFileList" 
+                ItemsSource='{Binding MetaDataVM.ProjectFiles}'
+                BorderBrush="#cdcdcd"
+                ScrollViewer.CanContentScroll="True"
+                ScrollViewer.VerticalScrollBarVisibility="Auto"
+                ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                CanUserAddRows="False"
+                CanUserDeleteRows="False"
+                AutoGenerateColumns="False"
+                >
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Filename" Binding="{Binding DataName}" Width ="2*"/>
+                    <DataGridTextColumn Header="Build Version" Binding="{Binding BuildVersion}" Width ="2*"/>
+                    <DataGridTextColumn Header="DeployedV" Binding="{Binding DeployedProjectVersion}" Width ="2*"/>
+                    <DataGridTextColumn Header="Updated Date" Binding="{Binding UpdatedTime}" Width ="2*"/>
+                    <DataGridTextColumn Header="Hash" Binding="{Binding DataHash}" Width ="2*"/>
+                </DataGrid.Columns>
+            </DataGrid>
+            <GridSplitter Grid.Column="2"
+              BorderThickness="1"
+              BorderBrush="Black"
+              />
+            <Grid Grid.Column="3">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="2*"/>
+                    <RowDefinition Height="5*"/>
+                    <RowDefinition Height="3*"/>
+                </Grid.RowDefinitions>
+                <StackPanel Grid.Row="0">
+                    <Label
+                    Content="Updater"/>
+                    <TextBox
+                    Name="UpdaterNameInput"
+                    Text="{Binding MetaDataVM.UpdaterName}"
+                         />
+                    <Label
+                    Content="Update Log"/>
+                    <TextBox
+                    Name="DeployVersionInput"
+                    TextWrapping="Wrap"
+                    AcceptsReturn="True"
+                    Text="{Binding MetaDataVM.UpdateLog}" Height="49"
+                         />
+                </StackPanel>
+                <ListView Grid.Row="1"
+                    Name="uploadWindow" 
+                    MaxHeight="250"
+                    ItemsSource='{Binding FileTrackVM.ChangedFileList}'
+                    SelectedItem="{Binding FileTrackVM.SelectedItem, UpdateSourceTrigger=PropertyChanged}"
+                    BorderBrush="#cdcdcd"
+                    ScrollViewer.CanContentScroll="True"
+                    ScrollViewer.VerticalScrollBarVisibility="Auto"
+                    ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                    >
+                    <ListView.View>
+                        <GridView>
+                            <GridViewColumn  Header="Name" DisplayMemberBinding="{Binding DataName}" Width ="Auto" />
+                            <GridViewColumn  Header="Version" DisplayMemberBinding="{Binding BuildVersion}" Width ="Auto" />
+                            <GridViewColumn  Header="FilePath" DisplayMemberBinding="{Binding DataRelPath}" Width ="Auto" />
+                            <GridViewColumn  Header="Change Type" DisplayMemberBinding="{Binding DataState}" Width ="Auto" />
+                        </GridView>
+                    </ListView.View>
+                    <ListView.ItemContainerStyle>
+                        <Style TargetType="ListViewItem">
+                            <Setter Property="Background" Value="Transparent"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding DataState}" Value="Added">
+                                    <Setter Property="Background" Value="LightBlue"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding DataState}" Value="Restored">
+                                    <Setter Property="Background" Value="LightGoldenrodYellow"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding DataState}" Value="Modified">
+                                    <Setter Property="Background" Value="LightGreen"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding DataState}" Value="Deleted">
+                                    <Setter Property="Background" Value="LightCoral"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ListView.ItemContainerStyle>
+                </ListView>
+
+                <StackPanel Grid.Row="2">
+                    <StackPanel Orientation="Vertical">
+                        <Button
+                            x:Name="ClearButton"
+                            Content="Clear New Files" 
+                            Height="20"
+                            Command="{Binding FileTrackVM.ClearNewfiles}"
+                            />
+                        <Button
+                            x:Name="StageButton"
+                            Content="Stage For Update" 
+                            Height="20"
+                            Command="{Binding FileTrackVM.StageChanges}"
+                            />
+                        <Button
+                            x:Name="UpdateButton"
+                            Content="Update" 
+                            Height="20"
+                            Command="{Binding MetaDataVM.ConductUpdate}"
+                            />
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
+        </Grid>
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="400*"/>
+                <ColumnDefinition Width="150*"/>
+                <ColumnDefinition Width="291*"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0" Orientation="Horizontal">
+                <Button
+                    x:Name="SetDeploySrcDirectory" 
+                    HorizontalAlignment="Left"
+                    Content="GetDeploySrcDir" 
+                    Height="Auto" 
+                    Command="{Binding FileTrackVM.GetDeploySrcDir}"
+                    Width="175" />
+                <Button
+                    x:Name="SrcProjectLog" 
+                    Content="SrcProjectLog" 
+                    HorizontalAlignment="Left"
+                    Height="Auto" 
+                    Command="{Binding FileTrackVM.GetDeployedProjectInfo}"
+                    Width="100" />
+                <Button
+                    x:Name="GetProject" 
+                    Content="GetProjectDir" 
+                    HorizontalAlignment="Left"
+                    Height="Auto" 
+                    Command="{Binding MetaDataVM.GetProject}"
+                    Width="175" />
+                <Button
+                    x:Name="FetchButton" 
+                    Content="Fetch" 
+                    HorizontalAlignment="Left"
+                    Height="Auto" 
+                    Command="{Binding BackupVM.FetchBackup}"
+                    Width="50" />
+                <Button
+                    x:Name="FullLogButton" 
+                    Content="Full Log"
+                    Height="Auto" 
+                    Command="{Binding BackupVM.ViewFullLog}"
+                    Width="100" />
+            </StackPanel>
+
+            <Button Grid.Column="1"
+                x:Name="IntegrityCheckButton" 
+                Content="Version Integrity Check" 
+                HorizontalAlignment="Center"
+                Height="Auto" 
+                Command="{Binding FileTrackVM.CheckProjectIntegrity}"
+                Width="Auto" />
+
+            <StackPanel 
+                Grid.Column="2"
+                Orientation="Horizontal" Grid.ColumnSpan="2"
+                >
+                <Label Name="ProjectNameTag" Content="Project Name" Width="Auto"/>
+                <Label Name="ProjectName" FontSize ="15" Content="{Binding MetaDataVM.ProjectName}" />
+                <Label Name="CurrentVersionTag" Content="Current Version" Width="Auto"/>
+                <Label Name="CurrentVersion" FontSize ="15" Content="{Binding MetaDataVM.CurrentVersion}" />
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>

@@ -1,35 +1,127 @@
-﻿using SimpleBinaryVCS.Model;
-using System;
-using System.Text.Json; 
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using SimpleBinaryVCS.Interfaces;
+using SimpleBinaryVCS.Model;
+using SimpleBinaryVCS.Utils;
+using System.Collections.ObjectModel;
 using System.IO;
 
 namespace SimpleBinaryVCS.DataComponent
 {
-    public class BackupManager
+    public class BackupManager : IManager
     {
-        // Keeps track of all the Project Files, 
-        // First tracks the json file in a given Path Directory 
-        // if Json file not found, then set the bool to null 
-        private bool newProject; 
-        public bool NewProject { get { return newProject; } set { newProject = value; } }
+        public ProjectMetaData? ProjectMetaData { get; set; }
+        public Dictionary<string, ProjectFile>? BackupFiles => ProjectMetaData?.BackupFiles;
+        private LinkedList<ProjectData>? BackupProjectDataList => ProjectMetaData?.ProjectDataList;
+        public ObservableCollection<ProjectData>? ProjectBackupListObservable
+        {
+            get
+            {
+                if (BackupProjectDataList == null) return null; 
+                return new ObservableCollection<ProjectData>(BackupProjectDataList);
+            }
+        }
 
-        private Dictionary<string, FileBase> projectFiles;
-        public Dictionary<string, FileBase> ProjectFiles { get => projectFiles; } 
+        //public event Action? ExportBackupEventHandler; 
+        public event Action<object>? ProjectRevertEventHandler;
+        public event Action<object>? FetchCompleteEventHandler;
+        public event Action<string> IssueEventHandler;
 
+        private FileHandlerTool _fileHandlerTool;
+#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         public BackupManager()
+#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         {
-            projectFiles = new Dictionary<string, FileBase>();
+            _fileHandlerTool = new FileHandlerTool();
         }
-        
-        // Save BackUp 
-        private void SaveVersion()
+        public void Awake(){}
+        private void BackupProject(ProjectData projectData)
         {
-            string jsonFile = JsonSerializer.Serialize(projectFiles);
-            File.WriteAllText("testFile", jsonFile); 
+            if (BackupProjectDataList == null || ProjectMetaData == null)
+            { 
+                Console.WriteLine("Failed to Load ProjectMetaData: BackupProjectList is Null"); 
+                return; 
+            }
+            bool hasBackup = BackupProjectDataList.Contains(projectData);
+            if (!hasBackup)
+            {
+                RegisterBackupFiles(projectData);
+                ProjectMetaData.ProjectDataList.AddFirst(new ProjectData(projectData));
+            }
+            string projectMetaDataPath = $"{ProjectMetaData.ProjectPath}\\ProjectMetaData.bin";
+            bool serializeSuccess = _fileHandlerTool.TrySerializeProjectMetaData(ProjectMetaData, projectMetaDataPath);
+            if (serializeSuccess)
+            {
+                ProjectMetaData.ProjectMain = projectData;
+            }
+            FetchCompleteEventHandler?.Invoke(ProjectBackupListObservable);
         }
+        #region Callbacks
+        /// <summary>
+        /// By Default should Point to ProjectMain, Make backup of the ucrrent project main before applying new changes. 
+        /// </summary>
+        public void ProjectLoadedCallback (object? projectObj)
+        {
+            if (projectObj is not ProjectData newMainProject) return;
+            if (ProjectMetaData == null || BackupProjectDataList == null || BackupFiles == null) return;
+            BackupProject(newMainProject);
+        }
+        public void MetaDataLoadedCallBack(object metaDataObj)
+        {
+            if (metaDataObj is not ProjectMetaData projectMetaData) return;
+            if (projectMetaData == null) return;
+            this.ProjectMetaData = projectMetaData;
+        }
+        #endregion
+        private void RegisterBackupFiles(ProjectData projectData)
+        {
+            if (BackupFiles == null) return;
+            string backupSrcPath = GetFileBackupSrcPath(projectData);
+            if (!Directory.Exists(backupSrcPath)) Directory.CreateDirectory(backupSrcPath);
+            foreach (ProjectFile file in projectData.ChangedDstFileList)
+            {
+                if (file.DataType == ProjectDataType.Directory) continue;
+                if (!BackupFiles.TryGetValue(file.DataHash, out ProjectFile? backupFile))
+                {
+                    ProjectFile newBackupFile = new ProjectFile(file, DataState.Backup, backupSrcPath);
+                    BackupFiles.Add(newBackupFile.DataHash, newBackupFile);
+                    _fileHandlerTool.HandleData(file.DataAbsPath, newBackupFile.DataAbsPath, ProjectDataType.File, DataState.Backup);
+                }
+            }
+        }
+        public string GetFileBackupSrcPath(ProjectData projectData)
+        {
+            string backupPath = $"{Directory.GetParent(projectData.ProjectPath)}\\Backup_{Path.GetFileName(projectData.ProjectName)}\\Backup_{projectData.UpdatedVersion}";
+            return backupPath; 
+        }
+        #region Link To View Model 
+        public bool FetchBackupProjectList()
+        {
+            if (ProjectMetaData == null || ProjectMetaData.ProjectDataList == null) return false;
+            FetchCompleteEventHandler?.Invoke(ProjectBackupListObservable);
+            return true;
+        }
+        public string GetBackupFilePath(ProjectFile projectFile)
+        {
+            if (BackupFiles == null)
+            {
+                MessageBox.Show("Backupfiles is null for BackupManager");
+                return "";
+            }
+            BackupFiles.TryGetValue(projectFile.DataHash, out ProjectFile? backupFile);
+            return backupFile != null ? backupFile.DataAbsPath : "";
+        }
+        public void RevertProject(ProjectData revertingProjectData, List<ChangedFile>? FileDifferences)
+        {
+            try
+            {
+                ProjectData revertedData = new ProjectData(revertingProjectData, true);
+                _fileHandlerTool.ApplyFileChanges(FileDifferences);
+                ProjectRevertEventHandler?.Invoke(revertingProjectData);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"BUVM RevertProject {ex.Message}");
+            }
+        }
+        #endregion
     }
 }
