@@ -159,8 +159,8 @@
                     </DataGrid.Columns>
                     <DataGrid.ContextMenu>
                         <ContextMenu>
-                            <MenuItem Header="Export Full Version" Name="Export" Command="{Binding BackupVM.ExportVersion}"/>
-                            <MenuItem Header="Extract Version Log" Name="Extract" Command="{Binding BackupVM.ExtractLog}"/>
+                            <!--<MenuItem Header="Export Full Version" Name="Export" Command="{Binding BackupVM.ExportVersion}"/>
+                            <MenuItem Header="Extract Version Log" Name="Extract" Command="{Binding BackupVM.ExtractLog}"/>-->
                             <MenuItem Header="Checkout Version" Name="CheckOut" Command="{Binding BackupVM.CheckoutBackup}"/>
                         </ContextMenu>
                     </DataGrid.ContextMenu>
