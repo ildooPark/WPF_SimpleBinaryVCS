@@ -94,8 +94,8 @@
                     >
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="Filename" Binding="{Binding DataName}" Width ="2*"/>
-                        <DataGridTextColumn Header="Version" Binding="{Binding DataSrcPath}" Width ="2*"/>
                         <DataGridTextColumn Header="Build Version" Binding="{Binding BuildVersion}" Width ="2*"/>
+                        <DataGridTextColumn Header="Project Version" Binding="{Binding DeployedProjectVersion}" Width ="2*"/>
                         <DataGridTextColumn Header="Updated Date" Binding="{Binding UpdatedTime}" Width ="3*"/>
                         <DataGridTextColumn Header="HashValue" Binding="{Binding DataHash}" Width ="1*"/>
                         <DataGridTextColumn Header="ChangedState" Binding="{Binding DataState}" Width ="1*"/>

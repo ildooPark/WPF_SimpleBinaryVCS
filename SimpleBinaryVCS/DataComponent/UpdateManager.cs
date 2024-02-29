@@ -1,6 +1,7 @@
 ﻿using SimpleBinaryVCS.Interfaces;
 using SimpleBinaryVCS.Model;
 using SimpleBinaryVCS.Utils;
+using System.Drawing.Design;
 using System.Text;
 
 namespace SimpleBinaryVCS.DataComponent
@@ -36,14 +37,13 @@ namespace SimpleBinaryVCS.DataComponent
             if (_projectMetaData == null) { MessageBox.Show("Project MetaData on Update Manager is Missing"); return; }
             if (_projectMain == null) { MessageBox.Show("Project Data on Update Manager is Missing"); return; }
             else if (_currentProjectFileChanges == null) { MessageBox.Show("File Changes does not exist"); return; }
+            
             string newVersionName = GetProjectVersionName(_projectMain, _projectMetaData.LocalUpdateCount);
             string conductedId = Environment.MachineName;
-
-            RegisterFileChanges(_projectMain, _currentProjectFileChanges, newVersionName, out StringBuilder ? changeLog);
+            RegisterFileChanges(_projectMain, currentProjectPath, _currentProjectFileChanges, newVersionName, out StringBuilder ? changeLog);
             _fileHandlerTool.ApplyFileChanges(_currentProjectFileChanges);
-
-            
             _projectMain.ChangedFiles = _currentProjectFileChanges;
+            
             ProjectData newProjectData = new ProjectData
                 (
                 _projectMain,
@@ -64,7 +64,7 @@ namespace SimpleBinaryVCS.DataComponent
         {
 
         }
-        private void RegisterFileChanges(ProjectData currentProject, List<ChangedFile> fileChanges, string projectVersion, out StringBuilder? changeLog)
+        private void RegisterFileChanges(ProjectData currentProject, string currentProjectPath, List<ChangedFile> fileChanges, string newProjectVersion, out StringBuilder? changeLog)
         {
             if (fileChanges.Count <= 0)
             {
@@ -78,7 +78,9 @@ namespace SimpleBinaryVCS.DataComponent
                 if (changes.DstFile == null) continue;
                 if (!currentProject.ProjectFiles.TryGetValue(changes.DstFile.DataRelPath, out ProjectFile? existingFile))
                 {
-                    currentProject.ProjectFiles.Add(changes.DstFile.DataRelPath, new ProjectFile(changes.DstFile, projectVersion));
+                    currentProject.ProjectFiles.Add(changes.DstFile.DataRelPath, new ProjectFile(changes.DstFile, newProjectVersion, currentProjectPath));
+                    if (changes.SrcFile != null)
+                        changes.SrcFile.DeployedProjectVersion = currentProject.UpdatedVersion;
                 }
                 else
                 {
@@ -87,11 +89,12 @@ namespace SimpleBinaryVCS.DataComponent
                         currentProject.ProjectFiles.Remove(changes.DstFile.DataRelPath);
                         continue;
                     }
-                    currentProject.ProjectFiles[changes.DstFile.DataRelPath] = new ProjectFile(changes.DstFile, projectVersion);
+                    currentProject.ProjectFiles[changes.DstFile.DataRelPath] = new ProjectFile(changes.DstFile, newProjectVersion, currentProjectPath);
                 }
                     LogTool.RegisterChange(newChangeLog, changes.DataState, changes.SrcFile, changes.DstFile);
                 currentProject.NumberOfChanges++;
             }
+
             changeLog = newChangeLog; 
         }
         private string GetProjectVersionName(ProjectData projData, int currentUpdateCount)

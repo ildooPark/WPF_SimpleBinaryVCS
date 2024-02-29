@@ -614,6 +614,7 @@ namespace SimpleBinaryVCS.DataComponent
             {
                 
                 registerdFile.DataState &= ~DataState.PreStaged;
+                //If File is being Restored
                 if ((registerdFile.DataState & DataState.Restored) != 0 && registerdFile.DataType != ProjectDataType.Directory)
                 {
                     _backupFilesDict.TryGetValue(registerdFile.DataHash, out ProjectFile? backupFile);
@@ -623,8 +624,8 @@ namespace SimpleBinaryVCS.DataComponent
                         if (_projectFilesDict.TryGetValue(backupFile.DataRelPath, out ProjectFile? projectFile))
                         {
                             ProjectFile srcFile = new ProjectFile(projectFile, DataState.Backup, backupFile.DataSrcPath);
-                            ProjectFile dstFile = new ProjectFile(registerdFile, DataState.Modified);
-                            ChangedFile newChange = new ChangedFile(srcFile, dstFile, DataState.Modified, true);
+                            ProjectFile dstFile = new ProjectFile(registerdFile, DataState.Modified, projectFile.DataSrcPath);
+                            ChangedFile newChange = new ChangedFile(srcFile, dstFile, DataState.Restored, true);
                             _registeredChangesDict.TryAdd(registerdFile.DataRelPath, newChange);
                         }
                         else
@@ -635,14 +636,17 @@ namespace SimpleBinaryVCS.DataComponent
                             _registeredChangesDict.TryAdd(registerdFile.DataRelPath, newChange);
                         }
                     }
+                    continue;
                     //Reset SrcPath to BackupPath
                 }
+                //If File is being Deleted
                 if ((registerdFile.DataState & DataState.Deleted) != 0)
                 {
                     ChangedFile newChange = new ChangedFile(new ProjectFile(registerdFile), DataState.Deleted);
                     _registeredChangesDict.TryAdd(registerdFile.DataRelPath, newChange);
+                    continue;
                 }
-                //compare the hash value, and if its the same, request to remove that file. 
+                // If File is Modified or Added
                 if (_projectFilesDict.TryGetValue(registerdFile.DataRelPath, out var srcProjectFile))
                 {
                     if (srcProjectFile.DataHash != registerdFile.DataHash)
