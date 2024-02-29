@@ -110,7 +110,7 @@ namespace SimpleBinaryVCS.Model
             this.DataRelPath = srcData.DataRelPath;
             this.DataHash = srcData.DataHash;
         }
-        public ProjectFile(ProjectFile updatedData, string deployedProjectVersion)
+        public ProjectFile(ProjectFile updatedData, string deployedProjectVersion, string currentProjectPath)
         {
             this.DataType = updatedData.DataType;
             this.DataSize = updatedData.DataSize;
@@ -119,7 +119,7 @@ namespace SimpleBinaryVCS.Model
             this.UpdatedTime = DateTime.Now;
             this.DataState = updatedData.DataState;
             this.DataName = updatedData.DataName;
-            this.DataSrcPath = updatedData.DataSrcPath;
+            this.DataSrcPath = currentProjectPath;
             this.DataRelPath = updatedData.DataRelPath;
             this.DataHash = updatedData.DataHash;
         }

@@ -70,26 +70,39 @@ namespace SimpleBinaryVCS.DataComponent
             if (projectMetaData == null) return;
             this.ProjectMetaData = projectMetaData;
         }
+
         #endregion
         private void RegisterBackupFiles(ProjectData projectData)
         {
             if (BackupFiles == null) return;
             string backupSrcPath = GetFileBackupSrcPath(projectData);
             if (!Directory.Exists(backupSrcPath)) Directory.CreateDirectory(backupSrcPath);
-            foreach (ProjectFile file in projectData.ChangedDstFileList)
+            foreach (ChangedFile changes in projectData.ChangedFiles)
             {
-                if (file.DataType == ProjectDataType.Directory) continue;
-                if (!BackupFiles.TryGetValue(file.DataHash, out ProjectFile? backupFile))
+                if (changes.DstFile == null) continue; 
+                if (changes.DstFile.DataType == ProjectDataType.Directory) continue;
+                if (!BackupFiles.TryGetValue(changes.DstFile.DataHash, out ProjectFile? backupFile))
                 {
-                    ProjectFile newBackupFile = new ProjectFile(file, DataState.Backup, backupSrcPath);
+                    ProjectFile newBackupFile = new ProjectFile(changes.DstFile, DataState.Backup, backupSrcPath);
                     BackupFiles.Add(newBackupFile.DataHash, newBackupFile);
-                    _fileHandlerTool.HandleData(file.DataAbsPath, newBackupFile.DataAbsPath, ProjectDataType.File, DataState.Backup);
+                    _fileHandlerTool.HandleData(changes.DstFile.DataAbsPath, newBackupFile.DataAbsPath, ProjectDataType.File, DataState.Backup);
+                    newBackupFile.DataSrcPath = backupSrcPath;
+                    if (changes.SrcFile != null)
+                        changes.SrcFile.DataSrcPath = backupSrcPath;
+                    changes.DstFile.DeployedProjectVersion = projectData.UpdatedVersion;
+                }
+                else
+                {
+                    if (changes.SrcFile != null)
+                        changes.SrcFile.DataSrcPath = backupFile.DataSrcPath;
+                    changes.DstFile.DataSrcPath = projectData.ProjectPath;
+                    changes.DstFile.DeployedProjectVersion = projectData.UpdatedVersion;
                 }
             }
         }
         public string GetFileBackupSrcPath(ProjectData projectData)
         {
-            string backupPath = $"{Directory.GetParent(projectData.ProjectPath)}\\Backup_{Path.GetFileName(projectData.ProjectName)}\\Backup_{projectData.UpdatedVersion}";
+            string backupPath = $"{projectData.ProjectPath}\\Backup_{Path.GetFileName(projectData.ProjectName)}\\Backup_{projectData.UpdatedVersion}";
             return backupPath; 
         }
         #region Link To View Model 

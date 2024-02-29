@@ -94,8 +94,8 @@
                     >
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="Filename" Binding="{Binding DataName}" Width ="2*"/>
-                        <DataGridTextColumn Header="Version" Binding="{Binding DataSrcPath}" Width ="2*"/>
                         <DataGridTextColumn Header="Build Version" Binding="{Binding BuildVersion}" Width ="2*"/>
+                        <DataGridTextColumn Header="Project Version" Binding="{Binding DeployedProjectVersion}" Width ="2*"/>
                         <DataGridTextColumn Header="Updated Date" Binding="{Binding UpdatedTime}" Width ="3*"/>
                         <DataGridTextColumn Header="HashValue" Binding="{Binding DataHash}" Width ="1*"/>
                         <DataGridTextColumn Header="ChangedState" Binding="{Binding DataState}" Width ="1*"/>
@@ -159,8 +159,8 @@
                     </DataGrid.Columns>
                     <DataGrid.ContextMenu>
                         <ContextMenu>
-                            <!--<MenuItem Header="Export Full Version" Name="Export" Command="{Binding BackupVM.ExportVersion}"/>
-                            <MenuItem Header="Extract Version Log" Name="Extract" Command="{Binding BackupVM.ExtractLog}"/>-->
+                            <MenuItem Header="Export Full Version" Name="Export" Command="{Binding BackupVM.ExportVersion}"/>
+                            <!--<MenuItem Header="Extract Version Log" Name="Extract" Command="{Binding BackupVM.ExtractLog}"/>-->
                             <MenuItem Header="Checkout Version" Name="CheckOut" Command="{Binding BackupVM.CheckoutBackup}"/>
                         </ContextMenu>
                     </DataGrid.ContextMenu>
@@ -263,15 +263,27 @@
                             </Style.Triggers>
                         </Style>
                     </ListView.ItemContainerStyle>
+                    <ListView.ContextMenu>
+                        <ContextMenu>
+                            <MenuItem Header="Revert" Name="RevertChange" 
+                                      Command="{Binding FileTrackVM.RevertChange}"/>
+                        </ContextMenu>
+                    </ListView.ContextMenu>
                 </ListView>
 
                 <StackPanel Grid.Row="2">
                     <StackPanel Orientation="Vertical">
                         <Button
                             x:Name="ClearButton"
-                            Content="Clear New Files" 
+                            Content="Clear" 
                             Height="20"
                             Command="{Binding FileTrackVM.ClearNewfiles}"
+                            />
+                        <Button
+                            x:Name="RefreshButton"
+                            Content="Refresh" 
+                            Height="20"
+                            Command="{Binding FileTrackVM.RefreshDeployFileList}"
                             />
                         <Button
                             x:Name="StageButton"

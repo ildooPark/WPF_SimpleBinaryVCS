@@ -50,6 +50,22 @@ namespace SimpleBinaryVCS.ViewModel
         private ICommand? clearNewfiles;
         public ICommand ClearNewfiles => clearNewfiles ??= new RelayCommand(ClearFiles, CanClearFiles);
 
+        private ICommand? refreshDeployFileList;
+        public ICommand RefreshDeployFileList => refreshDeployFileList ??= new RelayCommand(RefreshFilesList);
+
+        private void RefreshFilesList(object? obj)
+        {
+            if (_deploySrcPath == null)
+            {
+                MessageBox.Show("Please Set Src Deploy Path");
+            }
+            _metaDataManager.RequestClearStagedFiles();
+            _metaDataManager.RequestSrcDataRetrieval(_deploySrcPath);
+        }
+
+        private ICommand? revertChange;
+        public ICommand RevertChange => revertChange ??= new RelayCommand(RevertIntegrityCheckFile);
+
         private ICommand? checkProjectIntegrity; 
         public ICommand CheckProjectIntegrity => checkProjectIntegrity ??= new RelayCommand(MainProjectIntegrityTest, CanRunIntegrityTest);
 
@@ -66,6 +82,7 @@ namespace SimpleBinaryVCS.ViewModel
         
         private MetaDataManager _metaDataManager;
         private ProjectData? _deployedProjectData;
+        string? _deploySrcPath;
         public FileTrackViewModel()
         {
             this._metaDataManager = App.MetaDataManager;
@@ -84,16 +101,16 @@ namespace SimpleBinaryVCS.ViewModel
         {
             try
             {
-                string? updateDirPath;
                 var openUpdateDir = new WinForms.FolderBrowserDialog();
                 if (openUpdateDir.ShowDialog() == DialogResult.OK)
                 {
                     _deployedProjectData = null;
-                    updateDirPath = openUpdateDir.SelectedPath;
-                    _metaDataManager.RequestSrcDataRetrieval(updateDirPath);
+                    _deploySrcPath = openUpdateDir.SelectedPath;
+                    _metaDataManager.RequestSrcDataRetrieval(_deploySrcPath);
                 }
                 else
                 {
+                    _deploySrcPath = null; 
                     openUpdateDir.Dispose();
                     return;
                 }
@@ -143,6 +160,18 @@ namespace SimpleBinaryVCS.ViewModel
             if (obj is ProjectFile file)
             {
                 _metaDataManager.RequestFileRestore(file, DataState.Restored);
+            }
+        }
+        private void RevertIntegrityCheckFile(object? obj)
+        {
+            if (_selectedItem is ProjectFile file)
+            {
+                if ((file.DataState & DataState.IntegrityChecked) == 0)
+                {
+                    MessageBox.Show("Only Applicable for Integrity Check Failed Files");
+                    return;
+                }
+                _metaDataManager.RequestRevertChange(file);
             }
         }
 
