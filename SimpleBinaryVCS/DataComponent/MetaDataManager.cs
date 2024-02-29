@@ -205,6 +205,10 @@ namespace SimpleBinaryVCS.DataComponent
         {
              _fileManager.RetrieveDataSrc(deployedPath);
         }
+        public void RequestStagedFileListRefresh(string deployedPath)
+        {
+
+        }
         /// <summary>
         /// Triggers FetchRequestEventHandler if True
         /// </summary>
@@ -225,6 +229,10 @@ namespace SimpleBinaryVCS.DataComponent
 
             List<ChangedFile>? fileDifferences = _fileManager.FindVersionDifferences(targetProject, MainProjectData, true);
             _backupManager.RevertProject(targetProject, fileDifferences);
+        }
+        public void RequestRevertChange(ProjectFile file)
+        {
+            _fileManager.RevertChange(file);
         }
         public void RequestStageChanges()
         {
@@ -334,11 +342,10 @@ namespace SimpleBinaryVCS.DataComponent
         /// in a @.projectParentDir/Exports/ProjectVersion
         /// </summary>
         /// <param name="projectData"></param>
-        public bool ExportProject(ProjectData projectData)
+        public void RequestExportProjectFiles(ProjectData projectData)
         {
             // Requests for all the registerd project files, 
             // Copy paste to the 
-            return true; 
         }
         public void ExportProjectRepo(ProjectMetaData projectRepository)
         {

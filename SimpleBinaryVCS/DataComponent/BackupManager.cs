@@ -70,6 +70,7 @@ namespace SimpleBinaryVCS.DataComponent
             if (projectMetaData == null) return;
             this.ProjectMetaData = projectMetaData;
         }
+
         #endregion
         private void RegisterBackupFiles(ProjectData projectData)
         {
@@ -101,7 +102,7 @@ namespace SimpleBinaryVCS.DataComponent
         }
         public string GetFileBackupSrcPath(ProjectData projectData)
         {
-            string backupPath = $"{Directory.GetParent(projectData.ProjectPath)}\\Backup_{Path.GetFileName(projectData.ProjectName)}\\Backup_{projectData.UpdatedVersion}";
+            string backupPath = $"{projectData.ProjectPath}\\Backup_{Path.GetFileName(projectData.ProjectName)}\\Backup_{projectData.UpdatedVersion}";
             return backupPath; 
         }
         #region Link To View Model 

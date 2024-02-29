@@ -36,7 +36,7 @@ namespace SimpleBinaryVCS.DataComponent
         {
             if (_projectMetaData == null) { MessageBox.Show("Project MetaData on Update Manager is Missing"); return; }
             if (_projectMain == null) { MessageBox.Show("Project Data on Update Manager is Missing"); return; }
-            else if (_currentProjectFileChanges == null) { MessageBox.Show("File Changes does not exist"); return; }
+            else if (_currentProjectFileChanges == null || _currentProjectFileChanges.Count == 0) { MessageBox.Show("File Changes does not exist"); return; }
             
             string newVersionName = GetProjectVersionName(_projectMain, _projectMetaData.LocalUpdateCount);
             string conductedId = Environment.MachineName;

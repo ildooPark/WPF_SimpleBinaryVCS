@@ -1,6 +1,7 @@
 ﻿using SimpleBinaryVCS.Interfaces;
 using SimpleBinaryVCS.Model;
 using SimpleBinaryVCS.Utils;
+using System.Configuration;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
@@ -85,33 +86,45 @@ namespace SimpleBinaryVCS.DataComponent
                 fileIntegrityLog.AppendLine($"Conducting Version Integrity Check on {mainProject.UpdatedVersion}");
 
                 Dictionary<string, ProjectFile> projectFilesDict = mainProject.ProjectFiles;
-
+                string backupPath = $"{mainProject.ProjectPath}\\Backup_{mainProject.ProjectName}";
                 List<string> recordedFiles = mainProject.ProjectRelFilePathsList;
                 List<string> recordedDirs = mainProject.ProjectRelDirsList;
 
-                List<string> directoryFiles = new List<string>();
-                List<string> directoryDirs = new List<string>();
+                List<string> directoryRelFiles = new List<string>();
+                List<string> directoryRelDirs = new List<string>();
 
+                if (!Directory.Exists(backupPath)) Directory.CreateDirectory(backupPath);
+                string[]? backupFiles = await Task.Run(() => Directory.GetFiles(backupPath, "*", SearchOption.AllDirectories));
+                string[]? backupDirs = await Task.Run(() => Directory.GetDirectories(backupPath, "*", SearchOption.AllDirectories));
+                if (backupFiles == null) backupFiles = new string[0];
+                if (backupDirs == null) backupDirs = new string[0];
                 string[]? rawFiles = await Task.Run( () => Directory.GetFiles(mainProject.ProjectPath, "*", SearchOption.AllDirectories));
-                foreach (string absPathFile in rawFiles)
+                string[]? rawDirs = await Task.Run(() => Directory.GetDirectories(mainProject.ProjectPath, "*", SearchOption.AllDirectories));
+                if (rawFiles == null) backupFiles = new string[0];
+                if (rawDirs == null) backupDirs = new string[0];
+
+                IEnumerable<string> directoryFiles = rawFiles.ToList().Except(backupFiles.ToList());
+                IEnumerable<string> directoryDirs = rawDirs.ToList().Except(backupDirs.ToList());
+
+                foreach (string absPathFile in directoryFiles)
                 {
-                    directoryFiles.Add(Path.GetRelativePath(mainProject.ProjectPath, absPathFile));
+                    directoryRelFiles.Add(Path.GetRelativePath(mainProject.ProjectPath, absPathFile));
                 }
 
-                string[]? rawDirs = await Task.Run( () => Directory.GetDirectories(mainProject.ProjectPath, "*", SearchOption.AllDirectories));
-                foreach (string absPathFile in rawDirs)
+                foreach (string absPathDir in directoryDirs)
                 {
-                    directoryDirs.Add(Path.GetRelativePath(mainProject.ProjectPath, absPathFile));
+                    directoryRelDirs.Add(Path.GetRelativePath(mainProject.ProjectPath, absPathDir));
                 }
 
-                IEnumerable<string> addedFiles = directoryFiles.Except(recordedFiles);
-                IEnumerable<string> addedDirs = directoryDirs.Except(recordedDirs);
-                IEnumerable<string> deletedFiles = recordedFiles.Except(directoryFiles);
-                IEnumerable<string> deletedDirs = recordedDirs.Except(directoryDirs);
-                IEnumerable<string> intersectFiles = recordedFiles.Intersect(directoryFiles);
+                IEnumerable<string> addedFiles = directoryRelFiles.Except(recordedFiles);
+                IEnumerable<string> addedDirs = directoryRelDirs.Except(recordedDirs);
+                IEnumerable<string> deletedFiles = recordedFiles.Except(directoryRelFiles);
+                IEnumerable<string> deletedDirs = recordedDirs.Except(directoryRelDirs);
+                IEnumerable<string> intersectFiles = recordedFiles.Intersect(directoryRelFiles);
 
                 foreach (string dirRelPath in addedDirs)
                 {
+                    if (dirRelPath == $"Backup_{mainProject.ProjectName}") continue;
                     ProjectFile dstFile = new ProjectFile(mainProject.ProjectPath, dirRelPath, null, DataState.Added | DataState.IntegrityChecked, ProjectDataType.Directory);
                     ChangedFile newChange = new ChangedFile(dstFile, DataState.Added | DataState.IntegrityChecked);
                     _registeredChangesDict.TryAdd(dstFile.DataRelPath, newChange);
@@ -747,6 +760,53 @@ namespace SimpleBinaryVCS.DataComponent
                 WPF.MessageBox.Show($"{ex.Message}, Failed SrcFileIntegrityCheck On FileManager");
                 return (true, null);
             }
+        }
+
+        public void RevertChange(ProjectFile file)
+        {
+            if ((file.DataState & DataState.IntegrityChecked) == 0) return;
+            file.DataState &= ~DataState.IntegrityChecked;
+            switch (file.DataState)
+            {
+                case DataState.Added:
+                    _fileHandlerTool.HandleFile(null, file.DataAbsPath, DataState.Deleted);
+                    break;
+                case DataState.Modified:
+                    if (!_projectFilesDict.TryGetValue(file.DataRelPath, out ProjectFile projectFile_M))
+                    {
+                        MessageBox.Show("Couldn't revert change since recorded project file does not exist"); 
+                        return;
+                    }
+                    if (!_backupFilesDict.TryGetValue(projectFile_M.DataHash, out ProjectFile backupFile_M))
+                    {
+                        MessageBox.Show("Couldn't revert change since backup does not exist"); 
+                        return;
+                    }
+                    _fileHandlerTool.HandleFile(backupFile_M.DataAbsPath, projectFile_M.DataAbsPath, DataState.Modified);
+                    break;
+                case DataState.Deleted:
+                    if (!_projectFilesDict.TryGetValue(file.DataRelPath, out ProjectFile projectFile_D))
+                    {
+                        MessageBox.Show("Coudln't Revert Change for Recorded Project file"); 
+                        return;
+                    }
+                    if (!_backupFilesDict.TryGetValue(projectFile_D.DataHash, out ProjectFile backupFile_D))
+                    {
+                        MessageBox.Show("Couldn't revert change since backup does not exist");
+                        return;
+                    }
+                    _fileHandlerTool.HandleFile(backupFile_D.DataAbsPath, projectFile_D.DataAbsPath, DataState.Added);
+                    break;
+                default:
+                    break;
+            }
+
+            if (_preStagedFilesDict.TryGetValue(file.DataRelPath, out ProjectFile recordedPreFile))
+                _preStagedFilesDict.Remove(file.DataRelPath);
+            if (_registeredChangesDict.TryGetValue(file.DataRelPath, out ChangedFile recordedChange))
+                _registeredChangesDict.Remove(file.DataRelPath);
+
+            DataStagedEventHandler?.Invoke(_registeredChangesDict.Values.ToList());
         }
         #endregion
     }

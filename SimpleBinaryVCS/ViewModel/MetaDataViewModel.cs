@@ -104,7 +104,6 @@ namespace SimpleBinaryVCS.ViewModel
         private bool CanUpdate(object obj)
         {
             if (ProjectFiles == null || CurrentProjectPath == "") return false;
-            if (UpdaterName == "" || UpdateLog == "") return false; 
             return true;
         }
         
