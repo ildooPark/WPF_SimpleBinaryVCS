@@ -215,15 +215,15 @@ namespace SimpleBinaryVCS.DataComponent
                 //1. Directories 
                 foreach (string dirRelPath in dirsToAdd)
                 {
-                    ProjectFile dstFile = new ProjectFile(srcDict[dirRelPath], DataState.Added, dstData.ProjectPath);
-                    ChangedFile newChange = new ChangedFile(dstFile, DataState.Added);
+                    ProjectFile dstDir = new ProjectFile(srcDict[dirRelPath], DataState.Added, dstData.ProjectPath);
+                    ChangedFile newChange = new ChangedFile(dstDir, DataState.Added);
                     fileChanges.Add(newChange);
                 }
 
                 foreach (string dirRelPath in dirsToDelete)
                 {
-                    ProjectFile dstFile = new ProjectFile(dstDict[dirRelPath], DataState.Deleted);
-                    fileChanges.Add(new ChangedFile(dstFile, DataState.Deleted));
+                    ProjectFile dstDir = new ProjectFile(dstDict[dirRelPath], DataState.Deleted);
+                    fileChanges.Add(new ChangedFile(dstDir, DataState.Deleted));
                 }
 
                 foreach (string fileRelPath in filesToAdd)
@@ -255,17 +255,9 @@ namespace SimpleBinaryVCS.DataComponent
                             MessageBox.Show($"Following Previous Project Version {srcData.UpdatedVersion} Lacks Backup File {srcDict[fileRelPath].DataName}");
                             return null;
                         }
-                        ProjectFile srcFile = new ProjectFile(backupFile, DataState.Backup, backupFile.DataSrcPath);
-                        ProjectFile dstFile = new ProjectFile(dstDict[fileRelPath], DataState.Restored);
+                        ProjectFile srcFile = new ProjectFile(dstDict[fileRelPath], DataState.Backup, backupFile.DataSrcPath);
+                        ProjectFile dstFile = new ProjectFile(backupFile, DataState.Restored, dstDict[fileRelPath].DataSrcPath);
                         fileChanges.Add(new ChangedFile(srcFile, dstFile, DataState.Restored, true));
-                    }
-                }
-                List<ProjectFile> changedListDst = new List<ProjectFile>();
-                foreach (ChangedFile changedFile in fileChanges)
-                {
-                    if (changedFile.DstFile != null)
-                    {
-                        changedListDst.Add(new ProjectFile(changedFile.DstFile));
                     }
                 }
                 DataStagedEventHandler?.Invoke(fileChanges);
@@ -636,6 +628,7 @@ namespace SimpleBinaryVCS.DataComponent
                         //File Modified 
                         if (_projectFilesDict.TryGetValue(backupFile.DataRelPath, out ProjectFile? projectFile))
                         {
+                            if (backupFile.DataHash == projectFile.DataHash) continue;
                             ProjectFile srcFile = new ProjectFile(projectFile, DataState.Backup, backupFile.DataSrcPath);
                             ProjectFile dstFile = new ProjectFile(registerdFile, DataState.Modified, projectFile.DataSrcPath);
                             ChangedFile newChange = new ChangedFile(srcFile, dstFile, DataState.Restored, true);
@@ -679,6 +672,7 @@ namespace SimpleBinaryVCS.DataComponent
                     _registeredChangesDict.TryAdd(registerdFile.DataRelPath, new ChangedFile(srcFile, dstFile, DataState.Added));
                 }
             }
+
             _preStagedFilesDict.Clear();
             DataStagedEventHandler?.Invoke(_registeredChangesDict.Values.ToList());
         }

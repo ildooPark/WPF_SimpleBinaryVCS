@@ -92,47 +92,63 @@ namespace SimpleBinaryVCS.Utils
                 return false;
             }
         }
-        public void ApplyFileChanges(List<ChangedFile> Changes)
+        public bool TryApplyFileChanges(List<ChangedFile> Changes)
         {
-            if (Changes == null) return;
-            foreach (ChangedFile file in Changes)
+            if (Changes == null) return false;
+            try
             {
-                if ((file.DataState & DataState.IntegrityChecked) != 0) continue; 
-                HandleData(file.SrcFile, file.DstFile, file.DataState);
+                foreach (ChangedFile file in Changes)
+                {
+                    if ((file.DataState & DataState.IntegrityChecked) != 0) continue;
+                    bool result = HandleData(file.SrcFile, file.DstFile, file.DataState);
+                    if (!result) return false;
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Couldn't Process File Changes : {ex.Message}");
+                return false;
             }
         }
-        public void HandleData(IProjectData dstData, DataState state)
+        public bool HandleData(IProjectData dstData, DataState state)
         {
+            bool result;
             if (dstData.DataType == ProjectDataType.File)
             {
-                HandleFile(null, dstData.DataAbsPath, state);
+                result = HandleFile(null, dstData.DataAbsPath, state);
             }
             else
             {
-                HandleDirectory(null, dstData.DataAbsPath, state);
+                result = HandleDirectory(null, dstData.DataAbsPath, state);
             }
+            return result; 
         }
-        public void HandleData(IProjectData? srcData, IProjectData dstData, DataState state)
+        public bool HandleData(IProjectData? srcData, IProjectData dstData, DataState state)
         {
+            bool result;
             if (dstData.DataType == ProjectDataType.File)
             {
-                HandleFile(srcData?.DataAbsPath, dstData.DataAbsPath, state);
+                result = HandleFile(srcData?.DataAbsPath, dstData.DataAbsPath, state);
             }
             else
             {
-                HandleDirectory(srcData?.DataAbsPath, dstData.DataAbsPath, state);
+                result = HandleDirectory(srcData?.DataAbsPath, dstData.DataAbsPath, state);
             }
+            return result;
         }
-        public void HandleData(string? srcPath, string dstPath, ProjectDataType type, DataState state)
+        public bool HandleData(string? srcPath, string dstPath, ProjectDataType type, DataState state)
         {
+            bool result; 
             if (type == ProjectDataType.File)
             {
-                HandleFile(srcPath, dstPath, state);
+                result = HandleFile(srcPath, dstPath, state);
             }
             else
             {
-                HandleDirectory(srcPath, dstPath, state);
+                result = HandleDirectory(srcPath, dstPath, state);
             }
+            return result;
         }
         public void HandleData(string? srcPath, IProjectData dstData, DataState state)
         {
@@ -145,7 +161,7 @@ namespace SimpleBinaryVCS.Utils
                 HandleDirectory(srcPath, dstData.DataAbsPath, state);
             }
         }
-        public void HandleDirectory(string? srcPath, string dstPath, DataState state)
+        public bool HandleDirectory(string? srcPath, string dstPath, DataState state)
         {
             try
             {
@@ -159,13 +175,14 @@ namespace SimpleBinaryVCS.Utils
                     if (!Directory.Exists(dstPath))
                         Directory.CreateDirectory(dstPath);
                 }
+                return true;
             }
             catch (Exception ex)
             {
-                MessageBox.Show(ex.Message);
+                MessageBox.Show(ex.Message); return false; 
             }
         }
-        public void HandleFile(string? srcPath, string dstPath, DataState state)
+        public bool HandleFile(string? srcPath, string dstPath, DataState state)
         {
             try
             {
@@ -173,10 +190,14 @@ namespace SimpleBinaryVCS.Utils
                 {
                     if (File.Exists(dstPath))
                         File.Delete(dstPath);
-                    return;
+                    return true; 
                 }
-                if (srcPath == null) throw new ArgumentNullException(nameof(srcPath));
-                else if ((state & DataState.Added) != 0)
+                if (srcPath == null)
+                {
+                    MessageBox.Show($"Source File is null while File Handle state is {state.ToString()}");
+                    return false;
+                }
+                if ((state & DataState.Added) != 0)
                 {
                     if (!Directory.Exists(Path.GetDirectoryName(dstPath))) 
                         Directory.CreateDirectory(Path.GetDirectoryName(dstPath));
@@ -187,27 +208,34 @@ namespace SimpleBinaryVCS.Utils
                 {
                     if (!Directory.Exists(Path.GetDirectoryName(dstPath)))
                         Directory.CreateDirectory(Path.GetDirectoryName(dstPath));
-                    if (srcPath == dstPath) return;
+                    if (srcPath == dstPath)
+                    {
+                        MessageBox.Show($"Source File and Dst File path is same for {state.ToString()}, {dstPath}");
+                        return false; 
+                    }
                     File.Copy(srcPath, dstPath, true);
                 }
+                return true; 
             }
             catch (Exception ex)
             {
-                MessageBox.Show(ex.Message);
+                MessageBox.Show(ex.Message); return false; 
             }
         }
 
-        public void MoveFile(string? srcPath, string dstPath)
+        public bool MoveFile(string? srcPath, string dstPath)
         {
             try
             {
                 if (!Directory.Exists(Path.GetDirectoryName(dstPath)))
                     Directory.CreateDirectory(Path.GetDirectoryName(dstPath));
                 File.Move(srcPath, dstPath, true);
+                return true;
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Couldn't Move File {ex.Message}");
+                return false; 
             }
         }
     }

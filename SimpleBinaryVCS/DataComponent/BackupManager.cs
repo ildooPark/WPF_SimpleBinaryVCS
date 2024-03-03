@@ -126,8 +126,25 @@ namespace SimpleBinaryVCS.DataComponent
         {
             try
             {
+                bool revertSuccess = false; 
                 ProjectData revertedData = new ProjectData(revertingProjectData, true);
-                _fileHandlerTool.ApplyFileChanges(FileDifferences);
+                while (!revertSuccess)
+                {
+                    revertSuccess = _fileHandlerTool.TryApplyFileChanges(FileDifferences);
+                    if (!revertSuccess)
+                    {
+                        var response = MessageBox.Show("Update Failed, Would you like to Retry?", "Update Project",
+                            MessageBoxButtons.YesNo);
+                        if (response == DialogResult.Yes)
+                        {
+                            continue;
+                        }
+                        else
+                        {
+                            MessageBox.Show("Revert Failed"); return;
+                        }
+                    }
+                }
                 ProjectRevertEventHandler?.Invoke(revertingProjectData);
             }
             catch (Exception ex)
