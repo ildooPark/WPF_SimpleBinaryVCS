@@ -38,6 +38,7 @@ namespace SimpleBinaryVCS.DataComponent
             if (_projectMain == null) { MessageBox.Show("Project Data on Update Manager is Missing"); return; }
             if (_currentProjectFileChanges == null || _currentProjectFileChanges.Count == 0) { MessageBox.Show("File Changes does not exist"); return; }
             if (currentProjectPath != _projectMetaData.ProjectPath) { MessageBox.Show("Project Meta Data Path and Updated Path must match"); return; }
+            
             bool updateSuccess = false; 
             string newVersionName = GetProjectVersionName(_projectMain, _projectMetaData.LocalUpdateCount);
             string conductedPC = Environment.MachineName;

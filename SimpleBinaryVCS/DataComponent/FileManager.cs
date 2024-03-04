@@ -292,7 +292,6 @@ namespace SimpleBinaryVCS.DataComponent
                 // Files to Overwrite
                 IEnumerable<string> intersectFiles = srcData.ProjectRelFilePathsList.Intersect(dstData.ProjectRelFilePathsList);
 
-                //1. Directories 
                 foreach (string dirRelPath in dirsToAdd)
                 {
                     ProjectFile dstFile = new ProjectFile(srcDict[dirRelPath], DataState.Added, dstData.ProjectPath);
@@ -328,6 +327,7 @@ namespace SimpleBinaryVCS.DataComponent
                         fileChanges.Add(new ChangedFile(srcFile, dstFile, DataState.Modified, true));
                     }
                 }
+
                 DataStagedEventHandler?.Invoke(fileChanges);
                 return fileChanges;
             }
