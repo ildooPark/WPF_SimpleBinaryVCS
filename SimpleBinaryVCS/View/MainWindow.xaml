@@ -64,6 +64,7 @@
                 <DataGrid Grid.Row="1"
                     Name="BackupLog" 
                     ItemsSource='{Binding BackupVM.SelectedItem.ProjectFilesObs}'
+                    IsReadOnly="True"
                     BorderBrush="#cdcdcd"
                     ScrollViewer.CanContentScroll="True"
                     ScrollViewer.VerticalScrollBarVisibility="Auto"
@@ -184,6 +185,7 @@
             <DataGrid Grid.Column="2"
                 Name="nextProjectVersionFileList" 
                 ItemsSource='{Binding MetaDataVM.ProjectFiles}'
+                IsReadOnly="True"
                 BorderBrush="#cdcdcd"
                 ScrollViewer.CanContentScroll="True"
                 ScrollViewer.VerticalScrollBarVisibility="Auto"
@@ -309,22 +311,22 @@
             </Grid.ColumnDefinitions>
             <StackPanel Grid.Column="0" Orientation="Horizontal">
                 <Button
-                    x:Name="SetDeploySrcDirectory" 
+                    x:Name="SetDeploySrcDir" 
                     HorizontalAlignment="Left"
-                    Content="GetDeploySrcDir" 
+                    Content="Set Source Dir" 
                     Height="Auto" 
                     Command="{Binding FileTrackVM.GetDeploySrcDir}"
                     Width="175" />
-                <Button
+                <!--<Button
                     x:Name="SrcProjectLog" 
                     Content="SrcProjectLog" 
                     HorizontalAlignment="Left"
                     Height="Auto" 
                     Command="{Binding FileTrackVM.GetDeployedProjectInfo}"
-                    Width="100" />
+                    Width="100" />-->
                 <Button
-                    x:Name="GetProject" 
-                    Content="GetProjectDir" 
+                    x:Name="SetProject" 
+                    Content="Set Destination Dir" 
                     HorizontalAlignment="Left"
                     Height="Auto" 
                     Command="{Binding MetaDataVM.GetProject}"

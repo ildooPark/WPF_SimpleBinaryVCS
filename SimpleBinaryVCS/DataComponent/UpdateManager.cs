@@ -36,28 +36,45 @@ namespace SimpleBinaryVCS.DataComponent
         {
             if (_projectMetaData == null) { MessageBox.Show("Project MetaData on Update Manager is Missing"); return; }
             if (_projectMain == null) { MessageBox.Show("Project Data on Update Manager is Missing"); return; }
-            else if (_currentProjectFileChanges == null || _currentProjectFileChanges.Count == 0) { MessageBox.Show("File Changes does not exist"); return; }
+            if (_currentProjectFileChanges == null || _currentProjectFileChanges.Count == 0) { MessageBox.Show("File Changes does not exist"); return; }
+            if (currentProjectPath != _projectMetaData.ProjectPath) { MessageBox.Show("Project Meta Data Path and Updated Path must match"); return; }
             
+            bool updateSuccess = false; 
             string newVersionName = GetProjectVersionName(_projectMain, _projectMetaData.LocalUpdateCount);
-            string conductedId = Environment.MachineName;
-            RegisterFileChanges(_projectMain, currentProjectPath, _currentProjectFileChanges, newVersionName, out StringBuilder ? changeLog);
-            _fileHandlerTool.ApplyFileChanges(_currentProjectFileChanges);
-            _projectMain.ChangedFiles = _currentProjectFileChanges;
-            
-            ProjectData newProjectData = new ProjectData
-                (
-                _projectMain,
-                currentProjectPath,
-                updaterName,
-                DateTime.Now,   
-                newVersionName,
-                conductedId,
-                updateLog,
-                changeLog?.ToString()
-                );
+            string conductedPC = Environment.MachineName;
+            ProjectData updatedProjectData = new ProjectData(_projectMain);
+            RegisterFileChanges(updatedProjectData, currentProjectPath, _currentProjectFileChanges, newVersionName, out StringBuilder ? changeLog);
+            while (!updateSuccess)
+            {
+                updateSuccess = _fileHandlerTool.TryApplyFileChanges(_currentProjectFileChanges);
+                if (!updateSuccess)
+                {
+                    var response = MessageBox.Show("Update Failed, Would you like to Retry?", "Update Project", 
+                        MessageBoxButtons.YesNo);
+                    if (response == DialogResult.Yes)
+                    {
+                        continue; 
+                    }
+                    else
+                    {
+                        MessageBox.Show("Update Failed"); return;
+                    }
+                }
+            }
+            ++_projectMetaData.LocalUpdateCount;
 
-            _projectMetaData.LocalUpdateCount++; 
-            ProjectUpdateEventHandler?.Invoke(newProjectData);
+            updatedProjectData.ChangedFiles = _currentProjectFileChanges;
+            updatedProjectData.ProjectPath = currentProjectPath;
+            updatedProjectData.UpdaterName = updaterName;
+            updatedProjectData.UpdatedTime = DateTime.Now;
+            updatedProjectData.UpdatedVersion = newVersionName;
+            updatedProjectData.ConductedPC = conductedPC;
+            updatedProjectData.UpdateLog = updateLog;
+            updatedProjectData.ChangeLog = changeLog?.ToString() ?? "";
+            updatedProjectData.NumberOfChanges = _currentProjectFileChanges.Count;
+            updatedProjectData.RevisionNumber = _projectMetaData.LocalUpdateCount;
+
+            ProjectUpdateEventHandler?.Invoke(updatedProjectData);
         }
 
         public void MergeProjectMain(string updaterName, string updateLog, string currentProjectPath)
