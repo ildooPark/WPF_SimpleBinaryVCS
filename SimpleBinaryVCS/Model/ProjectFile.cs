@@ -2,7 +2,9 @@
 using SimpleBinaryVCS.Interfaces;
 using System.Diagnostics;
 using System.IO;
+using System.Reflection;
 using System.Text.Json.Serialization;
+using System.Xml.Linq;
 
 namespace SimpleBinaryVCS.Model
 {
@@ -152,9 +154,17 @@ namespace SimpleBinaryVCS.Model
         public ProjectFile(string fileSrcPath, string fileRelPath, string? fileHash, DataState DataState, ProjectDataType dataType)
         {
             string fileFullPath = Path.Combine(fileSrcPath, fileRelPath);
-            var fileInfo = FileVersionInfo.GetVersionInfo(fileFullPath);
-            this.DataSize = new FileInfo(fileFullPath).Length; 
-            this.BuildVersion = fileInfo.FileVersion ?? "";
+            if (dataType == ProjectDataType.File)
+            {
+                var fileInfo = FileVersionInfo.GetVersionInfo(fileFullPath);
+                this.DataSize = new FileInfo(fileFullPath).Length;
+                this.BuildVersion = fileInfo.FileVersion ?? "";
+            }
+            else
+            {
+                this.DataSize = 0;
+                this.BuildVersion = "";
+            }
             this.DeployedProjectVersion = "";
             this.DataSrcPath = fileSrcPath; 
             this.DataName = Path.GetFileName(fileFullPath);
@@ -163,6 +173,23 @@ namespace SimpleBinaryVCS.Model
             this.UpdatedTime = DateTime.Now;
             this.DataState = DataState;
             this.DataType = dataType;
+        }
+        // 
+        /// <summary>
+        /// Empty ProjectFile with Given DataType
+        /// </summary>
+        public ProjectFile (ProjectDataType dataType)
+        {
+            this.DataType = dataType;
+            this.DataSize = 0;
+            this.BuildVersion = "";
+            this.DeployedProjectVersion = "";
+            this.UpdatedTime = DateTime.MaxValue;
+            this.DataState = DataState.None;
+            this.DataName = "";
+            this.DataSrcPath = "";
+            this.DataRelPath = "";
+            this.DataHash = "";
         }
         #endregion
         public int CompareTo(ProjectFile? other) 

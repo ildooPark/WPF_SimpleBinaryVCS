@@ -53,15 +53,6 @@ namespace SimpleBinaryVCS.ViewModel
         private ICommand? refreshDeployFileList;
         public ICommand RefreshDeployFileList => refreshDeployFileList ??= new RelayCommand(RefreshFilesList);
 
-        private void RefreshFilesList(object? obj)
-        {
-            if (_deploySrcPath == null)
-            {
-                MessageBox.Show("Please Set Src Deploy Path");
-            }
-            _metaDataManager.RequestClearStagedFiles();
-            _metaDataManager.RequestSrcDataRetrieval(_deploySrcPath);
-        }
 
         private ICommand? revertChange;
         public ICommand RevertChange => revertChange ??= new RelayCommand(RevertIntegrityCheckFile);
@@ -77,6 +68,7 @@ namespace SimpleBinaryVCS.ViewModel
 
         private ICommand? getDeployedProjectInfo;
         public ICommand? GetDeployedProjectInfo => getDeployedProjectInfo ??= new RelayCommand(OpenDeployedProjectInfo, CanOpenDeployedProjectInfo);
+        
         private ICommand? getDeploySrcDir;
         public ICommand GetDeploySrcDir => getDeploySrcDir ??= new RelayCommand(SetDeploySrcDirectory, CanSetDeployDir);
         
@@ -121,6 +113,7 @@ namespace SimpleBinaryVCS.ViewModel
                 MessageBox.Show(ex.Message);
             }
         }
+        
         private bool CanStageChanges(object obj) { return ChangedFileList.Count != 0; }
         private void StageNewChanges(object obj)
         {
@@ -131,7 +124,6 @@ namespace SimpleBinaryVCS.ViewModel
         {
             return _deployedProjectData != null;
         }
-
         public void OpenDeployedProjectInfo(object obj)
         {
             var mainWindow = obj as WPF.Window;
@@ -146,7 +138,6 @@ namespace SimpleBinaryVCS.ViewModel
         {
             _metaDataManager.RequestClearStagedFiles();
         }
-
         
         private bool CanRestoreFile(object? obj)
         {
@@ -162,6 +153,17 @@ namespace SimpleBinaryVCS.ViewModel
                 _metaDataManager.RequestFileRestore(file, DataState.Restored);
             }
         }
+        
+        private void RefreshFilesList(object? obj)
+        {
+            if (_deploySrcPath == null)
+            {
+                MessageBox.Show("Please Set Src Deploy Path");
+            }
+            _metaDataManager.RequestClearStagedFiles();
+            _metaDataManager.RequestSrcDataRetrieval(_deploySrcPath);
+        }
+
         private void RevertIntegrityCheckFile(object? obj)
         {
             if (_selectedItem is ProjectFile file)
@@ -181,7 +183,7 @@ namespace SimpleBinaryVCS.ViewModel
         }
         private void MainProjectIntegrityTest(object sender)
         {
-            _metaDataManager.RequestProjectIntegrityTest(sender);
+            Task.Run(() => _metaDataManager.RequestProjectIntegrityTest());
         }
 
         #region Receive Callback From Model 
@@ -210,15 +212,18 @@ namespace SimpleBinaryVCS.ViewModel
             this.ChangedFileList = changedFileList;
         }
 
-        private void ProjectIntegrityCheckCallBack(object sender, string changeLog, ObservableCollection<ProjectFile> changedFileList)
+        private void ProjectIntegrityCheckCallBack(string changeLog, ObservableCollection<ProjectFile> changedFileList)
         {
             if (changedFileList == null) { MessageBox.Show("Model Binding Issue: ChangedList is Empty"); return; }
-            
-            var mainWindow = sender as WPF.Window;
-            IntegrityLogWindow logWindow = new IntegrityLogWindow(changeLog, changedFileList);
-            logWindow.Owner = mainWindow;
-            logWindow.WindowStartupLocation = WPF.WindowStartupLocation.CenterOwner;
-            logWindow.Show();
+
+            App.Current.Dispatcher.Invoke(() =>
+            {
+                var mainWindow = App.Current.MainWindow;
+                IntegrityLogWindow logWindow = new IntegrityLogWindow(changeLog, changedFileList);
+                logWindow.Owner = mainWindow;
+                logWindow.WindowStartupLocation = WPF.WindowStartupLocation.CenterOwner;
+                logWindow.Show();
+            });
         }
 
         private void SrcProjectDataCallBack(object srcProjectDataObj)

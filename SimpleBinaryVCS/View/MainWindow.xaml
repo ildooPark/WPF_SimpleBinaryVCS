@@ -32,24 +32,25 @@
                 Grid.Row="0"
                 Orientation="Vertical"
                 >
+                    
                     <Label
-                    Height="Auto"
-                    VerticalAlignment="Top"
-                    x:Name="updaterTag"
-                    Content = "Updater">
+                        Height="Auto"
+                        VerticalAlignment="Top"
+                        x:Name="updaterTag"
+                        Content = "Updater">
                     </Label>
                     <TextBox
-                    Height="Auto"
-                    TextWrapping="Wrap"
-                    VerticalAlignment="Top"
-                    x:Name="UpdaterName"
-                    Text = "{Binding Path = BackupVM.UpdaterName}">
+                        Height="Auto"
+                        TextWrapping="Wrap"
+                        VerticalAlignment="Top"
+                        x:Name="UpdaterName"
+                        Text = "{Binding Path = BackupVM.UpdaterName}">
                     </TextBox>
                     <Label
-                    Height="Auto"
-                    VerticalAlignment="Top"
-                    x:Name="updaterNameTag"
-                    Content = "Update Log">
+                        Height="Auto"
+                        VerticalAlignment="Top"
+                        x:Name="updaterNameTag"
+                        Content = "Update Log">
                     </Label>
                     <TextBox
                         Height="Auto"
@@ -61,7 +62,9 @@
                         ScrollViewer.CanContentScroll="True"
                     />
                 </StackPanel>
-                <DataGrid Grid.Row="1"
+                
+                <DataGrid 
+                    Grid.Row="1"
                     Name="BackupLog" 
                     ItemsSource='{Binding BackupVM.SelectedItem.ProjectFilesObs}'
                     IsReadOnly="True"
@@ -82,7 +85,8 @@
                     </DataGrid.Columns>
                 </DataGrid>
 
-                <DataGrid Grid.Row="2"
+                <DataGrid 
+                    Grid.Row="2"
                     Name="DiffLog" 
                     ItemsSource='{Binding BackupVM.DiffLog}'
                     BorderBrush="#cdcdcd"
@@ -161,8 +165,9 @@
                     <DataGrid.ContextMenu>
                         <ContextMenu>
                             <MenuItem Header="Export Full Version" Name="Export" Command="{Binding BackupVM.ExportVersion}"/>
-                            <!--<MenuItem Header="Extract Version Log" Name="Extract" Command="{Binding BackupVM.ExtractLog}"/>-->
-                            <MenuItem Header="Checkout Version" Name="CheckOut" Command="{Binding BackupVM.CheckoutBackup}"/>
+                            <MenuItem Header="Extract Version Log" Name="Extract" Command="{Binding BackupVM.ExtractVersionLog}"/>
+                            <MenuItem Header="Checkout Version" Name="Checkout" Command="{Binding BackupVM.CheckoutBackup}"/>
+                            <MenuItem Header="Clean Checkout Version" Name="Restore" Command="{Binding BackupVM.CleanRestoreBackup}"/>
                         </ContextMenu>
                     </DataGrid.ContextMenu>
                 </DataGrid>
@@ -331,13 +336,13 @@
                     Height="Auto" 
                     Command="{Binding MetaDataVM.GetProject}"
                     Width="175" />
-                <Button
+                <!--<Button
                     x:Name="FetchButton" 
                     Content="Fetch" 
                     HorizontalAlignment="Left"
                     Height="Auto" 
                     Command="{Binding BackupVM.FetchBackup}"
-                    Width="50" />
+                    Width="50" />-->
                 <Button
                     x:Name="FullLogButton" 
                     Content="Full Log"

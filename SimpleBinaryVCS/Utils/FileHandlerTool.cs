@@ -7,22 +7,15 @@ using System.Text.Json;
 
 namespace SimpleBinaryVCS.Utils
 {
-    public struct OverlapFile
-    {
-        string DataRelPath;
-        string DataAbsPath;
-        string DataName; 
-    }
-
     public class FileHandlerTool
     {
         public bool TrySerializeProjectData(ProjectData data, string filePath)
         {
             try
             {
-                string jsonString = JsonSerializer.Serialize(data);
-                byte[] jsonData = System.Text.Encoding.UTF8.GetBytes(jsonString);
-                File.WriteAllBytes(filePath, jsonData);
+                var jsonData = JsonSerializer.Serialize(data);
+                var base64EncodedData = Convert.ToBase64String(Encoding.UTF8.GetBytes(jsonData));
+                File.WriteAllText(filePath, base64EncodedData);
                 return true; 
             }
             catch (Exception ex)

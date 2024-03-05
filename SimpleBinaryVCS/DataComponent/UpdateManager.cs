@@ -1,7 +1,6 @@
 ﻿using SimpleBinaryVCS.Interfaces;
 using SimpleBinaryVCS.Model;
 using SimpleBinaryVCS.Utils;
-using System.Drawing.Design;
 using System.Text;
 
 namespace SimpleBinaryVCS.DataComponent
@@ -19,8 +18,8 @@ namespace SimpleBinaryVCS.DataComponent
         public event Action<string>? IssueEventHandler;
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         public UpdateManager() 
-        { 
-            _fileHandlerTool = new FileHandlerTool();
+        {
+            _fileHandlerTool = App.FileHandlerTool;
         }
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         public void Awake()
@@ -39,17 +38,19 @@ namespace SimpleBinaryVCS.DataComponent
             if (_currentProjectFileChanges == null || _currentProjectFileChanges.Count == 0) { MessageBox.Show("File Changes does not exist"); return; }
             if (currentProjectPath != _projectMetaData.ProjectPath) { MessageBox.Show("Project Meta Data Path and Updated Path must match"); return; }
             
-            bool updateSuccess = false; 
             string newVersionName = GetProjectVersionName(_projectMain, _projectMetaData.LocalUpdateCount);
             string conductedPC = Environment.MachineName;
             ProjectData updatedProjectData = new ProjectData(_projectMain);
             RegisterFileChanges(updatedProjectData, currentProjectPath, _currentProjectFileChanges, newVersionName, out StringBuilder ? changeLog);
+            
+            bool updateSuccess = false;
             while (!updateSuccess)
             {
                 updateSuccess = _fileHandlerTool.TryApplyFileChanges(_currentProjectFileChanges);
                 if (!updateSuccess)
                 {
                     var response = MessageBox.Show("Update Failed, Would you like to Retry?", "Update Project", 
+
                         MessageBoxButtons.YesNo);
                     if (response == DialogResult.Yes)
                     {
@@ -57,12 +58,12 @@ namespace SimpleBinaryVCS.DataComponent
                     }
                     else
                     {
-                        MessageBox.Show("Update Failed"); return;
+                        MessageBox.Show("Update Failed, Please Run Version Integrity Test"); 
+                        return;
                     }
                 }
             }
             ++_projectMetaData.LocalUpdateCount;
-
             updatedProjectData.ChangedFiles = _currentProjectFileChanges;
             updatedProjectData.ProjectPath = currentProjectPath;
             updatedProjectData.UpdaterName = updaterName;
@@ -104,14 +105,13 @@ namespace SimpleBinaryVCS.DataComponent
                     if ((changes.DataState & DataState.Deleted) != 0)
                     {
                         currentProject.ProjectFiles.Remove(changes.DstFile.DataRelPath);
-                        continue;
                     }
-                    currentProject.ProjectFiles[changes.DstFile.DataRelPath] = new ProjectFile(changes.DstFile, newProjectVersion, currentProjectPath);
+                    else
+                        currentProject.ProjectFiles[changes.DstFile.DataRelPath] = new ProjectFile(changes.DstFile, newProjectVersion, currentProjectPath);
                 }
                     LogTool.RegisterChange(newChangeLog, changes.DataState, changes.SrcFile, changes.DstFile);
                 currentProject.NumberOfChanges++;
             }
-
             changeLog = newChangeLog; 
         }
         private string GetProjectVersionName(ProjectData projData, int currentUpdateCount)

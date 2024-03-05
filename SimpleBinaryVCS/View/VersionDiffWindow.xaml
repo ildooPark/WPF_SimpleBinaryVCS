@@ -1,0 +1,62 @@
+﻿<Window x:Class="SimpleBinaryVCS.View.VersionDiffWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:SimpleBinaryVCS.View"
+        mc:Ignorable="d"
+        Title="VersionDiffWindow" Height="450" Width="800">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        
+        <StackPanel Grid.Row="0">
+            <TextBlock>
+                <TextBlock.Inlines>
+                    <Run Text="SOURCE PROJECT VERSION: " />
+                    <Run Text="{Binding SrcProjectVersionLog}" />
+                </TextBlock.Inlines>
+            </TextBlock>
+  
+            <TextBlock>
+                <TextBlock.Inlines>
+                    <Run Text="DESTINATION PROJECT VERSION: " />
+                    <Run Text="{Binding DstProjectVersionLog}" />
+                </TextBlock.Inlines>
+            </TextBlock>
+            
+        </StackPanel>
+
+        <DataGrid Grid.Row="1" ItemsSource="{Binding ChangedFiles}">
+            <DataGrid.RowStyle>
+                <Style TargetType="DataGridRow">
+                    <Style.Triggers>
+                        <Trigger Property="{Binding DataContext.DataState}" Value="Modified">
+                            <Setter Property="Background" Value="Red" />
+                        </Trigger>
+                    </Style.Triggers>
+                </Style>
+            </DataGrid.RowStyle>
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Source File">
+                    <DataGridTextColumn.Binding>
+                        <MultiBinding>
+                            <Binding Path="SrcFile.RelativePath"/>
+                            <Binding Path="SrcFile.DataHash"/>
+                        </MultiBinding>
+                    </DataGridTextColumn.Binding>
+                </DataGridTextColumn>
+                <DataGridTextColumn Header="Destination File">
+                    <DataGridTextColumn.Binding>
+                        <MultiBinding>
+                            <Binding Path="DstFile.RelativePath" />
+                            <Binding Path="DstFile.DataHash"/>
+                        </MultiBinding>
+                    </DataGridTextColumn.Binding>
+                </DataGridTextColumn>
+            </DataGrid.Columns>
+        </DataGrid>
+    </Grid>
+</Window>
