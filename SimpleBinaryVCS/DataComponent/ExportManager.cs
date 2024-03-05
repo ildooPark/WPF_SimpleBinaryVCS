@@ -83,7 +83,7 @@ namespace SimpleBinaryVCS.DataComponent
                 ExportCompleteEventHandler?.Invoke(exportPath);
             }
         }
-        public bool TryExportProject(ProjectData projectData, out string? exportPath)
+        private bool TryExportProject(ProjectData projectData, out string? exportPath)
         {
             try
             {
@@ -138,6 +138,16 @@ namespace SimpleBinaryVCS.DataComponent
                 WPF.MessageBox.Show(ex.Message);
                 exportPath = null; return false;
             }
+        }
+
+        public void ExportProjectChanges(ProjectData projectData, List<ChangedFile> changes)
+        {
+
+        }
+        private bool TryExportProjectChanges(ProjectData proejctData, List<ChangedFile> changes, out string? exportPath)
+        {
+            exportPath = null;
+            return false; 
         }
 
         private string GetExportProjectPath(ProjectData projectData)

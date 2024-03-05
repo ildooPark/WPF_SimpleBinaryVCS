@@ -26,7 +26,13 @@
                     <Run Text="{Binding DstProjectVersionLog}" />
                 </TextBlock.Inlines>
             </TextBlock>
-            
+
+            <Button
+                x:Name="ExportFileDiff"
+                Content="Export File Diff" 
+                Height="20"
+                Command="{Binding VersionDiffVM.ExportDiffFiles}"
+                />
         </StackPanel>
 
         <DataGrid Grid.Row="1" ItemsSource="{Binding ChangedFiles}">

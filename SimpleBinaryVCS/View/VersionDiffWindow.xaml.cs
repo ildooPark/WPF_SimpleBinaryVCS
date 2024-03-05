@@ -1,4 +1,6 @@
-﻿using System;
+﻿using SimpleBinaryVCS.Model;
+using SimpleBinaryVCS.ViewModel;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -19,9 +21,12 @@ namespace SimpleBinaryVCS.View
     /// </summary>
     public partial class VersionDiffWindow : Window
     {
-        public VersionDiffWindow()
+        
+        public VersionDiffWindow(ProjectData srcProject, ProjectData dstProject, List<ChangedFile> diff)
         {
             InitializeComponent();
+            VersionDiffViewModel VersionDiffVM = new VersionDiffViewModel(srcProject, dstProject, diff);
+            this.DataContext = VersionDiffVM;
         }
     }
 }

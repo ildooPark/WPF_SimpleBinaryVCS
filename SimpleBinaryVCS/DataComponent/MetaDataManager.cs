@@ -137,6 +137,7 @@ namespace SimpleBinaryVCS.DataComponent
             }
             return true;
         }
+
         public void RequestProjectInitialization(string projectPath)
         {
             try
@@ -212,24 +213,24 @@ namespace SimpleBinaryVCS.DataComponent
                 return;
             }
         }
+
         public void RequestSrcDataRetrieval(string deployedPath)
         {
              _fileManager.RetrieveDataSrc(deployedPath);
         }
+
         public void RequestStagedFileListRefresh(string deployedPath)
         {
 
         }
-        /// <summary>
-        /// Triggers FetchRequestEventHandler if True
-        /// </summary>
-        /// <returns></returns>
+
         public bool RequestFetchBackup()
         {
             bool result = _backupManager.FetchBackupProjectList();
             if (!result) return false;
             return true;
         }
+
         public void RequestRevertProject(ProjectData? targetProject)
         {
             if (targetProject == null)
@@ -241,43 +242,54 @@ namespace SimpleBinaryVCS.DataComponent
             List<ChangedFile>? fileDifferences = _fileManager.FindVersionDifferences(targetProject, MainProjectData, true);
             _backupManager.RevertProject(targetProject, fileDifferences);
         }
+
         public void RequestProjectCleanRestore(ProjectData? targetProject)
         {
             List<ChangedFile>? fileDifferences = _fileManager.ProjectIntegrityCheck(targetProject);
             _backupManager.RevertProject(targetProject, fileDifferences);
         }
+
         public void RequestRevertChange(ProjectFile file)
         {
             _fileManager.RevertChange(file);
         }
+
         public void RequestStageChanges()
         {
             _fileManager.StageNewFilesAsync();
         }
+
         public void RequestClearStagedFiles()
         {
             _fileManager.ClearDeployedFileChanges();
         }
+
         public void RequestOverlappedFileAllocation(List<ChangedFile> overlapSorted)
         {
             _fileManager.RegisterOverlapped(overlapSorted);
         }
+
         public void RequestProjectIntegrityTest()
         {
             _fileManager.MainProjectIntegrityCheck();
         }
+
         public void RequestFileRestore(ProjectFile targetFile, DataState state)
         {
             _fileManager.RegisterNewfile(targetFile, state);
         }
+
         public void RequestExportProjectBackup(ProjectData projectData)
         {
             _exportManager.ExportProject(projectData);
         }
+
         public void RequestExportProjectVersionLog(ProjectData projectData)
         {
             _exportManager.ExportProjectVersionLog(projectData);
         }
+
+        public void RequstExportProjectVersionDiffFiles()
         public void RequestUpdate(string? updaterName, string? updateLog, string? currentProjectPath)
         {
             if (currentProjectPath == null)
@@ -287,6 +299,7 @@ namespace SimpleBinaryVCS.DataComponent
             }
             _updateManager.UpdateProjectMain(updaterName, updateLog, currentProjectPath);
         }
+
         #endregion
         #region Version Management Tools
         private string GetProjectVersionName(ProjectData projData, bool isNewProject = false)
@@ -351,6 +364,7 @@ namespace SimpleBinaryVCS.DataComponent
             if (backupListObj is not ObservableCollection<ProjectData> backupList) return;
             FetchRequestEventHandler?.Invoke(backupListObj);
         }
+
         private void ExportRequestCallBack(object exportPathObj)
         {
             if (exportPathObj is not string exportPath) return;
