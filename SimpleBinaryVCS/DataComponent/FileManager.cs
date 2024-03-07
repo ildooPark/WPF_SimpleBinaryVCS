@@ -51,7 +51,7 @@ namespace SimpleBinaryVCS.DataComponent
         public event Action<object>? DataPreStagedEventHandler;
         public event Action<object>? PreStagedDataOverlapEventHandler;
         public event Action<string, List<ProjectFile>>? IntegrityCheckEventHandler;
-        public event Action<string> IssueEventHandler;
+        public event Action<MetaDataState> IssueEventHandler;
         #endregion
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
@@ -74,6 +74,7 @@ namespace SimpleBinaryVCS.DataComponent
             ProjectData? mainProject = _dstProjectData;
             if (mainProject == null)
             {
+                IssueEventHandler?.Invoke(MetaDataState.Idle);
                 MessageBox.Show("Main Project is Missing");
                 return;
             }
@@ -183,10 +184,12 @@ namespace SimpleBinaryVCS.DataComponent
                 fileIntegrityLog.AppendLine("Integrity Check Complete");
                 DataStagedEventHandler?.Invoke(_registeredChangesDict.Values.ToList());
                 IntegrityCheckEventHandler?.Invoke(fileIntegrityLog.ToString(), _preStagedFilesDict.Values.ToList());
+                IssueEventHandler?.Invoke(MetaDataState.Idle);
             }
 
             catch (Exception ex)
             {
+                IssueEventHandler?.Invoke(MetaDataState.Idle);
                 System.Windows.MessageBox.Show($"{ex.Message}. Couldn't Run File Integrity Check");
             }
         }
@@ -194,6 +197,7 @@ namespace SimpleBinaryVCS.DataComponent
         {
             if (targetProject == null)
             {
+                IssueEventHandler?.Invoke(MetaDataState.Idle);
                 MessageBox.Show("Main Project is Missing");
                 return null;
             }
@@ -295,16 +299,19 @@ namespace SimpleBinaryVCS.DataComponent
                         }
                         ProjectFile srcFile = new ProjectFile(backupFile, DataState.None);
                         ProjectFile dstFile = new ProjectFile(backupFile, DataState.Restored, targetProject.ProjectPath);
+                        dstFile.DataRelPath = fileRelPath;
                         ChangedFile newChange = new ChangedFile(srcFile, dstFile, DataState.Modified, true);
                         fileChanges.Add(newChange);
                     }
                 }
+                IssueEventHandler?.Invoke(MetaDataState.Idle);
                 return fileChanges;
             }
 
             catch (Exception ex)
             {
                 System.Windows.MessageBox.Show($"{ex.Message}. Couldn't Run Version Clearn Restoring File Check");
+                IssueEventHandler?.Invoke(MetaDataState.Idle);
                 return null;
             }
         }
@@ -373,6 +380,10 @@ namespace SimpleBinaryVCS.DataComponent
 
                 foreach (string fileRelPath in intersectFiles)
                 {
+                    if (fileRelPath == "Front\\FineLocalizer\\libs\\CoPick.dll")
+                    {
+                        Console.Write("Test");
+                    }
                     if (srcDict[fileRelPath].DataHash != dstDict[fileRelPath].DataHash)
                     {
                         if (!_backupFilesDict.TryGetValue(srcDict[fileRelPath].DataHash, out ProjectFile? backupFile))
@@ -896,13 +907,13 @@ namespace SimpleBinaryVCS.DataComponent
                     _fileHandlerTool.HandleFile(null, file.DataAbsPath, DataState.Deleted);
                     break;
                 case DataState.Modified:
-                    if (!_projectFilesDict.TryGetValue(file.DataRelPath, out ProjectFile projectFile_M))
+                    if (!_projectFilesDict.TryGetValue(file.DataRelPath, out ProjectFile? projectFile_M))
                     {
                         MessageBox.Show("Couldn't revert change since recorded project file does not exist");
                         file.DataState |= DataState.IntegrityChecked;
                         return;
                     }
-                    if (!_backupFilesDict.TryGetValue(projectFile_M.DataHash, out ProjectFile backupFile_M))
+                    if (!_backupFilesDict.TryGetValue(projectFile_M.DataHash, out ProjectFile? backupFile_M))
                     {
                         MessageBox.Show("Couldn't revert change since backup does not exist");
                         file.DataState |= DataState.IntegrityChecked;
@@ -911,7 +922,7 @@ namespace SimpleBinaryVCS.DataComponent
                     _fileHandlerTool.HandleFile(backupFile_M.DataAbsPath, projectFile_M.DataAbsPath, DataState.Modified);
                     break;
                 case DataState.Deleted:
-                    if (!_projectFilesDict.TryGetValue(file.DataRelPath, out ProjectFile projectFile_D))
+                    if (!_projectFilesDict.TryGetValue(file.DataRelPath, out ProjectFile? projectFile_D))
                     {
                         MessageBox.Show("Coudln't Revert Change for Recorded Project file");
                         file.DataState |= DataState.IntegrityChecked;
@@ -922,7 +933,7 @@ namespace SimpleBinaryVCS.DataComponent
                         _fileHandlerTool.HandleDirectory(null, projectFile_D.DataAbsPath, DataState.None);
                         break;
                     }
-                    if (!_backupFilesDict.TryGetValue(projectFile_D.DataHash, out ProjectFile backupFile_D))
+                    if (!_backupFilesDict.TryGetValue(projectFile_D.DataHash, out ProjectFile? backupFile_D))
                     {
                         MessageBox.Show("Couldn't revert change since backup does not exist");
                         file.DataState |= DataState.IntegrityChecked;
@@ -934,9 +945,9 @@ namespace SimpleBinaryVCS.DataComponent
                     break;
             }
 
-            if (_preStagedFilesDict.TryGetValue(file.DataRelPath, out ProjectFile recordedPreFile))
+            if (_preStagedFilesDict.TryGetValue(file.DataRelPath, out ProjectFile? recordedPreFile))
                 _preStagedFilesDict.Remove(file.DataRelPath);
-            if (_registeredChangesDict.TryGetValue(file.DataRelPath, out ChangedFile recordedChange))
+            if (_registeredChangesDict.TryGetValue(file.DataRelPath, out ChangedFile? recordedChange))
                 _registeredChangesDict.Remove(file.DataRelPath);
 
             DataStagedEventHandler?.Invoke(_registeredChangesDict.Values.ToList());

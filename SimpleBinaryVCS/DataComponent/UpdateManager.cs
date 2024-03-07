@@ -15,7 +15,7 @@ namespace SimpleBinaryVCS.DataComponent
         private FileHandlerTool _fileHandlerTool;
 
         public event Action<object>? ProjectUpdateEventHandler;
-        public event Action<string>? IssueEventHandler;
+        public event Action<MetaDataState>? IssueEventHandler;
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         public UpdateManager() 
         {

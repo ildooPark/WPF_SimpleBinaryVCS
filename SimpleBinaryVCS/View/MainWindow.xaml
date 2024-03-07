@@ -304,6 +304,9 @@
                             Height="20"
                             Command="{Binding MetaDataVM.ConductUpdate}"
                             />
+                        <TextBlock
+                            Text="{Binding MetaDataVM.CurrentMetaDataState}"
+                            />
                     </StackPanel>
                 </StackPanel>
             </Grid>

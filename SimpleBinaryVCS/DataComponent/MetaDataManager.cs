@@ -8,6 +8,14 @@ using System.Text;
 
 namespace SimpleBinaryVCS.DataComponent
 {
+    public enum MetaDataState
+    {
+        IntegrityChecking,
+        CleanRestoring,
+        Exporting,
+        Processing,
+        Idle
+    }
     public class MetaDataManager : IManager
     {
         public string? CurrentProjectPath {  get; set; }
@@ -22,7 +30,17 @@ namespace SimpleBinaryVCS.DataComponent
         public event Action<object>? MetaDataLoadedEventHandler;
         public event Action<object>? FetchRequestEventHandler;
         public event Action<string, ObservableCollection<ProjectFile>>? IntegrityCheckCompleteEventHandler;
-        public event Action<string> IssueEventHandler;
+        public event Action<MetaDataState> IssueEventHandler;
+        private MetaDataState _currentState; 
+        public MetaDataState CurrentState
+        {
+            get => _currentState;
+            set
+            {
+                _currentState = value;
+                IssueEventHandler?.Invoke(_currentState);
+            }
+        }
 
         private ProjectMetaData? _projectMetaData;
         public ProjectMetaData? ProjectMetaData
@@ -101,16 +119,20 @@ namespace SimpleBinaryVCS.DataComponent
 
             _backupManager.ProjectRevertEventHandler += ProjectChangeCallBack;
             _backupManager.FetchCompleteEventHandler += FetchRequestCallBack;
+            _backupManager.IssueEventHandler += IssueEventCallBack;
 
             _updateManager.ProjectUpdateEventHandler += ProjectChangeCallBack;
+            _updateManager.IssueEventHandler += IssueEventCallBack;
 
             _fileManager.DataPreStagedEventHandler += DataPreStagedCallBack;
             _fileManager.DataStagedEventHandler += DataStagedCallBack;
             _fileManager.OverlappedFileFoundEventHandler += OverlapFileFoundCallBack; 
             _fileManager.IntegrityCheckEventHandler += ProjectIntegrityCheckCallBack;
             _fileManager.SrcProjectDataLoadedEventHandler += SrcProjectLoadedCallBack;
+            _fileManager.IssueEventHandler += IssueEventCallBack;
 
             _exportManager.ExportCompleteEventHandler += ExportRequestCallBack;
+            _exportManager.IssueEventHandler += IssueEventCallBack;
         }
 
         #region View Model Request Calls
@@ -123,6 +145,11 @@ namespace SimpleBinaryVCS.DataComponent
                 _fileHandlerTool.TryDeserializeProjectMetaData(projectMetaDataPath, out ProjectMetaData? retrievedData);
                 if (retrievedData != null)
                 {
+                    if (retrievedData.ProjectPath != projectPath)
+                    {
+                        retrievedData.ProjectPath = projectPath;
+                        retrievedData.ReconfigureProjectPath(projectPath);
+                    }
                     retrievedData.ProjectPath = projectPath;
                     ProjectMetaData = retrievedData;
                     MainProjectData = retrievedData.ProjectMain;
@@ -289,7 +316,10 @@ namespace SimpleBinaryVCS.DataComponent
             _exportManager.ExportProjectVersionLog(projectData);
         }
 
-        public void RequstExportProjectVersionDiffFiles()
+        public void RequestExportProjectVersionDiffFiles(List<ChangedFile> FileDiffs)
+        {
+
+        }
         public void RequestUpdate(string? updaterName, string? updateLog, string? currentProjectPath)
         {
             if (currentProjectPath == null)
@@ -369,6 +399,11 @@ namespace SimpleBinaryVCS.DataComponent
         {
             if (exportPathObj is not string exportPath) return;
             ProjExportEventHandler?.Invoke(exportPath);
+        }
+
+        private void IssueEventCallBack(MetaDataState state)
+        {
+            CurrentState = state;
         }
         #endregion
 

@@ -11,19 +11,17 @@ namespace SimpleBinaryVCS.DataComponent
     {
         private string? _currentProjectPath; 
         private Dictionary<string, ProjectFile>? _backupFilesDict;
-
         private FileHandlerTool _fileHandlerTool;
         public ExportManager() 
         {
             _fileHandlerTool = App.FileHandlerTool;
         }
-
         #region Manager Events
         /// <summary>
         /// string = Export Project Path
         /// </summary>
         public event Action<string>? ExportCompleteEventHandler;
-        public event Action<string>? IssueEventHandler;
+        public event Action<MetaDataState>? IssueEventHandler;
         #endregion
         public void Awake(){}
         public void ExportProjectVersionLog(ProjectData projectData)
@@ -56,9 +54,11 @@ namespace SimpleBinaryVCS.DataComponent
         {
             if (_backupFilesDict == null)
             {
+                IssueEventHandler?.Invoke(MetaDataState.Idle);
                 WPF.MessageBox.Show("Backup files are missing!, Make sure ProjectMetaData is Set");
                 return;
             }
+            IssueEventHandler?.Invoke(MetaDataState.Exporting);
             bool exportResult = false;
             string? exportPath = null; 
             while (!exportResult)
@@ -74,12 +74,14 @@ namespace SimpleBinaryVCS.DataComponent
                     else
                     {
                         WPF.MessageBox.Show("Export Canceled");
+                        IssueEventHandler?.Invoke(MetaDataState.Idle);
                         break;
                     }
                 }
             }
             if (exportPath != null)
             {
+                IssueEventHandler?.Invoke(MetaDataState.Idle);
                 ExportCompleteEventHandler?.Invoke(exportPath);
             }
         }
@@ -144,7 +146,7 @@ namespace SimpleBinaryVCS.DataComponent
         {
 
         }
-        private bool TryExportProjectChanges(ProjectData proejctData, List<ChangedFile> changes, out string? exportPath)
+        private bool TryExportProjectChanges(ProjectData projectData, List<ChangedFile> changes, out string? exportPath)
         {
             exportPath = null;
             return false; 

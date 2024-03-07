@@ -201,7 +201,7 @@ namespace SimpleBinaryVCS.Model
                 MessageBox.Show("Project Path is Null, Couldn't Set Source Data Path for all Project Files");
                 return;
             }
-            foreach (ProjectFile file in ProjectFilesObs)
+            foreach (ProjectFile file in ProjectFiles.Values)
             {
                 file.DataSrcPath = ProjectPath;
             }

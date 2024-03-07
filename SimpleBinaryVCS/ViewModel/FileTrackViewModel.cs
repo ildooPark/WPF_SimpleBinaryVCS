@@ -73,6 +73,7 @@ namespace SimpleBinaryVCS.ViewModel
         public ICommand GetDeploySrcDir => getDeploySrcDir ??= new RelayCommand(SetDeploySrcDirectory, CanSetDeployDir);
         
         private MetaDataManager _metaDataManager;
+        private MetaDataState _metaDataState = MetaDataState.Idle;
         private ProjectData? _deployedProjectData;
         string? _deploySrcPath;
         public FileTrackViewModel()
@@ -114,7 +115,11 @@ namespace SimpleBinaryVCS.ViewModel
             }
         }
         
-        private bool CanStageChanges(object obj) { return ChangedFileList.Count != 0; }
+        private bool CanStageChanges(object obj) 
+        {
+            if (_metaDataState != MetaDataState.Idle) return false; 
+            return ChangedFileList.Count != 0; 
+        }
         private void StageNewChanges(object obj)
         {
             _metaDataManager.RequestStageChanges();
@@ -141,6 +146,7 @@ namespace SimpleBinaryVCS.ViewModel
         
         private bool CanRestoreFile(object? obj)
         {
+            if (_metaDataState != MetaDataState.Idle) return false;
             if (obj is ProjectFile projFile &&
                 (projFile.DataState == DataState.Deleted ||
                 !projFile.IsDstFile)) return true; 
@@ -179,7 +185,7 @@ namespace SimpleBinaryVCS.ViewModel
 
         private bool CanRunIntegrityTest(object Sender)
         {
-            return true; 
+            return _metaDataState == MetaDataState.Idle; 
         }
         private void MainProjectIntegrityTest(object sender)
         {
@@ -225,7 +231,10 @@ namespace SimpleBinaryVCS.ViewModel
                 logWindow.Show();
             });
         }
-
+        private void MetaDataStateChangeCallBack(MetaDataState state)
+        {
+            _metaDataState = state;
+        }
         private void SrcProjectDataCallBack(object srcProjectDataObj)
         {
             if (srcProjectDataObj is not ProjectData srcProjectData) return;

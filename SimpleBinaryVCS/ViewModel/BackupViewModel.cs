@@ -49,11 +49,15 @@ namespace SimpleBinaryVCS.ViewModel
         public ICommand CheckoutBackup => checkoutBackup ??= new RelayCommand(Revert, CanRevert);
 
         private ICommand? exportVersion;
-        public ICommand ExportVersion => exportVersion ??= new RelayCommand(ExportBackupFiles);
+        public ICommand ExportVersion => exportVersion ??= new RelayCommand(ExportBackupFiles, CanExportBackupFiles);
+
+        
 
         private ICommand? cleanRestoreBackup;
-        public ICommand CleanRestoreBackup => cleanRestoreBackup ??= new RelayCommand(CleanRestoreBackupFiles);
+        public ICommand CleanRestoreBackup => cleanRestoreBackup ??= new RelayCommand(CleanRestoreBackupFiles, CanCleanRestoreBackupFiles);
+
         
+
         private ICommand? extractVersionLog;
         public ICommand ExtractVersionLog => extractVersionLog ??= new RelayCommand(ExtractVersionMetaData);
 
@@ -94,11 +98,13 @@ namespace SimpleBinaryVCS.ViewModel
         }
 
         private MetaDataManager _metaDataManager;
+        private MetaDataState? _metaDataState = MetaDataState.Idle;
         public BackupViewModel()
         {
             this._metaDataManager = App.MetaDataManager;
             this._metaDataManager.FetchRequestEventHandler += FetchRequestCallBack;
-            this._metaDataManager.ProjExportEventHandler += ExportRequestCallBack; 
+            this._metaDataManager.ProjExportEventHandler += ExportRequestCallBack;
+            this._metaDataManager.IssueEventHandler += MetaDataStateChangeCallBack;
         }
 
         private bool CanFetch(object obj)
@@ -132,6 +138,7 @@ namespace SimpleBinaryVCS.ViewModel
         private bool CanRevert(object obj)
         {
             if (SelectedItem == null || _metaDataManager.MainProjectData == null) return false;
+            if (_metaDataState != MetaDataState.Idle) return false;
             return true;
         }
 
@@ -154,6 +161,10 @@ namespace SimpleBinaryVCS.ViewModel
                 return;
             }
         }
+        private bool CanCleanRestoreBackupFiles(object obj)
+        {
+            return _metaDataState == MetaDataState.Idle;
+        }
         private void CleanRestoreBackupFiles(object? obj)
         {
             if (SelectedItem == null)
@@ -173,7 +184,10 @@ namespace SimpleBinaryVCS.ViewModel
                 return;
             }
         }
-
+        private bool CanExportBackupFiles(object obj)
+        {
+            return _metaDataState == MetaDataState.Idle;
+        }
         private void ExportBackupFiles(object? obj)
         {
             if (SelectedItem == null)
@@ -216,6 +230,11 @@ namespace SimpleBinaryVCS.ViewModel
             {
                 MessageBox.Show($"{exportPath} does not Exists! : ERROR: {ex.Message}");
             }
+        }
+
+        private void MetaDataStateChangeCallBack(MetaDataState state)
+        {
+            _metaDataState = state;
         }
         #endregion
 

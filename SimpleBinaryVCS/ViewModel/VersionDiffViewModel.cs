@@ -63,11 +63,7 @@ namespace SimpleBinaryVCS.ViewModel
         }
         private void ExportDiff(object obj)
         {
-            _metaDataManager.Request
+            _metaDataManager.RequestExportProjectVersionDiffFiles(Diff);
         }
-
-
-
-
     }
 }
