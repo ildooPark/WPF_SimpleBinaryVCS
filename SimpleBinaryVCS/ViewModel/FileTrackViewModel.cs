@@ -68,7 +68,22 @@ namespace SimpleBinaryVCS.ViewModel
 
         private ICommand? getDeployedProjectInfo;
         public ICommand? GetDeployedProjectInfo => getDeployedProjectInfo ??= new RelayCommand(OpenDeployedProjectInfo, CanOpenDeployedProjectInfo);
-        
+
+        private ICommand? compareDeployedProjectWithMain;
+        public ICommand? CompareDeployedProjectWithMain => compareDeployedProjectWithMain ??= new RelayCommand(CompareSrcProjWithMain, CanCompareSrcProjWithMain);
+
+        private bool CanCompareSrcProjWithMain(object obj)
+        {
+            if (_metaDataState != MetaDataState.Idle) return false;
+            if (_deployedProjectData ==  null) return false;
+            return true; 
+        }
+
+        private void CompareSrcProjWithMain(object obj)
+        {
+            _metaDataManager.RequestProjVersionDiff(_deployedProjectData);
+        }
+
         private ICommand? getDeploySrcDir;
         public ICommand GetDeploySrcDir => getDeploySrcDir ??= new RelayCommand(SetDeploySrcDirectory, CanSetDeployDir);
         
@@ -84,10 +99,13 @@ namespace SimpleBinaryVCS.ViewModel
             this._metaDataManager.PreStagedChangesEventHandler += PreStagedChangesCallBack;
             this._metaDataManager.IntegrityCheckCompleteEventHandler += ProjectIntegrityCheckCallBack;
             this._metaDataManager.FileChangesEventHandler += FileChangeListUpdateCallBack;
+            this._metaDataManager.IssueEventHandler += MetaDataStateChangeCallBack;
+            this._metaDataManager.ProjComparisonCompleteEventHandler += ProjComparisonCheckCallBack;
         }
 
         private bool CanSetDeployDir(object obj)
         {
+            if (_metaDataState != MetaDataState.Idle) return false;
             return true;
         }
         private void SetDeploySrcDirectory(object obj)
@@ -231,13 +249,32 @@ namespace SimpleBinaryVCS.ViewModel
                 logWindow.Show();
             });
         }
+
+        private void ProjComparisonCheckCallBack(ProjectData srcProject, ProjectData dstProject, List<ChangedFile> diff)
+        {
+            App.Current.Dispatcher.Invoke(() =>
+            {
+                var mainWindow = App.Current.MainWindow;
+                VersionDiffWindow versionDiffWindow = new VersionDiffWindow(srcProject, dstProject, diff);
+                versionDiffWindow.Owner = mainWindow;
+                versionDiffWindow.WindowStartupLocation = WPF.WindowStartupLocation.CenterOwner;
+                versionDiffWindow.Show();
+            });
+        }
         private void MetaDataStateChangeCallBack(MetaDataState state)
         {
-            _metaDataState = state;
+            App.Current.Dispatcher.Invoke(() =>
+            {
+                _metaDataState = state;
+            });
         }
         private void SrcProjectDataCallBack(object srcProjectDataObj)
         {
-            if (srcProjectDataObj is not ProjectData srcProjectData) return;
+            if (srcProjectDataObj is not ProjectData srcProjectData)
+            {
+                _deployedProjectData = null;
+                return;
+            }
             this._deployedProjectData = srcProjectData;
         }
         #endregion

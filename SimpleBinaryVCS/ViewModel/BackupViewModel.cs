@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Text.RegularExpressions;
 using System.Windows.Input;
+using System.Windows.Threading;
 using WPF = System.Windows;
 
 namespace SimpleBinaryVCS.ViewModel
@@ -234,7 +235,10 @@ namespace SimpleBinaryVCS.ViewModel
 
         private void MetaDataStateChangeCallBack(MetaDataState state)
         {
-            _metaDataState = state;
+            App.Current.Dispatcher.Invoke(() =>
+            {
+                _metaDataState = state;
+            });
         }
         #endregion
 

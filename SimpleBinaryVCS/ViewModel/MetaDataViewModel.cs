@@ -108,9 +108,9 @@ namespace SimpleBinaryVCS.ViewModel
         public MetaDataViewModel()
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         {
-            metaDataManager = App.MetaDataManager;
-            metaDataManager.IssueEventHandler += MetaDataStateChangeCallBack;
-            metaDataManager.ProjLoadedEventHandler += ProjectLoadedCallBack;
+            this.metaDataManager = App.MetaDataManager;
+            this.metaDataManager.ProjLoadedEventHandler += ProjectLoadedCallBack;
+            this.metaDataManager.IssueEventHandler += MetaDataStateChangeCallBack;
         }
         #region Update Version 
         private bool CanUpdate(object obj)
@@ -157,7 +157,7 @@ namespace SimpleBinaryVCS.ViewModel
                     "Import Project", MessageBoxButtons.YesNo);
                 if (result == DialogResult.Yes)
                 {
-                    metaDataManager.RequestProjectInitialization(openFD.SelectedPath);
+                    Task.Run (() => metaDataManager.RequestProjectInitialization(openFD.SelectedPath));
                 }
                 else
                 {
@@ -170,8 +170,11 @@ namespace SimpleBinaryVCS.ViewModel
         #region Receiving Model Callbacks
         private void MetaDataStateChangeCallBack(MetaDataState state)
         {
-            _metaDataState = state;
-            CurrentMetaDataState = state.ToString();
+            App.Current.Dispatcher.Invoke(() =>
+            {
+                _metaDataState = state;
+                CurrentMetaDataState = state.ToString();
+            });
         }
         private void ProjectLoadedCallBack(object projObj)
         {

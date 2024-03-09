@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:SimpleBinaryVCS.View"
         mc:Ignorable="d"
-        Title="Integrity Log Window" Height="600" Width="1000">
+        Title="Integrity Log Window" Height="600" Width="1250">
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width = "3*" />
@@ -17,15 +17,15 @@
                 <RowDefinition Height="3*"/>
                 <RowDefinition Height="3*"/>
             </Grid.RowDefinitions>
-                <DataGrid 
-                    IsReadOnly="True"
-                    ItemsSource="{Binding ProjectDataReview}" 
-                    AutoGenerateColumns="False">
-                    <DataGrid.Columns>
-                        <DataGridTextColumn Header="Variable" Binding="{Binding Key}" Width="3*"/>
-                        <DataGridTextColumn Header="Data" Binding="{Binding Value}" Width="7*"/>
-                    </DataGrid.Columns>
-                </DataGrid>
+            <DataGrid 
+                IsReadOnly="True"
+                ItemsSource="{Binding ProjectDataReview}" 
+                AutoGenerateColumns="False">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Variable" Binding="{Binding Key}" Width="3*"/>
+                    <DataGridTextColumn Header="Data" Binding="{Binding Value}" Width="7*"/>
+                </DataGrid.Columns>
+            </DataGrid>
             <Grid Grid.Row="1">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="25"/>
@@ -58,30 +58,43 @@
                     ScrollViewer.CanContentScroll="True"/>
             </Grid>
         </Grid>
+        <Grid Grid.Column="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="45"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <TextBox Grid.Row="0"
+                Name="FileFilterKeyword" 
+                TextChanged="FileFilterKeyword_TextChanged"
+                Height="30" Width="250" 
+                HorizontalAlignment="left" 
+                Margin="5"
+                BorderThickness="1" BorderBrush="#E0E0E0" FontSize="16"/>
+            <DataGrid 
+                Grid.Row="1"
+                IsReadOnly="True"
+                Name="BackupFileList" 
+                ItemsSource='{Binding FileList}'
+                BorderBrush="#cdcdcd"
+                ScrollViewer.CanContentScroll="True"
+                ScrollViewer.VerticalScrollBarVisibility="Auto"
+                ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                CanUserAddRows="False"
+                CanUserDeleteRows="False"
+                AutoGenerateColumns="False"
+                >
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Filename" Binding="{Binding DataName}" Width ="75"/>
+                    <DataGridTextColumn Header="FileV#" Binding="{Binding BuildVersion}" Width ="100"/>
+                    <DataGridTextColumn Header="FilePath" Binding="{Binding DataRelPath}" Width ="200"/>
+                    <DataGridTextColumn Header="HashValue" Binding="{Binding DataHash}" Width ="75"/>
+                    <DataGridTextColumn Header="UpdatedTime" Binding="{Binding UpdatedTime}" Width ="100"/>
+                    <DataGridTextColumn Header="DeployedV#" Binding="{Binding DeployedProjectVersion}" Width ="200"/>
+                    <DataGridTextColumn Header="FileSize(kb)" Binding="{Binding DataSize}" Width ="50"/>
+                    <DataGridTextColumn Header="ChangedState" Binding="{Binding DataState}" Width ="50"/>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Grid>
         
-        <DataGrid 
-            Grid.Column="1"
-            IsReadOnly="True"
-            Name="BackupLog" 
-            ItemsSource='{Binding FileList}'
-            BorderBrush="#cdcdcd"
-            ScrollViewer.CanContentScroll="True"
-            ScrollViewer.VerticalScrollBarVisibility="Auto"
-            ScrollViewer.HorizontalScrollBarVisibility="Auto"
-            CanUserAddRows="False"
-            CanUserDeleteRows="False"
-            AutoGenerateColumns="False"
-            >
-            <DataGrid.Columns>
-                <DataGridTextColumn Header="Filename" Binding="{Binding DataName}" Width ="2*"/>
-                <DataGridTextColumn Header="FileSize(kb)" Binding="{Binding DataSize}" Width ="2*"/>
-                <DataGridTextColumn Header="DeployedV#" Binding="{Binding DeployedProjectVersion}" Width ="2*"/>
-                <DataGridTextColumn Header="FileV#" Binding="{Binding BuildVersion}" Width ="2*"/>
-                <DataGridTextColumn Header="FilePath" Binding="{Binding DataRelPath}" Width ="2*"/>
-                <DataGridTextColumn Header="HashValue" Binding="{Binding DataHash}" Width ="2*"/>
-                <DataGridTextColumn Header="UpdatedTime" Binding="{Binding UpdatedTime}" Width ="2*"/>
-                <DataGridTextColumn Header="ChangedState" Binding="{Binding DataState}" Width ="2*"/>
-            </DataGrid.Columns>
-        </DataGrid>
     </Grid>
 </Window>

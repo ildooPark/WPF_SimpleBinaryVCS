@@ -23,5 +23,16 @@ namespace SimpleBinaryVCS.View
             VersionCheckViewModel versionCheckViewModel = new VersionCheckViewModel(projectData);
             this.DataContext = versionCheckViewModel;
         }
+
+        private void FileFilterKeyword_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+        {
+            BackupFileList.Items.Filter = FilterFilesMethod;
+        }
+        private bool FilterFilesMethod(object obj)
+        {
+            var file = (ProjectFile)obj;
+
+            return file.DataName.Contains(FileFilterKeyword.Text, StringComparison.OrdinalIgnoreCase);
+        }
     }
 }

@@ -16,9 +16,9 @@
         </Grid.RowDefinitions>
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="3*"/>
-                <ColumnDefinition Width="3*"/>
                 <ColumnDefinition Width="2*"/>
+                <ColumnDefinition Width="1*"/>
+                <ColumnDefinition Width="5*"/>
                 <ColumnDefinition Width="2*"/>
             </Grid.ColumnDefinitions>
             <Grid Grid.Column="0">
@@ -29,10 +29,9 @@
                 </Grid.RowDefinitions>
 
                 <StackPanel 
-                Grid.Row="0"
-                Orientation="Vertical"
-                >
-                    
+                    Grid.Row="0"
+                    Orientation="Vertical"
+                    >
                     <Label
                         Height="Auto"
                         VerticalAlignment="Top"
@@ -89,6 +88,7 @@
                     Grid.Row="2"
                     Name="DiffLog" 
                     ItemsSource='{Binding BackupVM.DiffLog}'
+                    IsReadOnly="True"
                     BorderBrush="#cdcdcd"
                     ScrollViewer.CanContentScroll="True"
                     ScrollViewer.VerticalScrollBarVisibility="Auto"
@@ -147,6 +147,7 @@
                     Name="backupList" 
                     ItemsSource="{Binding BackupVM.BackupProjectDataList}"
                     SelectedItem="{Binding BackupVM.SelectedItem}"
+                    IsReadOnly="True"
                     BorderBrush="#cdcdcd"
                     ScrollViewer.CanContentScroll="True"
                     ScrollViewer.VerticalScrollBarVisibility="Auto"
@@ -164,8 +165,9 @@
                     </DataGrid.Columns>
                     <DataGrid.ContextMenu>
                         <ContextMenu>
-                            <MenuItem Header="Export Full Version" Name="Export" Command="{Binding BackupVM.ExportVersion}"/>
-                            <MenuItem Header="Extract Version Log" Name="Extract" Command="{Binding BackupVM.ExtractVersionLog}"/>
+                            <MenuItem Header="Export Full Version" Name="ExportAll" Command="{Binding BackupVM.ExportVersion}"/>
+                            <MenuItem Header="Export Version Log" Name="ExportLog" Command="{Binding BackupVM.ExtractVersionLog}"/>
+                            <MenuItem Header="Compare With Main" Name="ProjComparison" Command="{Binding BackupVM.ExtractVersionLog}"/>
                             <MenuItem Header="Checkout Version" Name="Checkout" Command="{Binding BackupVM.CheckoutBackup}"/>
                             <MenuItem Header="Clean Checkout Version" Name="Restore" Command="{Binding BackupVM.CleanRestoreBackup}"/>
                         </ContextMenu>
@@ -187,26 +189,41 @@
                     BorderThickness="1"
                     BorderBrush="Black"
                     />
-            <DataGrid Grid.Column="2"
-                Name="nextProjectVersionFileList" 
-                ItemsSource='{Binding MetaDataVM.ProjectFiles}'
-                IsReadOnly="True"
-                BorderBrush="#cdcdcd"
-                ScrollViewer.CanContentScroll="True"
-                ScrollViewer.VerticalScrollBarVisibility="Auto"
-                ScrollViewer.HorizontalScrollBarVisibility="Auto"
-                CanUserAddRows="False"
-                CanUserDeleteRows="False"
-                AutoGenerateColumns="False"
-                >
-                <DataGrid.Columns>
-                    <DataGridTextColumn Header="Filename" Binding="{Binding DataName}" Width ="2*"/>
-                    <DataGridTextColumn Header="Build Version" Binding="{Binding BuildVersion}" Width ="2*"/>
-                    <DataGridTextColumn Header="DeployedV" Binding="{Binding DeployedProjectVersion}" Width ="2*"/>
-                    <DataGridTextColumn Header="Updated Date" Binding="{Binding UpdatedTime}" Width ="2*"/>
-                    <DataGridTextColumn Header="Hash" Binding="{Binding DataHash}" Width ="2*"/>
-                </DataGrid.Columns>
-            </DataGrid>
+            <Grid Grid.Column="2">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="45"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <TextBox Grid.Row="0"
+                         Name="FileFilterKeyword" 
+                         TextChanged="FileFilterKeyword_TextChanged"
+                         Height="30" Width="250" 
+                         HorizontalAlignment="left" 
+                         Margin="5"
+                         BorderThickness="1" BorderBrush="#E0E0E0" FontSize="16"/>
+                <DataGrid Grid.Row="1"
+                    Name="ProjectMainFileList" 
+                    ItemsSource='{Binding MetaDataVM.ProjectFiles}'
+                    IsReadOnly="True"
+                    BorderBrush="#cdcdcd"
+                    ScrollViewer.CanContentScroll="True"
+                    ScrollViewer.VerticalScrollBarVisibility="Auto"
+                    ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                    CanUserAddRows="False"
+                    CanUserDeleteRows="False"
+                    AutoGenerateColumns="False"
+                    >
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Filename" Binding="{Binding DataName}" Width ="1*"/>
+                        <DataGridTextColumn Header="FileRelPath" Binding="{Binding DataRelPath}" Width ="3*"/>
+                        <DataGridTextColumn Header="Build Version" Binding="{Binding BuildVersion}" Width ="2*"/>
+                        <DataGridTextColumn Header="DeployedV" Binding="{Binding DeployedProjectVersion}" Width ="1*"/>
+                        <DataGridTextColumn Header="Updated Date" Binding="{Binding UpdatedTime}" Width ="2*"/>
+                        <DataGridTextColumn Header="Hash" Binding="{Binding DataHash}" Width ="1*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Grid>
+            
             <GridSplitter Grid.Column="2"
               BorderThickness="1"
               BorderBrush="Black"
@@ -324,21 +341,28 @@
                     Content="Set Source Dir" 
                     Height="Auto" 
                     Command="{Binding FileTrackVM.GetDeploySrcDir}"
-                    Width="175" />
+                    Width="150" />
+                <Button
+                    x:Name="SrcProjectCompare" 
+                    Content="SrcProjectCompare" 
+                    HorizontalAlignment="Left"
+                    Height="Auto" 
+                    Command="{Binding FileTrackVM.CompareDeployedProjectWithMain}"
+                    Width="120" />
                 <!--<Button
-                    x:Name="SrcProjectLog" 
-                    Content="SrcProjectLog" 
+                    x:Name="SrcProjectInfo" 
+                    Content="SrcProjectData" 
                     HorizontalAlignment="Left"
                     Height="Auto" 
                     Command="{Binding FileTrackVM.GetDeployedProjectInfo}"
-                    Width="100" />-->
+                    Width="75" />-->
                 <Button
                     x:Name="SetProject" 
                     Content="Set Destination Dir" 
                     HorizontalAlignment="Left"
                     Height="Auto" 
                     Command="{Binding MetaDataVM.GetProject}"
-                    Width="175" />
+                    Width="150" />
                 <!--<Button
                     x:Name="FetchButton" 
                     Content="Fetch" 
@@ -351,7 +375,7 @@
                     Content="Full Log"
                     Height="Auto" 
                     Command="{Binding BackupVM.ViewFullLog}"
-                    Width="100" />
+                    Width="70" />
             </StackPanel>
 
             <Button Grid.Column="1"

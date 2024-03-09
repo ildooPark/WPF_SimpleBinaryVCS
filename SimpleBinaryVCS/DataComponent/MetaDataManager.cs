@@ -13,7 +13,11 @@ namespace SimpleBinaryVCS.DataComponent
         IntegrityChecking,
         CleanRestoring,
         Exporting,
+        Reverting,
         Processing,
+        Retrieving,
+        Updating,
+        Initializing,
         Idle
     }
     public class MetaDataManager : IManager
@@ -30,6 +34,7 @@ namespace SimpleBinaryVCS.DataComponent
         public event Action<object>? MetaDataLoadedEventHandler;
         public event Action<object>? FetchRequestEventHandler;
         public event Action<string, ObservableCollection<ProjectFile>>? IntegrityCheckCompleteEventHandler;
+        public event Action<ProjectData, ProjectData, List<ChangedFile>>? ProjComparisonCompleteEventHandler;
         public event Action<MetaDataState> IssueEventHandler;
         private MetaDataState _currentState; 
         public MetaDataState CurrentState
@@ -142,6 +147,7 @@ namespace SimpleBinaryVCS.DataComponent
 
             try
             {
+                CurrentState = MetaDataState.Retrieving;
                 _fileHandlerTool.TryDeserializeProjectMetaData(projectMetaDataPath, out ProjectMetaData? retrievedData);
                 if (retrievedData != null)
                 {
@@ -154,14 +160,19 @@ namespace SimpleBinaryVCS.DataComponent
                     ProjectMetaData = retrievedData;
                     MainProjectData = retrievedData.ProjectMain;
                 }
-                else 
+                else
+                {
+                    CurrentState = MetaDataState.Idle;
                     return false;
+                }
             }
             catch (Exception ex)
             {
+                CurrentState = MetaDataState.Idle;
                 MessageBox.Show($"MetaDataManager TryRetrieveProject Error {ex.Message}");
                 return false;
             }
+            CurrentState = MetaDataState.Idle;
             return true;
         }
 
@@ -169,6 +180,7 @@ namespace SimpleBinaryVCS.DataComponent
         {
             try
             {
+                CurrentState = MetaDataState.Initializing;
                 StringBuilder changeLog = new StringBuilder();
                 ProjectMetaData newProjectRepo = new ProjectMetaData(Path.GetFileName(projectPath), projectPath);
                 ProjectMetaData = newProjectRepo; 
@@ -233,9 +245,11 @@ namespace SimpleBinaryVCS.DataComponent
                 newProjectData.ChangeLog = changeLog.ToString();
                 newProjectData.NumberOfChanges = newProjectData.ProjectFilesObs.Count;
                 MainProjectData = newProjectData;
+                CurrentState = MetaDataState.Idle;
             }
             catch (Exception ex)
             {
+                CurrentState = MetaDataState.Idle;
                 MessageBox.Show($"MetaDataManager Error InitializeProject {ex.Message}");
                 return;
             }
@@ -320,6 +334,7 @@ namespace SimpleBinaryVCS.DataComponent
         {
 
         }
+
         public void RequestUpdate(string? updaterName, string? updateLog, string? currentProjectPath)
         {
             if (currentProjectPath == null)
@@ -328,6 +343,12 @@ namespace SimpleBinaryVCS.DataComponent
                 return;
             }
             _updateManager.UpdateProjectMain(updaterName, updateLog, currentProjectPath);
+        }
+
+        public void RequestProjVersionDiff(ProjectData srcData)
+        {
+            List<ChangedFile>? fileDiff = _fileManager.FindVersionDifferences(srcData, MainProjectData);
+            ProjComparisonCompleteEventHandler?.Invoke(srcData, MainProjectData, fileDiff);
         }
 
         #endregion

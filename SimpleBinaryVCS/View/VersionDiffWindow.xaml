@@ -16,53 +16,60 @@
             <TextBlock>
                 <TextBlock.Inlines>
                     <Run Text="SOURCE PROJECT VERSION: " />
-                    <Run Text="{Binding SrcProjectVersionLog}" />
+                    <Run Text="{Binding SrcProject.UpdatedVersion}" />
                 </TextBlock.Inlines>
             </TextBlock>
   
             <TextBlock>
                 <TextBlock.Inlines>
                     <Run Text="DESTINATION PROJECT VERSION: " />
-                    <Run Text="{Binding DstProjectVersionLog}" />
+                    <Run Text="{Binding DstProject.UpdatedVersion}" />
                 </TextBlock.Inlines>
             </TextBlock>
 
-            <Button
+            <!--<Button
                 x:Name="ExportFileDiff"
                 Content="Export File Diff" 
                 Height="20"
                 Command="{Binding VersionDiffVM.ExportDiffFiles}"
-                />
+                />-->
         </StackPanel>
 
-        <DataGrid Grid.Row="1" ItemsSource="{Binding ChangedFiles}">
-            <DataGrid.RowStyle>
-                <Style TargetType="DataGridRow">
+        <ListView 
+            Grid.Row="1" 
+            ItemsSource="{Binding Diff}"
+            Name="DiffView">
+            <ListView.View>
+                <GridView>
+                    <GridViewColumn 
+                        Header="Source File"
+                        DisplayMemberBinding="{Binding SrcFile.DataRelPath}"
+                        Width="400">
+                    </GridViewColumn>
+                    <GridViewColumn 
+                        Header="Destination File"
+                        DisplayMemberBinding="{Binding DstFile.DataRelPath}"
+                        Width="400">
+                    </GridViewColumn>
+                </GridView>
+            </ListView.View>
+
+            <ListView.ItemContainerStyle>
+                <Style TargetType="ListViewItem">
+                    <Setter Property="Background" Value="Transparent"/>
                     <Style.Triggers>
-                        <Trigger Property="{Binding DataContext.DataState}" Value="Modified">
-                            <Setter Property="Background" Value="Red" />
-                        </Trigger>
+                        <DataTrigger Binding="{Binding DataState}" Value="Added">
+                            <Setter Property="Background" Value="LightGreen"/>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding DataState}" Value="Modified">
+                            <Setter Property="Background" Value="LightCoral"/>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding DataState}" Value="Deleted">
+                            <Setter Property="Background" Value="LightBlue"/>
+                        </DataTrigger>
                     </Style.Triggers>
                 </Style>
-            </DataGrid.RowStyle>
-            <DataGrid.Columns>
-                <DataGridTextColumn Header="Source File">
-                    <DataGridTextColumn.Binding>
-                        <MultiBinding>
-                            <Binding Path="SrcFile.RelativePath"/>
-                            <Binding Path="SrcFile.DataHash"/>
-                        </MultiBinding>
-                    </DataGridTextColumn.Binding>
-                </DataGridTextColumn>
-                <DataGridTextColumn Header="Destination File">
-                    <DataGridTextColumn.Binding>
-                        <MultiBinding>
-                            <Binding Path="DstFile.RelativePath" />
-                            <Binding Path="DstFile.DataHash"/>
-                        </MultiBinding>
-                    </DataGridTextColumn.Binding>
-                </DataGridTextColumn>
-            </DataGrid.Columns>
-        </DataGrid>
+            </ListView.ItemContainerStyle>
+        </ListView>
     </Grid>
 </Window>

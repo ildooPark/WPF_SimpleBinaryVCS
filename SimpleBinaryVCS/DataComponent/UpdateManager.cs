@@ -37,6 +37,7 @@ namespace SimpleBinaryVCS.DataComponent
             if (_projectMain == null) { MessageBox.Show("Project Data on Update Manager is Missing"); return; }
             if (_currentProjectFileChanges == null || _currentProjectFileChanges.Count == 0) { MessageBox.Show("File Changes does not exist"); return; }
             if (currentProjectPath != _projectMetaData.ProjectPath) { MessageBox.Show("Project Meta Data Path and Updated Path must match"); return; }
+            IssueEventHandler?.Invoke(MetaDataState.Updating);
             
             string newVersionName = GetProjectVersionName(_projectMain, _projectMetaData.LocalUpdateCount);
             string conductedPC = Environment.MachineName;
@@ -58,7 +59,8 @@ namespace SimpleBinaryVCS.DataComponent
                     }
                     else
                     {
-                        MessageBox.Show("Update Failed, Please Run Version Integrity Test"); 
+                        MessageBox.Show("Update Failed, Please Run Version Integrity Test");
+                        IssueEventHandler?.Invoke(MetaDataState.Idle);
                         return;
                     }
                 }
@@ -74,7 +76,7 @@ namespace SimpleBinaryVCS.DataComponent
             updatedProjectData.ChangeLog = changeLog?.ToString() ?? "";
             updatedProjectData.NumberOfChanges = _currentProjectFileChanges.Count;
             updatedProjectData.RevisionNumber = _projectMetaData.LocalUpdateCount;
-
+            IssueEventHandler?.Invoke(MetaDataState.Idle);
             ProjectUpdateEventHandler?.Invoke(updatedProjectData);
         }
 
@@ -107,7 +109,9 @@ namespace SimpleBinaryVCS.DataComponent
                         currentProject.ProjectFiles.Remove(changes.DstFile.DataRelPath);
                     }
                     else
+                    {
                         currentProject.ProjectFiles[changes.DstFile.DataRelPath] = new ProjectFile(changes.DstFile, newProjectVersion, currentProjectPath);
+                    }
                 }
                     LogTool.RegisterChange(newChangeLog, changes.DataState, changes.SrcFile, changes.DstFile);
                 currentProject.NumberOfChanges++;
