@@ -28,5 +28,17 @@ namespace SimpleBinaryVCS.View
             VersionDiffViewModel VersionDiffVM = new VersionDiffViewModel(srcProject, dstProject, diff);
             this.DataContext = VersionDiffVM;
         }
+
+        private void FileFilterKeyword_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            DiffItemsList.Items.Filter = FilterFilesMethod;
+        }
+
+        private bool FilterFilesMethod(object obj)
+        {
+            var file = (ProjectFile)obj;
+
+            return file.DataName.Contains(FilterDiffInput.Text, StringComparison.OrdinalIgnoreCase);
+        }
     }
 }

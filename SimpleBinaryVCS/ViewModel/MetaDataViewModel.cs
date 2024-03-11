@@ -1,6 +1,7 @@
 ﻿using SimpleBinaryVCS.DataComponent;
 using SimpleBinaryVCS.Model;
 using SimpleBinaryVCS.Utils;
+using SimpleBinaryVCS.View;
 using System.Collections.ObjectModel;
 using System.Windows.Input;
 using WinForms = System.Windows.Forms;
@@ -174,6 +175,7 @@ namespace SimpleBinaryVCS.ViewModel
             {
                 _metaDataState = state;
                 CurrentMetaDataState = state.ToString();
+                ((MainWindow)System.Windows.Application.Current.MainWindow).UpdateLayout();
             });
         }
         private void ProjectLoadedCallBack(object projObj)

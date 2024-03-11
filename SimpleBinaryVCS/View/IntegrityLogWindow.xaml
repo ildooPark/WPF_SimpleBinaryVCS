@@ -70,6 +70,7 @@
                 HorizontalAlignment="left" 
                 Margin="5"
                 BorderThickness="1" BorderBrush="#E0E0E0" FontSize="16"/>
+            
             <DataGrid 
                 Grid.Row="1"
                 IsReadOnly="True"

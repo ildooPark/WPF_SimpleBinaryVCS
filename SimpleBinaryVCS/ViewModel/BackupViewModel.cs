@@ -56,7 +56,6 @@ namespace SimpleBinaryVCS.ViewModel
 
         private ICommand? cleanRestoreBackup;
         public ICommand CleanRestoreBackup => cleanRestoreBackup ??= new RelayCommand(CleanRestoreBackupFiles, CanCleanRestoreBackupFiles);
-
         
 
         private ICommand? extractVersionLog;
@@ -64,7 +63,10 @@ namespace SimpleBinaryVCS.ViewModel
 
         private ICommand? viewFullLog;
         public ICommand ViewFullLog => viewFullLog ??= new RelayCommand(OnViewFullLog, CanRevert);
-        
+
+        private ICommand? compareDeployedProjectWithMain;
+        public ICommand? CompareDeployedProjectWithMain => compareDeployedProjectWithMain ??= new RelayCommand(CompareSrcProjWithMain, CanCompareSrcProjWithMain);
+
         private string? _updaterName;
         public string UpdaterName
         {
@@ -113,7 +115,6 @@ namespace SimpleBinaryVCS.ViewModel
             if (App.Current == null || _metaDataManager.ProjectMetaData == null) return false;
             return true;
         }
-
         private void Fetch(object obj)
         {
             SelectedItem = null;
@@ -123,6 +124,16 @@ namespace SimpleBinaryVCS.ViewModel
 
         }
 
+        private void CompareSrcProjWithMain(object obj)
+        {
+            _metaDataManager.RequestProjVersionDiff(SelectedItem);
+        }
+        private bool CanCompareSrcProjWithMain(object obj)
+        {
+            if (_metaDataState != MetaDataState.Idle) return false;
+            if (SelectedItem == null) return false;
+            return true;
+        }
         private void OnViewFullLog(object obj)
         {
             if (SelectedItem == null)
@@ -238,6 +249,7 @@ namespace SimpleBinaryVCS.ViewModel
             App.Current.Dispatcher.Invoke(() =>
             {
                 _metaDataState = state;
+                ((MainWindow)System.Windows.Application.Current.MainWindow).UpdateLayout();
             });
         }
         #endregion

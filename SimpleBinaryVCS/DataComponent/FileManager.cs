@@ -69,7 +69,7 @@ namespace SimpleBinaryVCS.DataComponent
         {
         }
         #region Calls For File Differences
-        public void MainProjectIntegrityCheck()
+        public async void MainProjectIntegrityCheck()
         {
             ProjectData? mainProject = _dstProjectData;
             IssueEventHandler?.Invoke(MetaDataState.IntegrityChecking);
@@ -82,6 +82,8 @@ namespace SimpleBinaryVCS.DataComponent
             _preStagedFilesDict.Clear();
             try
             {
+                Stopwatch sw = new Stopwatch(); 
+                sw.Start();
                 StringBuilder fileIntegrityLog = new StringBuilder();
                 List<ChangedFile> fileChanges = new List<ChangedFile>();
                 fileIntegrityLog.AppendLine($"Conducting Version Integrity Check on {mainProject.UpdatedVersion}");
@@ -97,17 +99,25 @@ namespace SimpleBinaryVCS.DataComponent
 
                 if (!Directory.Exists(backupPath)) Directory.CreateDirectory(backupPath);
                 if (!Directory.Exists(exportPath)) Directory.CreateDirectory(exportPath);
-                string[]? backupFiles = Directory.GetFiles(backupPath, "*", SearchOption.AllDirectories);
-                string[]? backupDirs = Directory.GetDirectories(backupPath, "*", SearchOption.AllDirectories);
+                var backupFilesTask = Task.Run(() => Directory.GetFiles(backupPath, "*", SearchOption.AllDirectories));
+                var backupDirsTask = Task.Run(() => Directory.GetDirectories(backupPath, "*", SearchOption.AllDirectories));
+                var exportFilesTask = Task.Run(() => Directory.GetFiles(exportPath, "*", SearchOption.AllDirectories));
+                var exportDirsTask = Task.Run(() => Directory.GetDirectories(exportPath, "*", SearchOption.AllDirectories));
+                var rawFilesTask = Task.Run(() => Directory.GetFiles(mainProject.ProjectPath, "*", SearchOption.AllDirectories));
+                var rawDirsTask = Task.Run(() => Directory.GetDirectories(mainProject.ProjectPath, "*", SearchOption.AllDirectories));
+
+
+                string[]? backupFiles = await backupFilesTask;
+                string[]? backupDirs = await backupDirsTask;
+                string[]? exportFiles = await exportFilesTask;
+                string[]? exportDirs = await exportDirsTask;
+                string[]? rawFiles = await rawFilesTask;
+                string[]? rawDirs = await rawDirsTask;
+                fileIntegrityLog.Append(sw.Elapsed.ToString());
                 if (backupFiles == null) backupFiles = new string[0];
                 if (backupDirs == null) backupDirs = new string[0];
-                string[]? exportFiles = Directory.GetFiles(exportPath, "*", SearchOption.AllDirectories);
-                string[]? exportDirs = Directory.GetDirectories(exportPath, "*", SearchOption.AllDirectories);
                 if (exportFiles == null) exportFiles = new string[0];
                 if (exportDirs == null) exportDirs = new string[0];
-
-                string[]? rawFiles = Directory.GetFiles(mainProject.ProjectPath, "*", SearchOption.AllDirectories);
-                string[]? rawDirs = Directory.GetDirectories(mainProject.ProjectPath, "*", SearchOption.AllDirectories);
                 if (rawFiles == null) backupFiles = new string[0];
                 if (rawDirs == null) backupDirs = new string[0];
 
@@ -186,6 +196,8 @@ namespace SimpleBinaryVCS.DataComponent
                     }
                 }
 
+                sw.Stop();
+                fileIntegrityLog.Append($"Integrity Check Took: {sw.ToString()}s");
                 fileIntegrityLog.AppendLine("Integrity Check Complete");
                 DataStagedEventHandler?.Invoke(_registeredChangesDict.Values.ToList());
                 IntegrityCheckEventHandler?.Invoke(fileIntegrityLog.ToString(), _preStagedFilesDict.Values.ToList());
@@ -427,39 +439,41 @@ namespace SimpleBinaryVCS.DataComponent
                 Dictionary<string, ProjectFile> dstDict = dstData.ProjectFiles;
 
                 // Files which is not on the Dst 
-                IEnumerable<string> filesToAdd = srcData.ProjectRelFilePathsList.Except(dstData.ProjectRelFilePathsList);
+                IEnumerable<string> filesOnSrc = srcData.ProjectRelFilePathsList.Except(dstData.ProjectRelFilePathsList);
                 // Files which is not on the Src
-                IEnumerable<string> filesToDelete = dstData.ProjectRelFilePathsList.Except(srcData.ProjectRelFilePathsList);
+                IEnumerable<string> filesOnDst = dstData.ProjectRelFilePathsList.Except(srcData.ProjectRelFilePathsList);
                 // Directories which is not on the Src
-                IEnumerable<string> dirsToAdd = srcData.ProjectRelDirsList.Except(dstData.ProjectRelDirsList);
+                IEnumerable<string> dirsOnSrc = srcData.ProjectRelDirsList.Except(dstData.ProjectRelDirsList);
                 // Directories which is not on the Dst
-                IEnumerable<string> dirsToDelete = dstData.ProjectRelDirsList.Except(srcData.ProjectRelDirsList);
+                IEnumerable<string> dirsOnDst = dstData.ProjectRelDirsList.Except(srcData.ProjectRelDirsList);
                 // Files to Overwrite
                 IEnumerable<string> intersectFiles = srcData.ProjectRelFilePathsList.Intersect(dstData.ProjectRelFilePathsList);
 
-                foreach (string dirRelPath in dirsToAdd)
+                foreach (string dirRelPath in dirsOnSrc)
                 {
-                    ProjectFile srcFile = new ProjectFile(ProjectDataType.Directory);
-                    ProjectFile dstFile = new ProjectFile(srcDict[dirRelPath], DataState.Added, dstData.ProjectPath);
-                    ChangedFile newChange = new ChangedFile(srcFile, dstFile, DataState.Added);
+                    ProjectFile srcDir = new ProjectFile(srcDict[dirRelPath], DataState.Added, dstData.ProjectPath);
+                    ProjectFile dstDir = new ProjectFile(ProjectDataType.Directory);
+
+                    ChangedFile newChange = new ChangedFile(srcDir, dstDir, DataState.Added);
                     fileChanges.Add(newChange);
                 }
 
-                foreach (string dirRelPath in dirsToDelete)
+                foreach (string dirRelPath in dirsOnDst)
                 {
                     ProjectFile srcFile = new ProjectFile(ProjectDataType.Directory);
                     ProjectFile dstFile = new ProjectFile(dstDict[dirRelPath], DataState.Deleted);
+                    ChangedFile newChange = new ChangedFile(srcFile, dstFile, DataState.Added);
                     fileChanges.Add(new ChangedFile(srcFile, dstFile, DataState.Deleted));
                 }
 
-                foreach (string fileRelPath in filesToAdd)
+                foreach (string fileRelPath in filesOnSrc)
                 {
                     ProjectFile srcFile = new ProjectFile(srcDict[fileRelPath], DataState.None);
                     ProjectFile dstFile = new ProjectFile(ProjectDataType.File);
                     fileChanges.Add(new ChangedFile(srcFile, dstFile, DataState.Added, true));
                 }
 
-                foreach (string fileRelPath in filesToDelete)
+                foreach (string fileRelPath in filesOnDst)
                 {
                     ProjectFile srcFile = new ProjectFile(ProjectDataType.File);
                     ProjectFile dstFile = new ProjectFile(dstDict[fileRelPath], DataState.Deleted);

@@ -10,11 +10,11 @@
     <IncludeSymbols>False</IncludeSymbols>
     <FileVersion>1.1</FileVersion>
     <PackageIcon>flexible-deployment.png</PackageIcon>
-    <ApplicationIcon>deploy_120090.ico</ApplicationIcon>
+    <ApplicationIcon>3700468-archive-document-education-exam-file-test_108747.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
-    <Content Include="deploy_120090.ico" />
+    <Content Include="3700468-archive-document-education-exam-file-test_108747.ico" />
   </ItemGroup>
 
   <ItemGroup>

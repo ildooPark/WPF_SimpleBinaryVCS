@@ -8,7 +8,7 @@
         Title="VersionDiffWindow" Height="450" Width="800">
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
+            <RowDefinition Height="100" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
         
@@ -19,37 +19,53 @@
                     <Run Text="{Binding SrcProject.UpdatedVersion}" />
                 </TextBlock.Inlines>
             </TextBlock>
-  
+
             <TextBlock>
                 <TextBlock.Inlines>
                     <Run Text="DESTINATION PROJECT VERSION: " />
                     <Run Text="{Binding DstProject.UpdatedVersion}" />
                 </TextBlock.Inlines>
             </TextBlock>
-
-            <!--<Button
+            
+            <Button
                 x:Name="ExportFileDiff"
                 Content="Export File Diff" 
                 Height="20"
                 Command="{Binding VersionDiffVM.ExportDiffFiles}"
-                />-->
+                />
+            
+            <TextBox
+                x:Name="FilterDiffInput"
+                TextChanged="FileFilterKeyword_TextChanged"
+                />
+            
         </StackPanel>
 
         <ListView 
             Grid.Row="1" 
             ItemsSource="{Binding Diff}"
-            Name="DiffView">
+            Name="DiffItemsList">
             <ListView.View>
                 <GridView>
                     <GridViewColumn 
                         Header="Source File"
                         DisplayMemberBinding="{Binding SrcFile.DataRelPath}"
-                        Width="400">
+                        Width="200">
+                    </GridViewColumn>
+                    <GridViewColumn 
+                        Header="Source BuildVersion"
+                        DisplayMemberBinding="{Binding SrcFile.BuildVersion}"
+                        Width="200">
                     </GridViewColumn>
                     <GridViewColumn 
                         Header="Destination File"
                         DisplayMemberBinding="{Binding DstFile.DataRelPath}"
-                        Width="400">
+                        Width="200">
+                    </GridViewColumn>
+                    <GridViewColumn 
+                        Header="Destination BuildVersion"
+                        DisplayMemberBinding="{Binding DstFile.BuildVersion}"
+                        Width="200">
                     </GridViewColumn>
                 </GridView>
             </ListView.View>

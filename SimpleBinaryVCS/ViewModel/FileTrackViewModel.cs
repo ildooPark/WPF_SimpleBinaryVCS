@@ -266,6 +266,8 @@ namespace SimpleBinaryVCS.ViewModel
             App.Current.Dispatcher.Invoke(() =>
             {
                 _metaDataState = state;
+                ((MainWindow)System.Windows.Application.Current.MainWindow).UpdateLayout();
+                
             });
         }
         private void SrcProjectDataCallBack(object srcProjectDataObj)

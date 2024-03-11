@@ -167,7 +167,7 @@
                         <ContextMenu>
                             <MenuItem Header="Export Full Version" Name="ExportAll" Command="{Binding BackupVM.ExportVersion}"/>
                             <MenuItem Header="Export Version Log" Name="ExportLog" Command="{Binding BackupVM.ExtractVersionLog}"/>
-                            <MenuItem Header="Compare With Main" Name="ProjComparison" Command="{Binding BackupVM.ExtractVersionLog}"/>
+                            <MenuItem Header="Compare With Main" Name="ProjComparison" Command="{Binding BackupVM.CompareDeployedProjectWithMain}"/>
                             <MenuItem Header="Checkout Version" Name="Checkout" Command="{Binding BackupVM.CheckoutBackup}"/>
                             <MenuItem Header="Clean Checkout Version" Name="Restore" Command="{Binding BackupVM.CleanRestoreBackup}"/>
                         </ContextMenu>
