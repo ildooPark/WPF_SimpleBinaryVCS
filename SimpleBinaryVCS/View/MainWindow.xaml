@@ -23,35 +23,46 @@
             </Grid.ColumnDefinitions>
             <Grid Grid.Column="0">
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="3*"/>
-                    <RowDefinition Height="4*"/>
-                    <RowDefinition Height="3*"/>
+                    <RowDefinition Height="1.5*"/>
+                    <RowDefinition Height="1.5*"/>
+                    <RowDefinition Height="7*"/>
                 </Grid.RowDefinitions>
 
-                <StackPanel 
-                    Grid.Row="0"
-                    Orientation="Vertical"
-                    >
-                    <Label
+                <Grid Grid.Row="0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="25"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <Label Grid.Row="0"
                         Height="Auto"
                         VerticalAlignment="Top"
                         x:Name="updaterTag"
-                        Content = "Updater">
-                    </Label>
-                    <TextBox
+                        Content = "Updater"
+                    />
+                    <TextBox Grid.Row="1"
                         Height="Auto"
                         TextWrapping="Wrap"
                         VerticalAlignment="Top"
                         x:Name="UpdaterName"
-                        Text = "{Binding Path = BackupVM.UpdaterName}">
-                    </TextBox>
-                    <Label
+                        Text = "{Binding Path = BackupVM.UpdaterName}"
+                        ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                        ScrollViewer.VerticalScrollBarVisibility="Auto"
+                        ScrollViewer.CanContentScroll="True"
+                    />
+                    
+                </Grid>
+                <Grid Grid.Row="1">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="25"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <Label Grid.Row="0"
                         Height="Auto"
                         VerticalAlignment="Top"
                         x:Name="updaterNameTag"
-                        Content = "Update Log">
-                    </Label>
-                    <TextBox
+                        Content = "Update Log"
+                    />
+                    <TextBox Grid.Row="1"
                         Height="Auto"
                         TextWrapping="Wrap"
                         x:Name="UpdateLog"
@@ -60,9 +71,8 @@
                         ScrollViewer.VerticalScrollBarVisibility="Auto"
                         ScrollViewer.CanContentScroll="True"
                     />
-                </StackPanel>
-                
-                <DataGrid 
+                </Grid>
+                <!--<DataGrid 
                     Grid.Row="1"
                     Name="BackupLog" 
                     ItemsSource='{Binding BackupVM.SelectedItem.ProjectFilesObs}'
@@ -82,7 +92,7 @@
                         <DataGridTextColumn Header="Deployed Date" Binding="{Binding UpdatedTime}" Width ="3*"/>
                         <DataGridTextColumn Header="HashValue" Binding="{Binding DataHash}" Width ="1*"/>
                     </DataGrid.Columns>
-                </DataGrid>
+                </DataGrid>-->
 
                 <DataGrid 
                     Grid.Row="2"
