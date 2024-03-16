@@ -27,12 +27,12 @@
                 </TextBlock.Inlines>
             </TextBlock>
             
-            <Button
+            <!--<Button
                 x:Name="ExportFileDiff"
                 Content="Export File Diff" 
                 Height="20"
                 Command="{Binding VersionDiffVM.ExportDiffFiles}"
-                />
+                />-->
             
             <TextBox
                 x:Name="FilterDiffInput"

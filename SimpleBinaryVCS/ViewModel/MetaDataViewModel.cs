@@ -154,7 +154,7 @@ namespace SimpleBinaryVCS.ViewModel
             bool retrieveProjectResult = metaDataManager.RequestProjectRetrieval(projectPath);
             if (!retrieveProjectResult)
             {
-                var result = MessageBox.Show("VersionLog file not found!\n Initialize A New Project?",
+                var result = MessageBox.Show($"{projectPath}\nVersionLog file not found\nInitialize A New Project?",
                     "Import Project", MessageBoxButtons.YesNo);
                 if (result == DialogResult.Yes)
                 {

@@ -27,7 +27,7 @@ namespace SimpleBinaryVCS.DataComponent
         public void ExportProjectVersionLog(ProjectData projectData)
         {
             string exportDstPath = GetExportProjectPath(projectData);
-            string exportVersionLogPath = $"{exportDstPath}\\ProjectVersionLog.bin";
+            string exportVersionLogPath = $"{exportDstPath}\\{projectData.UpdatedVersion}.VersionLog";
             bool exportResult = false;
             while (!exportResult)
             {

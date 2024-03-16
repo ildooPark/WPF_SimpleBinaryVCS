@@ -58,7 +58,7 @@ namespace SimpleBinaryVCS.Utils
             }
             catch (Exception ex)
             {
-                Console.WriteLine("Error serializing ProjectData: " + ex.Message);
+                Console.WriteLine("Error serializing ProjectMetaData: " + ex.Message);
                 return false; 
             }
         }

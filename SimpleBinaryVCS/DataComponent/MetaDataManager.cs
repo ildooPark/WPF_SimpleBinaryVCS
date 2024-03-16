@@ -176,7 +176,7 @@ namespace SimpleBinaryVCS.DataComponent
             return true;
         }
 
-        public void RequestProjectInitialization(string projectPath)
+        public async void RequestProjectInitialization(string projectPath)
         {
             try
             {
@@ -197,7 +197,9 @@ namespace SimpleBinaryVCS.DataComponent
                 newProjectData.ProjectName = Path.GetFileName(projectPath);
                 newProjectData.ConductedPC = _hashTool.GetUniqueComputerID(Environment.MachineName);
                 newProjectData.UpdatedVersion = GetProjectVersionName(newProjectData, true);
-
+                changeLog.AppendLine($"Project Initialized");
+                SemaphoreSlim asyncControl = new SemaphoreSlim(8);
+                List<Task> asyncTasks = new List<Task>();
                 foreach (string filePath in newProjectFiles)
                 {
                     ProjectFile newFile = new ProjectFile
@@ -214,12 +216,29 @@ namespace SimpleBinaryVCS.DataComponent
                         "",
                         true
                         );
-                    newFile.DataHash = _hashTool.GetFileMD5CheckSum(projectPath, Path.GetRelativePath(projectPath, filePath));
                     newProjectData.ProjectFiles.Add(newFile.DataRelPath, newFile);
-                    newProjectData.ChangedFiles.Add(new ChangedFile(new ProjectFile(newFile), DataState.Added));
+                    asyncTasks.Add(Task.Run(async () =>
+                    {
+                        await asyncControl.WaitAsync();
+                        try
+                        {
+                            _hashTool.GetFileMD5CheckSum(newFile);
+                        }
+                        catch (Exception ex)
+                        {
+                            CurrentState = MetaDataState.Idle;
+                            MessageBox.Show($"MetaDataManager Error: Initialization Failed \n{ex.Message}");
+                            return;
+                        }
+                        finally
+                        {
+                            asyncControl.Release();
+                            Console.WriteLine(asyncControl.CurrentCount);
+                        }
+                    }));
                     changeLog.AppendLine($"Added {newFile.DataName}");
                 }
-
+                await Task.WhenAll(asyncTasks);
                 foreach (string dirPath in newProjectDirs)
                 {
                     ProjectFile newFile = new ProjectFile
@@ -240,7 +259,7 @@ namespace SimpleBinaryVCS.DataComponent
                     newProjectData.ChangedFiles.Add(new ChangedFile(new ProjectFile(newFile), DataState.Added));
                     changeLog.AppendLine($"Added {newFile.DataName}");
                 }
-
+                asyncControl.Dispose();
                 newProjectData.UpdatedTime = DateTime.Now;
                 newProjectData.ChangeLog = changeLog.ToString();
                 newProjectData.NumberOfChanges = newProjectData.ProjectFilesObs.Count;
@@ -305,9 +324,9 @@ namespace SimpleBinaryVCS.DataComponent
             _fileManager.ClearDeployedFileChanges();
         }
 
-        public void RequestOverlappedFileAllocation(List<ChangedFile> overlapSorted)
+        public void RequestOverlappedFileAllocation(List<ChangedFile> overlapSorted, List<ChangedFile> newSorted)
         {
-            _fileManager.RegisterOverlapped(overlapSorted);
+            _fileManager.RegisterOverlapped(overlapSorted, newSorted);
         }
 
         public void RequestProjectIntegrityTest()

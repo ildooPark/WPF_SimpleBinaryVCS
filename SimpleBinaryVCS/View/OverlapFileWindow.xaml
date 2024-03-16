@@ -11,11 +11,13 @@
         >
     <Grid>
         <Grid.RowDefinitions>
+            <RowDefinition Height="0.5*"/>
+            <RowDefinition Height="5*"/>
+            <RowDefinition Height="0.5*"/>
             <RowDefinition Height="1*"/>
-            <RowDefinition Height="8*"/>
             <RowDefinition Height="1*"/>
         </Grid.RowDefinitions>
-
+        <TextBlock Grid.Row="0" Text="OverlappedFiles"/>
         <ListBox Grid.Row="1" ItemsSource="{Binding OverlapFilesList}">
             <ListBox.ItemTemplate>
                 <DataTemplate>
@@ -31,7 +33,31 @@
                 </DataTemplate>
             </ListBox.ItemTemplate>
         </ListBox>
-        <Button Grid.Row="2"
+        <GridSplitter Grid.Row="1"
+                      VerticalAlignment="Bottom"
+                      HorizontalAlignment="Stretch"
+                      ResizeDirection="Rows"
+                      BorderThickness="1"
+                      BorderBrush="Black"
+                      />
+        <TextBlock Grid.Row="2"
+                   Text="NewFiles"/>
+        <ListBox Grid.Row="3" ItemsSource="{Binding NewFilesList}">
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Src: "/>
+                        <TextBlock Text="{Binding SrcFile.DataName}"/>
+                        <TextBlock Text="=>"/>
+                        <TextBlock Text="     "/>
+                        <TextBlock Text="Dst Folder: "/>
+                        <TextBlock Text="{Binding DstFile.DataRelPath}"/>
+                        <CheckBox IsChecked="{Binding DstFile.IsDstFile}"/>
+                    </StackPanel>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+        <Button Grid.Row="4"
                 Width="180"
                 Content="Confirm"
                 IsEnabled="True"
