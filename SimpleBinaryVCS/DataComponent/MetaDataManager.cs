@@ -25,7 +25,7 @@ namespace SimpleBinaryVCS.DataComponent
         public string? CurrentProjectPath {  get; set; }
 
         public event Action<ObservableCollection<ProjectFile>>? FileChangesEventHandler;
-        public event Action<List<ChangedFile>>? OverlappedFileSortEventHandler;
+        public event Action<List<ChangedFile>, List<ChangedFile>>? OverlappedFileSortEventHandler;
         public event Action<string>? ProjExportEventHandler; 
         public event Action<object>? StagedChangesEventHandler;
         public event Action<object>? PreStagedChangesEventHandler;
@@ -411,10 +411,10 @@ namespace SimpleBinaryVCS.DataComponent
             StagedChangesEventHandler?.Invoke(stagedFiles);
         }
 
-        private void OverlapFileFoundCallBack(object overlapFileListObj)
+        private void OverlapFileFoundCallBack(object overlapFileListObj, object newFileListObj)
         {
-            if (overlapFileListObj is not List<ChangedFile> overlapFileList) return;
-            OverlappedFileSortEventHandler?.Invoke(overlapFileList);
+            if (overlapFileListObj is not List<ChangedFile> overlapFileList || newFileListObj is not List<ChangedFile> newFileList) return;
+            OverlappedFileSortEventHandler?.Invoke(overlapFileList, newFileList);
         }
 
         private void ProjectChangeCallBack(object projObj)

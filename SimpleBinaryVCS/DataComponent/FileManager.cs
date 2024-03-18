@@ -30,6 +30,7 @@ namespace SimpleBinaryVCS.DataComponent
         /// Imported ProjectMainFilesDict
         /// </summary>
         private Dictionary<string, ProjectFile> _projectFilesDict;
+        private Dictionary<ProjectFile, List<ProjectFile>> _projectFilesDict_namesSorted;
         /// <summary>
         /// Key: DataRelPath Value: ProjectFile
         /// </summary>
@@ -47,7 +48,7 @@ namespace SimpleBinaryVCS.DataComponent
 
         #region Manager Events 
         public event Action<ProjectData>? SrcProjectDataLoadedEventHandler;
-        public event Action<List<ChangedFile>>? OverlappedFileFoundEventHandler;
+        public event Action<List<ChangedFile>, List<ChangedFile>>? OverlappedFileFoundEventHandler;
         public event Action<object>? DataStagedEventHandler;
         public event Action<object>? DataPreStagedEventHandler;
         public event Action<object>? PreStagedDataOverlapEventHandler;
@@ -59,6 +60,7 @@ namespace SimpleBinaryVCS.DataComponent
         public FileManager()
         {
             _projectFilesDict = new Dictionary<string, ProjectFile>();
+            _projectFilesDict_namesSorted = new Dictionary<ProjectFile, List<ProjectFile>>();
             _preStagedFilesDict = new Dictionary<string, ProjectFile>();
             _registeredChangesDict = new Dictionary<string, ChangedFile>();
             _fileHandlerTool = App.FileHandlerTool;
@@ -600,7 +602,7 @@ namespace SimpleBinaryVCS.DataComponent
             try
             {
                 var filesSubDirectories = filesAllDirectories.Except(filesTopDirectories);
-                GetOverlappingFiles(srcDirPath, filesTopDirectories.ToArray());
+                GetAbnormalFiles(srcDirPath, filesTopDirectories.ToArray());
 
                 foreach (string subDirFileAbsPath in filesSubDirectories)
                 {
@@ -663,9 +665,11 @@ namespace SimpleBinaryVCS.DataComponent
                 return;
             }
         }
-        private void GetOverlappingFiles(string srcPath, string[] topDirFilePaths)
+        private void GetAbnormalFiles(string srcPath, string[] topDirFilePaths)
         {
             List<ChangedFile> registeredOverlapsList = new List<ChangedFile>();
+            List<ChangedFile> registeredNewList = new List<ChangedFile>();
+
             for (int i = 0; i < topDirFilePaths.Length; i++)
             {
                 int count = 0; 
@@ -733,9 +737,9 @@ namespace SimpleBinaryVCS.DataComponent
                     _preStagedFilesDict.TryAdd(newFile.DataRelPath, newFile);
                 }
             }
-            if (registeredOverlapsList.Count >= 1)
+            if (registeredOverlapsList.Count >= 1 || registeredNewList.Count >= 1)
             {
-                OverlappedFileFoundEventHandler?.Invoke(registeredOverlapsList);
+                OverlappedFileFoundEventHandler?.Invoke(registeredOverlapsList, registeredNewList);
             }
         }
         public void RegisterNewfile(ProjectFile projectFile, DataState fileState)
@@ -750,16 +754,28 @@ namespace SimpleBinaryVCS.DataComponent
         }
         public void RegisterOverlapped(List<ChangedFile> sortedOverlaps, List<ChangedFile> sortedNew)
         {
-            foreach (ChangedFile file in sortedOverlaps)
+            foreach (ChangedFile overlappedFile in sortedOverlaps)
             {
-                Console.WriteLine(file.DstFile.DataRelPath);
-                if (file.DstFile.IsDstFile)
+                if (overlappedFile.DstFile.IsDstFile)
                 {
-                    string newSrcFilePath = Path.Combine(file.SrcFile.DataSrcPath, file.DstFile.DataRelPath);
-                    _fileHandlerTool.HandleFile(file.SrcFile.DataAbsPath, newSrcFilePath, DataState.PreStaged);
+                    string newSrcFilePath = Path.Combine(overlappedFile.SrcFile.DataSrcPath, overlappedFile.DstFile.DataRelPath);
+                    _fileHandlerTool.HandleFile(overlappedFile.SrcFile.DataAbsPath, newSrcFilePath, DataState.PreStaged);
 
-                    ProjectFile newPreStagedFile = new ProjectFile(file.SrcFile, DataState.PreStaged);
-                    newPreStagedFile.DataRelPath = file.DstFile.DataRelPath;
+                    ProjectFile newPreStagedFile = new ProjectFile(overlappedFile.SrcFile, DataState.PreStaged);
+                    newPreStagedFile.DataRelPath = overlappedFile.DstFile.DataRelPath;
+                    //Make new prestagedFile For computations 
+                    _preStagedFilesDict.TryAdd(newPreStagedFile.DataRelPath, newPreStagedFile);
+                }
+            }
+            foreach (ChangedFile newFile in sortedNew)
+            {
+                if (newFile.DstFile.IsDstFile)
+                {
+                    string newSrcFilePath = Path.Combine(newFile.SrcFile.DataSrcPath, newFile.DstFile.DataRelPath);
+                    _fileHandlerTool.HandleFile(newFile.SrcFile.DataAbsPath, newSrcFilePath, DataState.PreStaged);
+
+                    ProjectFile newPreStagedFile = new ProjectFile(newFile.SrcFile, DataState.PreStaged);
+                    newPreStagedFile.DataRelPath = newFile.DstFile.DataRelPath;
                     //Make new prestagedFile For computations 
                     _preStagedFilesDict.TryAdd(newPreStagedFile.DataRelPath, newPreStagedFile);
                 }
@@ -921,6 +937,7 @@ namespace SimpleBinaryVCS.DataComponent
             _registeredChangesDict.Clear();
             this._dstProjectData = loadedProject;
             this._projectFilesDict = _dstProjectData.ProjectFiles;
+            SortProjectFilesByName(_projectFilesDict));
             DataStagedEventHandler?.Invoke(_registeredChangesDict.Values.ToList());
         }
         public void MetaDataLoadedCallBack(object metaDataObj)
@@ -930,6 +947,20 @@ namespace SimpleBinaryVCS.DataComponent
             this._backupFilesDict = projectMetaData.BackupFiles;
         }
         #endregion
+
+        private void SortProjectFilesByName(Dictionary<string, ProjectFile> projectFilesDict)
+        {
+            _projectFilesDict_namesSorted.Clear();
+
+            foreach (ProjectFile projFile in projectFilesDict.Values)
+            {
+                if (!_projectFilesDict_namesSorted.TryGetValue(projFile, out List<ProjectFile>? projFileList))
+                {
+                    _projectFilesDict_namesSorted.Add(projFile, new List<ProjectFile> { projFile });
+                }
+                _projectFilesDict_namesSorted[projFile].Add(projFile);
+            }
+        }
 
         #region Planned 
         public async void StageNewFilesAsync(string deployPath)
