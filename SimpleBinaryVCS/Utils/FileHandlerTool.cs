@@ -86,6 +86,42 @@ namespace SimpleBinaryVCS.Utils
                 return false;
             }
         }
+        public bool TrySerializeJsonData<T>(string filePath, in T? serializingObject)
+        {
+            try
+            {
+                var jsonData = JsonSerializer.Serialize(serializingObject);
+                File.WriteAllText(filePath, jsonData);
+                return true; 
+            }
+            catch (Exception ex)
+            {
+                return false;
+            }
+        }
+        public bool TryDeserializeJsonData<T>(string filePath, out T? serializingObject)
+        {
+            try
+            {
+                var jsonDataBytes = File.ReadAllBytes(filePath);
+                T? serializingObj = JsonSerializer.Deserialize<T>(jsonDataBytes);
+                if (serializingObj != null)
+                {
+                    serializingObject = serializingObj;
+                    return true;
+                }
+                else
+                {
+                    serializingObject = default;
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                serializingObject = default;
+                return false;
+            }
+        }
         public bool TryApplyFileChanges(List<ChangedFile> Changes)
         {
             if (Changes == null) return false;

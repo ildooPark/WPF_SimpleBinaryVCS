@@ -9,10 +9,10 @@ namespace SimpleBinaryVCS.View
     /// </summary>
     public partial class OverlapFileWindow : Window
     {
-        public OverlapFileWindow(List<ChangedFile> overlapFiles)
+        public OverlapFileWindow(List<ChangedFile> overlapFiles, List<ChangedFile> newFiles)
         {
             InitializeComponent();
-            OverlapFileViewModel _overlapFileWindow = new OverlapFileViewModel(overlapFiles);
+            OverlapFileViewModel _overlapFileWindow = new OverlapFileViewModel(overlapFiles, newFiles);
             this.DataContext = _overlapFileWindow;
             _overlapFileWindow.TaskFinishedEventHandler += TaskFinishedCallBack;
         }

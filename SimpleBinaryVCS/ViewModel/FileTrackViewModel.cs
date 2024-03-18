@@ -215,9 +215,9 @@ namespace SimpleBinaryVCS.ViewModel
         {
             _changedFileList = stagedChanges;
         }
-        private void OverlapFileSortCallBack(List<ChangedFile> overlappedFileObj)
+        private void OverlapFileSortCallBack(List<ChangedFile> overlappedFileObj, List<ChangedFile> newFileObj)
         {
-            OverlapFileWindow overlapFileWindow = new OverlapFileWindow(overlappedFileObj);
+            OverlapFileWindow overlapFileWindow = new OverlapFileWindow(overlappedFileObj, newFileObj);
             overlapFileWindow.Owner = App.Current.MainWindow;
             overlapFileWindow.WindowStartupLocation = WPF.WindowStartupLocation.CenterOwner;
             overlapFileWindow.Show();

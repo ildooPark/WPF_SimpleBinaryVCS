@@ -1,4 +1,5 @@
-﻿using SimpleBinaryVCS.Interfaces;
+﻿using DeployManager.DataComponent;
+using SimpleBinaryVCS.Interfaces;
 using SimpleBinaryVCS.Model;
 using SimpleBinaryVCS.Utils;
 using System.Collections.ObjectModel;
@@ -87,7 +88,8 @@ namespace SimpleBinaryVCS.DataComponent
         private FileManager _fileManager;
         private BackupManager _backupManager;
         private UpdateManager _updateManager;
-        private ExportManager _exportManager; 
+        private ExportManager _exportManager;
+        private SettingManager _settingManager;
         private FileHandlerTool _fileHandlerTool;
         private HashTool _hashTool; 
 
@@ -105,10 +107,7 @@ namespace SimpleBinaryVCS.DataComponent
             _fileManager = new FileManager();
             _updateManager = new UpdateManager();
             _exportManager = new ExportManager();
-
-            _backupManager.Awake(); 
-            _updateManager.Awake();
-            _updateManager.Awake();
+            _settingManager = new SettingManager();
 
             MetaDataLoadedEventHandler += _backupManager.MetaDataLoadedCallBack;
             MetaDataLoadedEventHandler += _fileManager.MetaDataLoadedCallBack;
@@ -138,7 +137,15 @@ namespace SimpleBinaryVCS.DataComponent
 
             _exportManager.ExportCompleteEventHandler += ExportRequestCallBack;
             _exportManager.IssueEventHandler += IssueEventCallBack;
+
+            _settingManager.SetLastDstProject += SettingManager_SetLastDstProjectCallBack;
+            _backupManager.Awake();
+            _updateManager.Awake();
+            _updateManager.Awake();
+            _settingManager.Awake();
         }
+
+        
 
         #region View Model Request Calls
         public bool RequestProjectRetrieval(string projectPath)
@@ -159,6 +166,7 @@ namespace SimpleBinaryVCS.DataComponent
                     retrievedData.ProjectPath = projectPath;
                     ProjectMetaData = retrievedData;
                     MainProjectData = retrievedData.ProjectMain;
+                    _settingManager.SetRecentDstDirectory(projectPath);
                 }
                 else
                 {
@@ -264,6 +272,7 @@ namespace SimpleBinaryVCS.DataComponent
                 newProjectData.ChangeLog = changeLog.ToString();
                 newProjectData.NumberOfChanges = newProjectData.ProjectFilesObs.Count;
                 MainProjectData = newProjectData;
+                _settingManager.SetRecentDstDirectory(projectPath);
                 CurrentState = MetaDataState.Idle;
             }
             catch (Exception ex)
@@ -444,6 +453,11 @@ namespace SimpleBinaryVCS.DataComponent
         private void IssueEventCallBack(MetaDataState state)
         {
             CurrentState = state;
+        }
+        private void SettingManager_SetLastDstProjectCallBack(string dstProjectPath)
+        {
+            if (!RequestProjectRetrieval(dstProjectPath))
+            RequestProjectInitialization(dstProjectPath);
         }
         #endregion
 

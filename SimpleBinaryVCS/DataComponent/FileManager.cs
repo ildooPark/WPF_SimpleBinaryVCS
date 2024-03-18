@@ -30,7 +30,11 @@ namespace SimpleBinaryVCS.DataComponent
         /// Imported ProjectMainFilesDict
         /// </summary>
         private Dictionary<string, ProjectFile> _projectFilesDict;
-        private Dictionary<ProjectFile, List<ProjectFile>> _projectFilesDict_namesSorted;
+        /// <summary>
+        /// Imported ProjectMainFilesDict List of ProjectFiles with Identical Name
+        /// </summary>
+        private Dictionary<string, List<ProjectFile>> _projectFilesDict_namesSorted;
+        private List<string> _projectDirRelPaths;
         /// <summary>
         /// Key: DataRelPath Value: ProjectFile
         /// </summary>
@@ -60,7 +64,8 @@ namespace SimpleBinaryVCS.DataComponent
         public FileManager()
         {
             _projectFilesDict = new Dictionary<string, ProjectFile>();
-            _projectFilesDict_namesSorted = new Dictionary<ProjectFile, List<ProjectFile>>();
+            _projectFilesDict_namesSorted = new Dictionary<string, List<ProjectFile>>();
+            _projectDirRelPaths = new List<string>();
             _preStagedFilesDict = new Dictionary<string, ProjectFile>();
             _registeredChangesDict = new Dictionary<string, ChangedFile>();
             _fileHandlerTool = App.FileHandlerTool;
@@ -681,15 +686,21 @@ namespace SimpleBinaryVCS.DataComponent
                     return;
                 }
                 if (Path.GetExtension(topDirFilePaths[i]) == ".VersionLog") continue;
-                foreach (ProjectFile file in _projectFilesDict.Values)
+                //foreach (ProjectFile file in _projectFilesDict.Values)
+                //{
+                //    if (file.DataName == fileName)
+                //    {
+                //        if (overlappingFiles == null) overlappingFiles = new List<ProjectFile>();
+                //        overlappingFiles.Add(file);
+                //        count++; 
+                //    }
+                //}
+                if (_projectFilesDict_namesSorted.TryGetValue(fileName, out List<ProjectFile>? fileList))
                 {
-                    if (file.DataName == fileName)
-                    {
-                        if (overlappingFiles == null) overlappingFiles = new List<ProjectFile>();
-                        overlappingFiles.Add(file);
-                        count++; 
-                    }
+                    count = fileList.Count;
+                    overlappingFiles = fileList;
                 }
+                
                 // File Overlaps
                 if (count >= 2 && overlappingFiles != null)
                 {
@@ -937,7 +948,8 @@ namespace SimpleBinaryVCS.DataComponent
             _registeredChangesDict.Clear();
             this._dstProjectData = loadedProject;
             this._projectFilesDict = _dstProjectData.ProjectFiles;
-            SortProjectFilesByName(_projectFilesDict));
+            this._projectDirRelPaths = _dstProjectData.ProjectRelDirsList;
+            SortProjectFilesByName(_projectFilesDict);
             DataStagedEventHandler?.Invoke(_registeredChangesDict.Values.ToList());
         }
         public void MetaDataLoadedCallBack(object metaDataObj)
@@ -954,11 +966,15 @@ namespace SimpleBinaryVCS.DataComponent
 
             foreach (ProjectFile projFile in projectFilesDict.Values)
             {
-                if (!_projectFilesDict_namesSorted.TryGetValue(projFile, out List<ProjectFile>? projFileList))
+                if (projFile.DataType == ProjectDataType.Directory) continue; 
+                if (!_projectFilesDict_namesSorted.TryGetValue(projFile.DataName, out List<ProjectFile>? projFileList))
                 {
-                    _projectFilesDict_namesSorted.Add(projFile, new List<ProjectFile> { projFile });
+                    _projectFilesDict_namesSorted.Add(projFile.DataName, new List<ProjectFile> { projFile });
                 }
-                _projectFilesDict_namesSorted[projFile].Add(projFile);
+                else
+                {
+                    _projectFilesDict_namesSorted[projFile.DataName].Add(projFile);
+                }
             }
         }
 
