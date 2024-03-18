@@ -23,7 +23,7 @@ namespace SimpleBinaryVCS.DataComponent
         //public event Action? ExportBackupEventHandler; 
         public event Action<object>? ProjectRevertEventHandler;
         public event Action<object>? FetchCompleteEventHandler;
-        public event Action<string> IssueEventHandler;
+        public event Action<MetaDataState> IssueEventHandler;
 
         private FileHandlerTool _fileHandlerTool;
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
@@ -76,6 +76,7 @@ namespace SimpleBinaryVCS.DataComponent
         {
             if (BackupFiles == null) return;
             string backupSrcPath = GetFileBackupSrcPath(projectData);
+            int backupCount = 0; 
             if (!Directory.Exists(backupSrcPath)) Directory.CreateDirectory(backupSrcPath);
             foreach (ChangedFile changes in projectData.ChangedFiles)
             {
@@ -90,6 +91,7 @@ namespace SimpleBinaryVCS.DataComponent
                     if (changes.SrcFile != null)
                         changes.SrcFile.DataSrcPath = backupSrcPath;
                     changes.DstFile.DeployedProjectVersion = projectData.UpdatedVersion;
+                    backupCount++;
                 }
                 else
                 {
@@ -99,12 +101,15 @@ namespace SimpleBinaryVCS.DataComponent
                     changes.DstFile.DeployedProjectVersion = projectData.UpdatedVersion;
                 }
             }
+            if (backupCount <= 0) Directory.Delete(backupSrcPath, true);
         }
+
         public string GetFileBackupSrcPath(ProjectData projectData)
         {
             string backupPath = $"{projectData.ProjectPath}\\Backup_{Path.GetFileName(projectData.ProjectName)}\\Backup_{projectData.UpdatedVersion}";
             return backupPath; 
         }
+
         #region Link To View Model 
         public bool FetchBackupProjectList()
         {

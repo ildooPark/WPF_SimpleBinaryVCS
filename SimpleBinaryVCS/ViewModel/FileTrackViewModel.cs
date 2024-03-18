@@ -53,15 +53,6 @@ namespace SimpleBinaryVCS.ViewModel
         private ICommand? refreshDeployFileList;
         public ICommand RefreshDeployFileList => refreshDeployFileList ??= new RelayCommand(RefreshFilesList);
 
-        private void RefreshFilesList(object? obj)
-        {
-            if (_deploySrcPath == null)
-            {
-                MessageBox.Show("Please Set Src Deploy Path");
-            }
-            _metaDataManager.RequestClearStagedFiles();
-            _metaDataManager.RequestSrcDataRetrieval(_deploySrcPath);
-        }
 
         private ICommand? revertChange;
         public ICommand RevertChange => revertChange ??= new RelayCommand(RevertIntegrityCheckFile);
@@ -77,10 +68,27 @@ namespace SimpleBinaryVCS.ViewModel
 
         private ICommand? getDeployedProjectInfo;
         public ICommand? GetDeployedProjectInfo => getDeployedProjectInfo ??= new RelayCommand(OpenDeployedProjectInfo, CanOpenDeployedProjectInfo);
+
+        private ICommand? compareDeployedProjectWithMain;
+        public ICommand? CompareDeployedProjectWithMain => compareDeployedProjectWithMain ??= new RelayCommand(CompareSrcProjWithMain, CanCompareSrcProjWithMain);
+
+        private bool CanCompareSrcProjWithMain(object obj)
+        {
+            if (_metaDataState != MetaDataState.Idle) return false;
+            if (_deployedProjectData ==  null) return false;
+            return true; 
+        }
+
+        private void CompareSrcProjWithMain(object obj)
+        {
+            _metaDataManager.RequestProjVersionDiff(_deployedProjectData);
+        }
+
         private ICommand? getDeploySrcDir;
         public ICommand GetDeploySrcDir => getDeploySrcDir ??= new RelayCommand(SetDeploySrcDirectory, CanSetDeployDir);
         
         private MetaDataManager _metaDataManager;
+        private MetaDataState _metaDataState = MetaDataState.Idle;
         private ProjectData? _deployedProjectData;
         string? _deploySrcPath;
         public FileTrackViewModel()
@@ -91,10 +99,13 @@ namespace SimpleBinaryVCS.ViewModel
             this._metaDataManager.PreStagedChangesEventHandler += PreStagedChangesCallBack;
             this._metaDataManager.IntegrityCheckCompleteEventHandler += ProjectIntegrityCheckCallBack;
             this._metaDataManager.FileChangesEventHandler += FileChangeListUpdateCallBack;
+            this._metaDataManager.IssueEventHandler += MetaDataStateChangeCallBack;
+            this._metaDataManager.ProjComparisonCompleteEventHandler += ProjComparisonCheckCallBack;
         }
 
         private bool CanSetDeployDir(object obj)
         {
+            if (_metaDataState != MetaDataState.Idle) return false;
             return true;
         }
         private void SetDeploySrcDirectory(object obj)
@@ -121,7 +132,12 @@ namespace SimpleBinaryVCS.ViewModel
                 MessageBox.Show(ex.Message);
             }
         }
-        private bool CanStageChanges(object obj) { return ChangedFileList.Count != 0; }
+        
+        private bool CanStageChanges(object obj) 
+        {
+            if (_metaDataState != MetaDataState.Idle) return false; 
+            return ChangedFileList.Count != 0; 
+        }
         private void StageNewChanges(object obj)
         {
             _metaDataManager.RequestStageChanges();
@@ -131,7 +147,6 @@ namespace SimpleBinaryVCS.ViewModel
         {
             return _deployedProjectData != null;
         }
-
         public void OpenDeployedProjectInfo(object obj)
         {
             var mainWindow = obj as WPF.Window;
@@ -146,10 +161,10 @@ namespace SimpleBinaryVCS.ViewModel
         {
             _metaDataManager.RequestClearStagedFiles();
         }
-
         
         private bool CanRestoreFile(object? obj)
         {
+            if (_metaDataState != MetaDataState.Idle) return false;
             if (obj is ProjectFile projFile &&
                 (projFile.DataState == DataState.Deleted ||
                 !projFile.IsDstFile)) return true; 
@@ -162,6 +177,17 @@ namespace SimpleBinaryVCS.ViewModel
                 _metaDataManager.RequestFileRestore(file, DataState.Restored);
             }
         }
+        
+        private void RefreshFilesList(object? obj)
+        {
+            if (_deploySrcPath == null)
+            {
+                MessageBox.Show("Please Set Src Deploy Path");
+            }
+            _metaDataManager.RequestClearStagedFiles();
+            _metaDataManager.RequestSrcDataRetrieval(_deploySrcPath);
+        }
+
         private void RevertIntegrityCheckFile(object? obj)
         {
             if (_selectedItem is ProjectFile file)
@@ -177,11 +203,11 @@ namespace SimpleBinaryVCS.ViewModel
 
         private bool CanRunIntegrityTest(object Sender)
         {
-            return true; 
+            return _metaDataState == MetaDataState.Idle; 
         }
         private void MainProjectIntegrityTest(object sender)
         {
-            _metaDataManager.RequestProjectIntegrityTest(sender);
+            Task.Run(() => _metaDataManager.RequestProjectIntegrityTest());
         }
 
         #region Receive Callback From Model 
@@ -210,20 +236,47 @@ namespace SimpleBinaryVCS.ViewModel
             this.ChangedFileList = changedFileList;
         }
 
-        private void ProjectIntegrityCheckCallBack(object sender, string changeLog, ObservableCollection<ProjectFile> changedFileList)
+        private void ProjectIntegrityCheckCallBack(string changeLog, ObservableCollection<ProjectFile> changedFileList)
         {
             if (changedFileList == null) { MessageBox.Show("Model Binding Issue: ChangedList is Empty"); return; }
-            
-            var mainWindow = sender as WPF.Window;
-            IntegrityLogWindow logWindow = new IntegrityLogWindow(changeLog, changedFileList);
-            logWindow.Owner = mainWindow;
-            logWindow.WindowStartupLocation = WPF.WindowStartupLocation.CenterOwner;
-            logWindow.Show();
+
+            App.Current.Dispatcher.Invoke(() =>
+            {
+                var mainWindow = App.Current.MainWindow;
+                IntegrityLogWindow logWindow = new IntegrityLogWindow(changeLog, changedFileList);
+                logWindow.Owner = mainWindow;
+                logWindow.WindowStartupLocation = WPF.WindowStartupLocation.CenterOwner;
+                logWindow.Show();
+            });
         }
 
+        private void ProjComparisonCheckCallBack(ProjectData srcProject, ProjectData dstProject, List<ChangedFile> diff)
+        {
+            App.Current.Dispatcher.Invoke(() =>
+            {
+                var mainWindow = App.Current.MainWindow;
+                VersionDiffWindow versionDiffWindow = new VersionDiffWindow(srcProject, dstProject, diff);
+                versionDiffWindow.Owner = mainWindow;
+                versionDiffWindow.WindowStartupLocation = WPF.WindowStartupLocation.CenterOwner;
+                versionDiffWindow.Show();
+            });
+        }
+        private void MetaDataStateChangeCallBack(MetaDataState state)
+        {
+            App.Current.Dispatcher.Invoke(() =>
+            {
+                _metaDataState = state;
+                ((MainWindow)System.Windows.Application.Current.MainWindow).UpdateLayout();
+                
+            });
+        }
         private void SrcProjectDataCallBack(object srcProjectDataObj)
         {
-            if (srcProjectDataObj is not ProjectData srcProjectData) return;
+            if (srcProjectDataObj is not ProjectData srcProjectData)
+            {
+                _deployedProjectData = null;
+                return;
+            }
             this._deployedProjectData = srcProjectData;
         }
         #endregion

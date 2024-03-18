@@ -1,6 +1,7 @@
 ﻿using SimpleBinaryVCS.DataComponent;
 using SimpleBinaryVCS.Model;
 using SimpleBinaryVCS.Utils;
+using SimpleBinaryVCS.View;
 using System.Collections.ObjectModel;
 using System.Windows.Input;
 using WinForms = System.Windows.Forms;
@@ -62,6 +63,17 @@ namespace SimpleBinaryVCS.ViewModel
             }
         }
 
+        private string? _currentMetaDataState; 
+        public string CurrentMetaDataState
+        {
+            get => _currentMetaDataState ?? "Idle";
+            set
+            {
+                _currentMetaDataState = value;
+                OnPropertyChanged("CurrentMetaDataState");
+            }
+        }
+
         private string? projectName;
         public string ProjectName
         {
@@ -91,19 +103,21 @@ namespace SimpleBinaryVCS.ViewModel
         public ICommand GetProject => getProject ??= new RelayCommand(RetrieveProject, CanRetrieveProject);
 
         private MetaDataManager metaDataManager;
+        private MetaDataState? _metaDataState = MetaDataState.Idle;
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         public MetaDataViewModel()
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         {
-            metaDataManager = App.MetaDataManager;
-
-            metaDataManager.ProjectLoadedEventHandler += ProjectLoadedCallBack;
+            this.metaDataManager = App.MetaDataManager;
+            this.metaDataManager.ProjLoadedEventHandler += ProjectLoadedCallBack;
+            this.metaDataManager.IssueEventHandler += MetaDataStateChangeCallBack;
         }
         #region Update Version 
         private bool CanUpdate(object obj)
         {
             if (ProjectFiles == null || CurrentProjectPath == "") return false;
+            if (_metaDataState != MetaDataState.Idle) return false;
             return true;
         }
         
@@ -120,6 +134,7 @@ namespace SimpleBinaryVCS.ViewModel
 
         private bool CanRetrieveProject(object parameter)
         {
+            if (_metaDataState != MetaDataState.Idle) return false;
             return true;
         }
         private void RetrieveProject(object parameter)
@@ -139,11 +154,11 @@ namespace SimpleBinaryVCS.ViewModel
             bool retrieveProjectResult = metaDataManager.RequestProjectRetrieval(projectPath);
             if (!retrieveProjectResult)
             {
-                var result = MessageBox.Show("VersionLog file not found!\n Initialize A New Project?",
+                var result = MessageBox.Show($"{projectPath}\nVersionLog file not found\nInitialize A New Project?",
                     "Import Project", MessageBoxButtons.YesNo);
                 if (result == DialogResult.Yes)
                 {
-                    metaDataManager.RequestProjectInitialization(openFD.SelectedPath);
+                    Task.Run (() => metaDataManager.RequestProjectInitialization(openFD.SelectedPath));
                 }
                 else
                 {
@@ -154,6 +169,15 @@ namespace SimpleBinaryVCS.ViewModel
         }
         #endregion
         #region Receiving Model Callbacks
+        private void MetaDataStateChangeCallBack(MetaDataState state)
+        {
+            App.Current.Dispatcher.Invoke(() =>
+            {
+                _metaDataState = state;
+                CurrentMetaDataState = state.ToString();
+                ((MainWindow)System.Windows.Application.Current.MainWindow).UpdateLayout();
+            });
+        }
         private void ProjectLoadedCallBack(object projObj)
         {
             if (projObj is not ProjectData projectData) return;
