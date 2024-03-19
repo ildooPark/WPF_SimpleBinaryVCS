@@ -457,7 +457,10 @@ namespace SimpleBinaryVCS.DataComponent
         private void SettingManager_SetLastDstProjectCallBack(string dstProjectPath)
         {
             if (!RequestProjectRetrieval(dstProjectPath))
-            RequestProjectInitialization(dstProjectPath);
+            {
+                MessageBox.Show("Project Data not found! Please Reconfigure Destination Path");
+                return;
+            }
         }
         #endregion
 

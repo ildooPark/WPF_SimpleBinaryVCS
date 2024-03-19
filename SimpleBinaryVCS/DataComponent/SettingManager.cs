@@ -33,7 +33,7 @@ namespace DeployManager.DataComponent
         {
             try
             {
-                if (File.Exists(Path.Combine(settingDataPath, DAMetaFilename)))
+                if (File.Exists(DAMetaFilePath))
                 {
                     if (!_fileHandlerTool.TryDeserializeJsonData(DAMetaFilePath, out LocalConfigData? localConfigData)) return;
                     var result = MessageBox.Show($"Recent Destination Project Path Found: Proceed with this Destination? {localConfigData.LastOpenedDstPath}",

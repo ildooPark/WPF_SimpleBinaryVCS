@@ -25,13 +25,13 @@ namespace SimpleBinaryVCS.ViewModel
                 OnPropertyChanged("ChangedFileList");
             }
         }
-        private ProjectFile? _srcProjectData;
-        public ProjectFile? SrcProjectData
+        private ProjectFile? _srcProjectFile;
+        public ProjectFile? SrcProjectFile
         {
-            get => _srcProjectData ??= null;
+            get => _srcProjectFile ??= null;
             set
             {
-                _srcProjectData = value;
+                _srcProjectFile = value;
                 OnPropertyChanged("SelectedItem");
             }
         }
@@ -75,13 +75,13 @@ namespace SimpleBinaryVCS.ViewModel
         private bool CanCompareSrcProjWithMain(object obj)
         {
             if (_metaDataState != MetaDataState.Idle) return false;
-            if (_deployedProjectData ==  null) return false;
+            if (_srcProjectData ==  null) return false;
             return true; 
         }
 
         private void CompareSrcProjWithMain(object obj)
         {
-            _metaDataManager.RequestProjVersionDiff(_deployedProjectData);
+            _metaDataManager.RequestProjVersionDiff(_srcProjectData);
         }
 
         private ICommand? getDeploySrcDir;
@@ -89,7 +89,8 @@ namespace SimpleBinaryVCS.ViewModel
         
         private MetaDataManager _metaDataManager;
         private MetaDataState _metaDataState = MetaDataState.Idle;
-        private ProjectData? _deployedProjectData;
+        private ProjectData? _srcProjectData;
+        private ProjectData? _dstProjData;
         string? _deploySrcPath;
         public FileTrackViewModel()
         {
@@ -98,14 +99,16 @@ namespace SimpleBinaryVCS.ViewModel
             this._metaDataManager.SrcProjectLoadedEventHandler += SrcProjectDataCallBack;
             this._metaDataManager.PreStagedChangesEventHandler += PreStagedChangesCallBack;
             this._metaDataManager.IntegrityCheckCompleteEventHandler += ProjectIntegrityCheckCallBack;
-            this._metaDataManager.FileChangesEventHandler += FileChangeListUpdateCallBack;
-            this._metaDataManager.IssueEventHandler += MetaDataStateChangeCallBack;
-            this._metaDataManager.ProjComparisonCompleteEventHandler += ProjComparisonCheckCallBack;
+            this._metaDataManager.FileChangesEventHandler += MetaDataManager_FileChangeCallBack;
+            this._metaDataManager.IssueEventHandler += MetaDataManager_IssueEventCallBack;
+            this._metaDataManager.ProjLoadedEventHandler += MetaDataManager_ProjLoadedCallBack;
+            this._metaDataManager.ProjComparisonCompleteEventHandler += MetaDataManager_ProjComparisonCompleteCallBack;
         }
 
         private bool CanSetDeployDir(object obj)
         {
             if (_metaDataState != MetaDataState.Idle) return false;
+            if (_dstProjData == null) return false;
             return true;
         }
         private void SetDeploySrcDirectory(object obj)
@@ -115,7 +118,7 @@ namespace SimpleBinaryVCS.ViewModel
                 var openUpdateDir = new WinForms.FolderBrowserDialog();
                 if (openUpdateDir.ShowDialog() == DialogResult.OK)
                 {
-                    _deployedProjectData = null;
+                    _srcProjectData = null;
                     _deploySrcPath = openUpdateDir.SelectedPath;
                     _metaDataManager.RequestSrcDataRetrieval(_deploySrcPath);
                 }
@@ -145,12 +148,12 @@ namespace SimpleBinaryVCS.ViewModel
 
         private bool CanOpenDeployedProjectInfo(object obj)
         {
-            return _deployedProjectData != null;
+            return _srcProjectData != null;
         }
         public void OpenDeployedProjectInfo(object obj)
         {
             var mainWindow = obj as WPF.Window;
-            IntegrityLogWindow logWindow = new IntegrityLogWindow(_deployedProjectData);
+            IntegrityLogWindow logWindow = new IntegrityLogWindow(_srcProjectData);
             logWindow.Owner = mainWindow;
             logWindow.WindowStartupLocation = WPF.WindowStartupLocation.CenterOwner;
             logWindow.Show();
@@ -211,6 +214,11 @@ namespace SimpleBinaryVCS.ViewModel
         }
 
         #region Receive Callback From Model 
+        private void MetaDataManager_ProjLoadedCallBack(object projObj)
+        {
+            if (projObj is not ProjectData projectData) return;
+            _dstProjData = projectData;
+        }
         private void StageRequestCallBack(ObservableCollection<ProjectFile> stagedChanges)
         {
             _changedFileList = stagedChanges;
@@ -231,7 +239,7 @@ namespace SimpleBinaryVCS.ViewModel
             }
         }
 
-        private void FileChangeListUpdateCallBack(ObservableCollection<ProjectFile> changedFileList)
+        private void MetaDataManager_FileChangeCallBack(ObservableCollection<ProjectFile> changedFileList)
         {
             this.ChangedFileList = changedFileList;
         }
@@ -250,7 +258,7 @@ namespace SimpleBinaryVCS.ViewModel
             });
         }
 
-        private void ProjComparisonCheckCallBack(ProjectData srcProject, ProjectData dstProject, List<ChangedFile> diff)
+        private void MetaDataManager_ProjComparisonCompleteCallBack(ProjectData srcProject, ProjectData dstProject, List<ChangedFile> diff)
         {
             App.Current.Dispatcher.Invoke(() =>
             {
@@ -261,7 +269,7 @@ namespace SimpleBinaryVCS.ViewModel
                 versionDiffWindow.Show();
             });
         }
-        private void MetaDataStateChangeCallBack(MetaDataState state)
+        private void MetaDataManager_IssueEventCallBack(MetaDataState state)
         {
             App.Current.Dispatcher.Invoke(() =>
             {
@@ -274,10 +282,10 @@ namespace SimpleBinaryVCS.ViewModel
         {
             if (srcProjectDataObj is not ProjectData srcProjectData)
             {
-                _deployedProjectData = null;
+                _srcProjectData = null;
                 return;
             }
-            this._deployedProjectData = srcProjectData;
+            this._srcProjectData = srcProjectData;
         }
         #endregion
     }

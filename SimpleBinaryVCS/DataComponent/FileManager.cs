@@ -189,7 +189,8 @@ namespace SimpleBinaryVCS.DataComponent
                 foreach (string fileRelPath in intersectFiles)
                 {
                     if (projectFilesDict[fileRelPath].DataType == ProjectDataType.Directory) continue;
-                    if (!intersectedFiles.TryAdd(fileRelPath, new ProjectFile(projectFilesDict[fileRelPath])))
+                    ProjectFile intersectedFile = new ProjectFile(projectFilesDict[fileRelPath]);
+                    if (!intersectedFiles.TryAdd(fileRelPath, intersectedFile))
                     {
                         IssueEventHandler?.Invoke(MetaDataState.Idle);
                         System.Windows.MessageBox.Show($"Couldn't Run File Integrity Check, Couldn't Hash Intersected File on {fileRelPath}");
@@ -200,7 +201,7 @@ namespace SimpleBinaryVCS.DataComponent
                         await _asyncControl.WaitAsync(); 
                         try
                         {
-                            _hashTool.GetFileMD5CheckSum(mainProject.ProjectPath, fileRelPath);
+                            _hashTool.GetFileMD5CheckSum(intersectedFile);
                         }
                         catch (Exception ex)
                         {
