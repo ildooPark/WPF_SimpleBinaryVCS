@@ -34,7 +34,7 @@ namespace SimpleBinaryVCS.DataComponent
         /// Imported ProjectMainFilesDict List of ProjectFiles with Identical Name
         /// </summary>
         private Dictionary<string, List<ProjectFile>> _projectFilesDict_namesSorted;
-        private List<string> _projectDirRelPaths;
+        private List<ProjectFile> _projDirFileList;
         /// <summary>
         /// Key: DataRelPath Value: ProjectFile
         /// </summary>
@@ -65,7 +65,7 @@ namespace SimpleBinaryVCS.DataComponent
         {
             _projectFilesDict = new Dictionary<string, ProjectFile>();
             _projectFilesDict_namesSorted = new Dictionary<string, List<ProjectFile>>();
-            _projectDirRelPaths = new List<string>();
+            _projDirFileList = new List<ProjectFile>();
             _preStagedFilesDict = new Dictionary<string, ProjectFile>();
             _registeredChangesDict = new Dictionary<string, ChangedFile>();
             _fileHandlerTool = App.FileHandlerTool;
@@ -186,6 +186,7 @@ namespace SimpleBinaryVCS.DataComponent
                 }
                 Dictionary<string, ProjectFile> intersectedFiles = new Dictionary<string, ProjectFile> ();
                 List<Task> asyncHashing = new List<Task> ();
+
                 foreach (string fileRelPath in intersectFiles)
                 {
                     if (projectFilesDict[fileRelPath].DataType == ProjectDataType.Directory) continue;
@@ -216,6 +217,7 @@ namespace SimpleBinaryVCS.DataComponent
                     }));
                 }
                 await Task.WhenAll(asyncHashing);
+
                 foreach (ProjectFile intersectedFile in intersectedFiles.Values)
                 {
                     if (!projectFilesDict.TryGetValue(intersectedFile.DataRelPath, out ProjectFile? projectFile))
@@ -581,14 +583,12 @@ namespace SimpleBinaryVCS.DataComponent
         {
             string[]? filesAllDirectories;
             string[]? filesTopDirectories;
-            string[]? dirsTopDirectories;
             string[]? dirsFullPaths;
 
             try
             {
                 filesAllDirectories = Directory.GetFiles(srcDirPath, "*", SearchOption.AllDirectories);
                 filesTopDirectories = Directory.GetFiles(srcDirPath, "*", SearchOption.TopDirectoryOnly);
-                dirsTopDirectories = Directory.GetDirectories(srcDirPath, "*", SearchOption.TopDirectoryOnly);
                 dirsFullPaths = Directory.GetDirectories(srcDirPath, "*", SearchOption.AllDirectories);
             }
             catch (Exception ex)
@@ -596,7 +596,6 @@ namespace SimpleBinaryVCS.DataComponent
                 MessageBox.Show($"FileManager RegisterNewData Error {ex.Message}");
                 filesAllDirectories = null;
                 filesTopDirectories = null;
-                dirsTopDirectories = null;
                 dirsFullPaths = null;
             }
             if (filesAllDirectories == null || filesTopDirectories == null || dirsFullPaths == null)
@@ -687,21 +686,11 @@ namespace SimpleBinaryVCS.DataComponent
                     return;
                 }
                 if (Path.GetExtension(topDirFilePaths[i]) == ".VersionLog") continue;
-                //foreach (ProjectFile file in _projectFilesDict.Values)
-                //{
-                //    if (file.DataName == fileName)
-                //    {
-                //        if (overlappingFiles == null) overlappingFiles = new List<ProjectFile>();
-                //        overlappingFiles.Add(file);
-                //        count++; 
-                //    }
-                //}
                 if (_projectFilesDict_namesSorted.TryGetValue(fileName, out List<ProjectFile>? fileList))
                 {
                     count = fileList.Count;
                     overlappingFiles = fileList;
                 }
-                
                 // File Overlaps
                 if (count >= 2 && overlappingFiles != null)
                 {
@@ -746,10 +735,14 @@ namespace SimpleBinaryVCS.DataComponent
                         srcPath,
                         Path.GetRelativePath(srcPath, topDirFilePaths[i])
                         );
-                    _preStagedFilesDict.TryAdd(newFile.DataRelPath, newFile);
+                    foreach (ProjectFile projDir in _projDirFileList)
+                    {
+                        ChangedFile potentialNew = new ChangedFile(newFile, projDir, DataState.Overlapped);
+                        registeredNewList.Add(potentialNew);
+                    }
                 }
             }
-            if (registeredOverlapsList.Count >= 1 || registeredNewList.Count >= 1)
+            if (registeredOverlapsList.Count >= 1)
             {
                 OverlappedFileFoundEventHandler?.Invoke(registeredOverlapsList, registeredNewList);
             }
@@ -764,7 +757,7 @@ namespace SimpleBinaryVCS.DataComponent
             }
             DataPreStagedEventHandler?.Invoke(_preStagedFilesDict.Values.ToList());
         }
-        public void RegisterOverlapped(List<ChangedFile> sortedOverlaps, List<ChangedFile> sortedNew)
+        public void RegisterAbnormalFiles(List<ChangedFile> sortedOverlaps, List<ChangedFile> sortedNew)
         {
             foreach (ChangedFile overlappedFile in sortedOverlaps)
             {
@@ -779,15 +772,18 @@ namespace SimpleBinaryVCS.DataComponent
                     _preStagedFilesDict.TryAdd(newPreStagedFile.DataRelPath, newPreStagedFile);
                 }
             }
+            //Sending from 
             foreach (ChangedFile newFile in sortedNew)
             {
+                if (newFile.DstFile == null || newFile.SrcFile == null) continue;
                 if (newFile.DstFile.IsDstFile)
                 {
-                    string newSrcFilePath = Path.Combine(newFile.SrcFile.DataSrcPath, newFile.DstFile.DataRelPath);
-                    _fileHandlerTool.HandleFile(newFile.SrcFile.DataAbsPath, newSrcFilePath, DataState.PreStaged);
+                    string newSrcFileRelPath = Path.Combine(newFile.DstFile.DataRelPath, newFile.SrcFile.DataName);
+                    string newSrcFilePath = Path.Combine(newFile.SrcFile.DataSrcPath, newSrcFileRelPath);
+                    _fileHandlerTool.HandleFile(newFile.SrcFile.DataAbsPath, newSrcFilePath, DataState.Added);
 
-                    ProjectFile newPreStagedFile = new ProjectFile(newFile.SrcFile, DataState.PreStaged);
-                    newPreStagedFile.DataRelPath = newFile.DstFile.DataRelPath;
+                    ProjectFile newPreStagedFile = new ProjectFile(newFile.SrcFile, DataState.Added);
+                    newPreStagedFile.DataRelPath = newSrcFileRelPath;
                     //Make new prestagedFile For computations 
                     _preStagedFilesDict.TryAdd(newPreStagedFile.DataRelPath, newPreStagedFile);
                 }
@@ -949,7 +945,7 @@ namespace SimpleBinaryVCS.DataComponent
             _registeredChangesDict.Clear();
             this._dstProjectData = loadedProject;
             this._projectFilesDict = _dstProjectData.ProjectFiles;
-            this._projectDirRelPaths = _dstProjectData.ProjectRelDirsList;
+            this._projDirFileList = _dstProjectData.ProjectDirFileList;
             SortProjectFilesByName(_projectFilesDict);
             DataStagedEventHandler?.Invoke(_registeredChangesDict.Values.ToList());
         }

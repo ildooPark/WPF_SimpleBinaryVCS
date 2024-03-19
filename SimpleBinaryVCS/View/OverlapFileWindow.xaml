@@ -38,15 +38,25 @@
                       VerticalAlignment="Bottom"
                       HorizontalAlignment="Stretch"
                       ResizeDirection="Rows"
-                      BorderThickness="1"
+                      BorderThickness="0.5"
                       BorderBrush="Black"
                       />
         <TextBlock Grid.Row="2"
                    Text="NewFiles"/>
         <TextBox Grid.Row="3"
-                 Text="-"
+                 Name="NewFileFilterKeyword"
+                 TextChanged="NewFileFilterKeyword_TextChanged"
+                 BorderThickness="1"
+                 Margin="3"
                  />
-        <ListBox Grid.Row="4" ItemsSource="{Binding NewFilesList}">
+        <GridSplitter Grid.Row="3"
+              VerticalAlignment="Bottom"
+              HorizontalAlignment="Stretch"
+              ResizeDirection="Rows"
+              BorderThickness="0.5"
+              BorderBrush="Black"
+              />
+        <ListBox Grid.Row="4" Name="NewFileDirectories" ItemsSource="{Binding NewFilesList}">
             <ListBox.ItemTemplate>
                 <DataTemplate>
                     <StackPanel Orientation="Horizontal">

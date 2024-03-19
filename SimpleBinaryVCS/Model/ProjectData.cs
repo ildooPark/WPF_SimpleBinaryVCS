@@ -26,6 +26,10 @@ namespace SimpleBinaryVCS.Model
             .Select(file => file.DataRelPath)
             .ToList();
         [JsonIgnore]
+        public List<ProjectFile> ProjectDirFileList => ProjectFiles.Values.ToList()
+            .Where(file => file.DataType == Interfaces.ProjectDataType.Directory)
+            .ToList();
+        [JsonIgnore]
         public List<string> ProjectRelFilePathsList => ProjectFiles.Values.ToList()
             .Where(file => file.DataType == Interfaces.ProjectDataType.File)
             .Select(file => file.DataRelPath)

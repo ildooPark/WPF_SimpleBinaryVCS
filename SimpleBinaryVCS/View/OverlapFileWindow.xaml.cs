@@ -21,5 +21,16 @@ namespace SimpleBinaryVCS.View
         {
             this.Close(); 
         }
+
+        private void NewFileFilterKeyword_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+        {
+            NewFileDirectories.Items.Filter = FilterFilesMethod;
+        }
+        private bool FilterFilesMethod(object obj)
+        {
+            var file = (ChangedFile)obj;
+
+            return file.DstFile.DataName.Contains(NewFileFilterKeyword.Text, StringComparison.OrdinalIgnoreCase);
+        }
     }
 }

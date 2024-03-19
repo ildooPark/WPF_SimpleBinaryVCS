@@ -145,8 +145,6 @@ namespace SimpleBinaryVCS.DataComponent
             _settingManager.Awake();
         }
 
-        
-
         #region View Model Request Calls
         public bool RequestProjectRetrieval(string projectPath)
         {
@@ -166,6 +164,7 @@ namespace SimpleBinaryVCS.DataComponent
                     retrievedData.ProjectPath = projectPath;
                     ProjectMetaData = retrievedData;
                     MainProjectData = retrievedData.ProjectMain;
+
                     _settingManager.SetRecentDstDirectory(projectPath);
                 }
                 else
@@ -180,6 +179,7 @@ namespace SimpleBinaryVCS.DataComponent
                 MessageBox.Show($"MetaDataManager TryRetrieveProject Error {ex.Message}");
                 return false;
             }
+            TryAppendProjParentDirAsProjectFile(MainProjectData, projectPath);
             CurrentState = MetaDataState.Idle;
             return true;
         }
@@ -224,7 +224,7 @@ namespace SimpleBinaryVCS.DataComponent
                         "",
                         true
                         );
-                    newProjectData.ProjectFiles.Add(newFile.DataRelPath, newFile);
+                    newProjectData.ProjectFiles.TryAdd(newFile.DataRelPath, newFile);
                     asyncTasks.Add(Task.Run(async () =>
                     {
                         await asyncControl.WaitAsync();
@@ -263,7 +263,7 @@ namespace SimpleBinaryVCS.DataComponent
                         "",
                         true
                         );
-                    newProjectData.ProjectFiles.Add(newFile.DataRelPath, newFile);
+                    newProjectData.ProjectFiles.TryAdd(newFile.DataRelPath, newFile);
                     newProjectData.ChangedFiles.Add(new ChangedFile(new ProjectFile(newFile), DataState.Added));
                     changeLog.AppendLine($"Added {newFile.DataName}");
                 }
@@ -272,6 +272,8 @@ namespace SimpleBinaryVCS.DataComponent
                 newProjectData.ChangeLog = changeLog.ToString();
                 newProjectData.NumberOfChanges = newProjectData.ProjectFilesObs.Count;
                 MainProjectData = newProjectData;
+
+                TryAppendProjParentDirAsProjectFile(MainProjectData, projectPath);
                 _settingManager.SetRecentDstDirectory(projectPath);
                 CurrentState = MetaDataState.Idle;
             }
@@ -335,7 +337,7 @@ namespace SimpleBinaryVCS.DataComponent
 
         public void RequestOverlappedFileAllocation(List<ChangedFile> overlapSorted, List<ChangedFile> newSorted)
         {
-            _fileManager.RegisterOverlapped(overlapSorted, newSorted);
+            _fileManager.RegisterAbnormalFiles(overlapSorted, newSorted);
         }
 
         public void RequestProjectIntegrityTest()
@@ -380,6 +382,7 @@ namespace SimpleBinaryVCS.DataComponent
         }
 
         #endregion
+
         #region Version Management Tools
         private string GetProjectVersionName(ProjectData projData, bool isNewProject = false)
         {
@@ -391,6 +394,7 @@ namespace SimpleBinaryVCS.DataComponent
         }
 
         #endregion
+
         #region Callbacks
         private void ProjectIntegrityCheckCallBack(string changeLog, List<ProjectFile> changedFileList)
         {
@@ -464,7 +468,7 @@ namespace SimpleBinaryVCS.DataComponent
         }
         #endregion
 
-        #region Planned
+        #region Temporary
         #region Exports
         /// <summary>
         /// Input: Requested Project Data 
@@ -480,6 +484,21 @@ namespace SimpleBinaryVCS.DataComponent
         public void GenerateProjectDataHash(object obj)
         {
 
+        }
+        //Since I did not include parent directory as part of project Directory in previous iterations of project initialization
+        private bool TryAppendProjParentDirAsProjectFile(ProjectData? projData, string projectPath)
+        {
+            if (projData == null) return false;
+            ProjectFile projParentDir = new ProjectFile
+                        (
+                            projectPath, 
+                            "", 
+                            null, 
+                            DataState.None, 
+                            ProjectDataType.Directory
+                        );
+            projData.ProjectFiles.TryAdd(projData.ProjectName, projParentDir);
+            return true;
         }
         #endregion
         #endregion
