@@ -107,7 +107,7 @@ namespace SimpleBinaryVCS.ViewModel
             this._metaDataManager = App.MetaDataManager;
             this._metaDataManager.FetchRequestEventHandler += FetchRequestCallBack;
             this._metaDataManager.ProjExportEventHandler += ExportRequestCallBack;
-            this._metaDataManager.IssueEventHandler += MetaDataStateChangeCallBack;
+            this._metaDataManager.ManagerStateEventHandler += MetaDataStateChangeCallBack;
         }
 
         private bool CanFetch(object obj)

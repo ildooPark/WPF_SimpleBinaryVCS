@@ -36,7 +36,7 @@ namespace SimpleBinaryVCS.DataComponent
         public event Action<object>? FetchRequestEventHandler;
         public event Action<string, ObservableCollection<ProjectFile>>? IntegrityCheckCompleteEventHandler;
         public event Action<ProjectData, ProjectData, List<ChangedFile>>? ProjComparisonCompleteEventHandler;
-        public event Action<MetaDataState> IssueEventHandler;
+        public event Action<MetaDataState> ManagerStateEventHandler;
         private MetaDataState _currentState; 
         public MetaDataState CurrentState
         {
@@ -44,7 +44,7 @@ namespace SimpleBinaryVCS.DataComponent
             set
             {
                 _currentState = value;
-                IssueEventHandler?.Invoke(_currentState);
+                ManagerStateEventHandler?.Invoke(_currentState);
             }
         }
 
@@ -123,20 +123,20 @@ namespace SimpleBinaryVCS.DataComponent
 
             _backupManager.ProjectRevertEventHandler += ProjectChangeCallBack;
             _backupManager.FetchCompleteEventHandler += FetchRequestCallBack;
-            _backupManager.IssueEventHandler += IssueEventCallBack;
+            _backupManager.ManagerStateEventHandler += IssueEventCallBack;
 
             _updateManager.ProjectUpdateEventHandler += ProjectChangeCallBack;
-            _updateManager.IssueEventHandler += IssueEventCallBack;
+            _updateManager.ManagerStateEventHandler += IssueEventCallBack;
 
             _fileManager.DataPreStagedEventHandler += DataPreStagedCallBack;
             _fileManager.DataStagedEventHandler += DataStagedCallBack;
             _fileManager.OverlappedFileFoundEventHandler += OverlapFileFoundCallBack; 
             _fileManager.IntegrityCheckEventHandler += ProjectIntegrityCheckCallBack;
             _fileManager.SrcProjectDataLoadedEventHandler += SrcProjectLoadedCallBack;
-            _fileManager.IssueEventHandler += IssueEventCallBack;
+            _fileManager.ManagerStateEventHandler += IssueEventCallBack;
 
             _exportManager.ExportCompleteEventHandler += ExportRequestCallBack;
-            _exportManager.IssueEventHandler += IssueEventCallBack;
+            _exportManager.ManagerStateEventHandler += IssueEventCallBack;
 
             _settingManager.SetLastDstProject += SettingManager_SetLastDstProjectCallBack;
             _backupManager.Awake();
@@ -497,7 +497,7 @@ namespace SimpleBinaryVCS.DataComponent
                             DataState.None, 
                             ProjectDataType.Directory
                         );
-            projData.ProjectFiles.TryAdd(projData.ProjectName, projParentDir);
+            projData.ProjectFiles.TryAdd("", projParentDir);
             return true;
         }
         #endregion

@@ -21,7 +21,7 @@ namespace SimpleBinaryVCS.DataComponent
         /// string = Export Project Path
         /// </summary>
         public event Action<string>? ExportCompleteEventHandler;
-        public event Action<MetaDataState>? IssueEventHandler;
+        public event Action<MetaDataState>? ManagerStateEventHandler;
         #endregion
         public void Awake(){}
         public void ExportProjectVersionLog(ProjectData projectData)
@@ -49,16 +49,15 @@ namespace SimpleBinaryVCS.DataComponent
             }
             ExportCompleteEventHandler?.Invoke(exportDstPath);
         }
-
         public void ExportProject(ProjectData projectData)
         {
             if (_backupFilesDict == null)
             {
-                IssueEventHandler?.Invoke(MetaDataState.Idle);
+                ManagerStateEventHandler?.Invoke(MetaDataState.Idle);
                 WPF.MessageBox.Show("Backup files are missing!, Make sure ProjectMetaData is Set");
                 return;
             }
-            IssueEventHandler?.Invoke(MetaDataState.Exporting);
+            ManagerStateEventHandler?.Invoke(MetaDataState.Exporting);
             bool exportResult = false;
             string? exportPath = null; 
             while (!exportResult)
@@ -74,14 +73,14 @@ namespace SimpleBinaryVCS.DataComponent
                     else
                     {
                         WPF.MessageBox.Show("Export Canceled");
-                        IssueEventHandler?.Invoke(MetaDataState.Idle);
+                        ManagerStateEventHandler?.Invoke(MetaDataState.Idle);
                         break;
                     }
                 }
             }
             if (exportPath != null)
             {
-                IssueEventHandler?.Invoke(MetaDataState.Idle);
+                ManagerStateEventHandler?.Invoke(MetaDataState.Idle);
                 ExportCompleteEventHandler?.Invoke(exportPath);
             }
         }
@@ -141,7 +140,6 @@ namespace SimpleBinaryVCS.DataComponent
                 exportPath = null; return false;
             }
         }
-
         public void ExportProjectChanges(ProjectData projectData, List<ChangedFile> changes)
         {
 
@@ -151,7 +149,6 @@ namespace SimpleBinaryVCS.DataComponent
             exportPath = null;
             return false; 
         }
-
         private string GetExportProjectPath(ProjectData projectData)
         {
             return $"{_currentProjectPath}\\Export_{projectData.ProjectName}\\{projectData.UpdatedVersion}";

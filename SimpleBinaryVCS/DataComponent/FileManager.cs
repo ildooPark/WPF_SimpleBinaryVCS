@@ -57,7 +57,7 @@ namespace SimpleBinaryVCS.DataComponent
         public event Action<object>? DataPreStagedEventHandler;
         public event Action<object>? PreStagedDataOverlapEventHandler;
         public event Action<string, List<ProjectFile>>? IntegrityCheckEventHandler;
-        public event Action<MetaDataState> IssueEventHandler;
+        public event Action<MetaDataState> ManagerStateEventHandler;
         #endregion
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
@@ -80,10 +80,10 @@ namespace SimpleBinaryVCS.DataComponent
         public async void MainProjectIntegrityCheck()
         {
             ProjectData? mainProject = _dstProjectData;
-            IssueEventHandler?.Invoke(MetaDataState.IntegrityChecking);
+            ManagerStateEventHandler?.Invoke(MetaDataState.IntegrityChecking);
             if (mainProject == null)
             {
-                IssueEventHandler?.Invoke(MetaDataState.Idle);
+                ManagerStateEventHandler?.Invoke(MetaDataState.Idle);
                 MessageBox.Show("Main Project is Missing");
                 return;
             }
@@ -150,6 +150,7 @@ namespace SimpleBinaryVCS.DataComponent
 
                 foreach (string dirRelPath in addedDirs)
                 {
+                    //TODO : Resolve Hard coded issue -> Setting Manager Ignore
                     if (dirRelPath == $"Backup_{mainProject.ProjectName}" || dirRelPath == $"Export_{ mainProject.ProjectName}") continue;
                     ProjectFile dstFile = new ProjectFile(mainProject.ProjectPath, dirRelPath, null, DataState.Added | DataState.IntegrityChecked, ProjectDataType.Directory);
                     ChangedFile newChange = new ChangedFile(dstFile, DataState.Added | DataState.IntegrityChecked);
@@ -159,6 +160,8 @@ namespace SimpleBinaryVCS.DataComponent
 
                 foreach (string dirRelPath in deletedDirs)
                 {
+                    //TODO : Resolve Hard coded issue -> Setting Manager Ignore
+                    if (dirRelPath == "") continue;
                     ProjectFile dstFile = new ProjectFile(mainProject.ProjectPath, dirRelPath, null, DataState.Deleted | DataState.IntegrityChecked, ProjectDataType.Directory);
                     ChangedFile newChange = new ChangedFile(dstFile, DataState.Deleted | DataState.IntegrityChecked);
                     _preStagedFilesDict.TryAdd(dirRelPath, dstFile);
@@ -167,6 +170,7 @@ namespace SimpleBinaryVCS.DataComponent
 
                 foreach (string fileRelPath in addedFiles)
                 {
+                    //TODO : Resolve Hard coded issue -> Setting Manager Ignore
                     if (fileRelPath == "ProjectMetaData.bin") continue;
                     fileIntegrityLog.AppendLine($"{fileRelPath} has been Added");
                     string? fileHash = _hashTool.GetFileMD5CheckSum(mainProject.ProjectPath, fileRelPath);
@@ -189,11 +193,12 @@ namespace SimpleBinaryVCS.DataComponent
 
                 foreach (string fileRelPath in intersectFiles)
                 {
+                    //TODO : Resolve Hard coded issue -> Setting Manager Ignore
                     if (projectFilesDict[fileRelPath].DataType == ProjectDataType.Directory) continue;
                     ProjectFile intersectedFile = new ProjectFile(projectFilesDict[fileRelPath]);
                     if (!intersectedFiles.TryAdd(fileRelPath, intersectedFile))
                     {
-                        IssueEventHandler?.Invoke(MetaDataState.Idle);
+                        ManagerStateEventHandler?.Invoke(MetaDataState.Idle);
                         System.Windows.MessageBox.Show($"Couldn't Run File Integrity Check, Couldn't Hash Intersected File on {fileRelPath}");
                         return;
                     }
@@ -206,7 +211,7 @@ namespace SimpleBinaryVCS.DataComponent
                         }
                         catch (Exception ex)
                         {
-                            IssueEventHandler?.Invoke(MetaDataState.Idle);
+                            ManagerStateEventHandler?.Invoke(MetaDataState.Idle);
                             MessageBox.Show($"Couldn't Run File Integrity Check: File async Hashing Failed\n{ex.Message}");
                             return;
                         }
@@ -222,7 +227,7 @@ namespace SimpleBinaryVCS.DataComponent
                 {
                     if (!projectFilesDict.TryGetValue(intersectedFile.DataRelPath, out ProjectFile? projectFile))
                     {
-                        IssueEventHandler?.Invoke(MetaDataState.Idle);
+                        ManagerStateEventHandler?.Invoke(MetaDataState.Idle);
                         System.Windows.MessageBox.Show($"Couldn't Run File Integrity Check, project File does not exist in Intersected file list {intersectedFile.DataName}");
                         return;
                     }
@@ -245,12 +250,12 @@ namespace SimpleBinaryVCS.DataComponent
                 fileIntegrityLog.AppendLine("Integrity Check Complete");
                 DataStagedEventHandler?.Invoke(_registeredChangesDict.Values.ToList());
                 IntegrityCheckEventHandler?.Invoke(fileIntegrityLog.ToString(), _preStagedFilesDict.Values.ToList());
-                IssueEventHandler?.Invoke(MetaDataState.Idle);
+                ManagerStateEventHandler?.Invoke(MetaDataState.Idle);
             }
 
             catch (Exception ex)
             {
-                IssueEventHandler?.Invoke(MetaDataState.Idle);
+                ManagerStateEventHandler?.Invoke(MetaDataState.Idle);
                 System.Windows.MessageBox.Show($"{ex.Message}. Couldn't Run File Integrity Check");
             }
         }
@@ -258,11 +263,11 @@ namespace SimpleBinaryVCS.DataComponent
         {
             if (targetProject == null)
             {
-                IssueEventHandler?.Invoke(MetaDataState.Idle);
+                ManagerStateEventHandler?.Invoke(MetaDataState.Idle);
                 MessageBox.Show("Main Project is Missing");
                 return null;
             }
-            IssueEventHandler?.Invoke(MetaDataState.CleanRestoring);
+            ManagerStateEventHandler?.Invoke(MetaDataState.CleanRestoring);
             _preStagedFilesDict.Clear();
             _registeredChangesDict.Clear();
             try
@@ -367,14 +372,14 @@ namespace SimpleBinaryVCS.DataComponent
                     }
                 }
 
-                IssueEventHandler?.Invoke(MetaDataState.Idle);
+                ManagerStateEventHandler?.Invoke(MetaDataState.Idle);
                 return fileChanges;
             }
 
             catch (Exception ex)
             {
                 System.Windows.MessageBox.Show($"{ex.Message}. Couldn't Run Version Clearn Restoring File Check");
-                IssueEventHandler?.Invoke(MetaDataState.Idle);
+                ManagerStateEventHandler?.Invoke(MetaDataState.Idle);
                 return null;
             }
         }
@@ -386,7 +391,7 @@ namespace SimpleBinaryVCS.DataComponent
         {
             if (!isProjectRevert)
                 return FindVersionDifferences(srcData, dstData);
-            IssueEventHandler?.Invoke(MetaDataState.Processing);
+            ManagerStateEventHandler?.Invoke(MetaDataState.Processing);
             try
             {
                 List<ChangedFile> fileChanges = new List<ChangedFile>();
@@ -458,13 +463,13 @@ namespace SimpleBinaryVCS.DataComponent
                         fileChanges.Add(new ChangedFile(srcFile, dstFile, DataState.Restored, true));
                     }
                 }
-                IssueEventHandler?.Invoke(MetaDataState.Idle);
+                ManagerStateEventHandler?.Invoke(MetaDataState.Idle);
                 DataStagedEventHandler?.Invoke(fileChanges);
                 return fileChanges;
             }
             catch (Exception ex)
             {
-                IssueEventHandler?.Invoke(MetaDataState.Idle);
+                ManagerStateEventHandler?.Invoke(MetaDataState.Idle);
                 System.Windows.MessageBox.Show($"{ex.Message}. Couldn't Run Find Version Differences For Backup");
                 return null;
             }
@@ -473,7 +478,7 @@ namespace SimpleBinaryVCS.DataComponent
         {
             try
             {
-                IssueEventHandler?.Invoke(MetaDataState.Processing);
+                ManagerStateEventHandler?.Invoke(MetaDataState.Processing);
                 List<ChangedFile> fileChanges = new List<ChangedFile>();
 
                 List<string> recordedFiles = new List<string>();
@@ -534,12 +539,12 @@ namespace SimpleBinaryVCS.DataComponent
                     }
                 }
 
-                IssueEventHandler?.Invoke(MetaDataState.Idle);
+                ManagerStateEventHandler?.Invoke(MetaDataState.Idle);
                 return fileChanges;
             }
             catch (Exception ex)
             {
-                IssueEventHandler?.Invoke(MetaDataState.Idle);
+                ManagerStateEventHandler?.Invoke(MetaDataState.Idle);
                 System.Windows.MessageBox.Show($"{ex.Message}. Couldn't Run Find Version Differences Against Given Src");
                 return null;
             }
@@ -551,7 +556,7 @@ namespace SimpleBinaryVCS.DataComponent
         {
             try
             {
-                IssueEventHandler?.Invoke(MetaDataState.Retrieving);
+                ManagerStateEventHandler?.Invoke(MetaDataState.Retrieving);
                 string[] binFiles = Directory.GetFiles(srcPath, "*.VersionLog", SearchOption.AllDirectories);
                 if (binFiles.Length == 1)
                 {
@@ -574,10 +579,10 @@ namespace SimpleBinaryVCS.DataComponent
             }
             catch (Exception ex)
             {
-                IssueEventHandler?.Invoke(MetaDataState.Idle);
+                ManagerStateEventHandler?.Invoke(MetaDataState.Idle);
                 MessageBox.Show($"File Manager RetrieveDataSrc Error: {ex.Message}");
             }
-            IssueEventHandler?.Invoke(MetaDataState.Idle);
+            ManagerStateEventHandler?.Invoke(MetaDataState.Idle);
         }
         private void RegisterNewData(string srcDirPath)
         {
@@ -800,10 +805,10 @@ namespace SimpleBinaryVCS.DataComponent
                 MessageBox.Show("Project Data is unreachable from FileManager");
                 return;
             }
-            IssueEventHandler?.Invoke(MetaDataState.Processing);
+            ManagerStateEventHandler?.Invoke(MetaDataState.Processing);
             await HashPreStagedFilesAsync();
             UpdateStageFileList();
-            IssueEventHandler?.Invoke(MetaDataState.Idle);
+            ManagerStateEventHandler?.Invoke(MetaDataState.Idle);
         }
 
         private async Task HashPreStagedFilesAsync()
@@ -835,12 +840,12 @@ namespace SimpleBinaryVCS.DataComponent
             }
             catch (Exception ex)
             {
-                IssueEventHandler?.Invoke(MetaDataState.Idle);
+                ManagerStateEventHandler?.Invoke(MetaDataState.Idle);
                 WPF.MessageBox.Show($"File Manager UpdateHashFromChangedList Error: {ex.Message}");
             }
             finally
             {
-                IssueEventHandler?.Invoke(MetaDataState.Idle);
+                ManagerStateEventHandler?.Invoke(MetaDataState.Idle);
                 _asyncControl.Release();
                 Console.WriteLine(_asyncControl.CurrentCount);
             }
@@ -852,7 +857,7 @@ namespace SimpleBinaryVCS.DataComponent
 
             foreach (ProjectFile registerdFile in _preStagedFilesDict.Values)
             {
-                IssueEventHandler?.Invoke(MetaDataState.Processing);
+                ManagerStateEventHandler?.Invoke(MetaDataState.Processing);
                 registerdFile.DataState &= ~DataState.PreStaged;
                 //If File is being Restored
                 if ((registerdFile.DataState & DataState.Restored) != 0 && registerdFile.DataType != ProjectDataType.Directory)
@@ -909,7 +914,7 @@ namespace SimpleBinaryVCS.DataComponent
             }
 
             _preStagedFilesDict.Clear();
-            IssueEventHandler?.Invoke(MetaDataState.Idle);
+            ManagerStateEventHandler?.Invoke(MetaDataState.Idle);
             DataStagedEventHandler?.Invoke(_registeredChangesDict.Values.ToList());
         }
         
@@ -956,7 +961,6 @@ namespace SimpleBinaryVCS.DataComponent
             this._backupFilesDict = projectMetaData.BackupFiles;
         }
         #endregion
-
         private void SortProjectFilesByName(Dictionary<string, ProjectFile> projectFilesDict)
         {
             _projectFilesDict_namesSorted.Clear();
@@ -974,7 +978,6 @@ namespace SimpleBinaryVCS.DataComponent
                 }
             }
         }
-
         #region Planned 
         public async void StageNewFilesAsync(string deployPath)
         {

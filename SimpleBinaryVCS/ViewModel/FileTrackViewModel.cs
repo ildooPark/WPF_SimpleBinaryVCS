@@ -100,7 +100,7 @@ namespace SimpleBinaryVCS.ViewModel
             this._metaDataManager.PreStagedChangesEventHandler += PreStagedChangesCallBack;
             this._metaDataManager.IntegrityCheckCompleteEventHandler += ProjectIntegrityCheckCallBack;
             this._metaDataManager.FileChangesEventHandler += MetaDataManager_FileChangeCallBack;
-            this._metaDataManager.IssueEventHandler += MetaDataManager_IssueEventCallBack;
+            this._metaDataManager.ManagerStateEventHandler += MetaDataManager_IssueEventCallBack;
             this._metaDataManager.ProjLoadedEventHandler += MetaDataManager_ProjLoadedCallBack;
             this._metaDataManager.ProjComparisonCompleteEventHandler += MetaDataManager_ProjComparisonCompleteCallBack;
         }

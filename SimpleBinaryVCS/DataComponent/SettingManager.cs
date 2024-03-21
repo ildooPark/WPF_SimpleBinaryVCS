@@ -10,7 +10,7 @@ namespace DeployManager.DataComponent
 {
     public class SettingManager : IManager
     {
-        public event Action<MetaDataState>? IssueEventHandler;
+        public event Action<MetaDataState>? ManagerStateEventHandler;
         public event Action<string>? SetLastDstProject; 
         public readonly string? settingDataPath;
         public readonly string? DAMetaFilePath;

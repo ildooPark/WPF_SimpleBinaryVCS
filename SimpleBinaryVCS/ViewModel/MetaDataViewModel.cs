@@ -111,7 +111,7 @@ namespace SimpleBinaryVCS.ViewModel
         {
             this._metaDataManager = App.MetaDataManager;
             this._metaDataManager.ProjLoadedEventHandler += MetaDataManager_ProjLoadedCallBack;
-            this._metaDataManager.IssueEventHandler += MetaDataStateChangeCallBack;
+            this._metaDataManager.ManagerStateEventHandler += MetaDataStateChangeCallBack;
         }
         #region Update Version 
         private bool CanUpdate(object obj)
