@@ -942,6 +942,7 @@ namespace SimpleBinaryVCS.DataComponent
             {
                 OverlappedFileFoundEventHandler?.Invoke(registeredOverlapsList, registeredNewList);
             }
+            DataPreStagedEventHandler?.Invoke(_preStagedFilesDict.Values.ToList());
         }
         public void RegisterNewfile(ProjectFile projectFile, DataState fileState)
         {
@@ -955,6 +956,7 @@ namespace SimpleBinaryVCS.DataComponent
         }
         public void RegisterAbnormalFiles(List<ChangedFile> sortedOverlaps, List<ChangedFile> sortedNew)
         {
+            Dictionary<string, ProjectFile> newlyAllocatedFiles = []; 
             foreach (ChangedFile overlappedFile in sortedOverlaps)
             {
                 if (overlappedFile.DstFile.IsDstFile)
@@ -964,6 +966,7 @@ namespace SimpleBinaryVCS.DataComponent
                     _fileHandlerTool.HandleFile(overlappedFile.SrcFile.DataAbsPath, newSrcFilePath, DataState.PreStaged);
                     ProjectFile newPreStagedFile = new ProjectFile(overlappedFile.SrcFile, DataState.PreStaged);
                     newPreStagedFile.DataRelPath = overlappedFile.DstFile.DataRelPath;
+                    newlyAllocatedFiles.TryAdd(newPreStagedFile.DataRelPath, newPreStagedFile); 
                     _preStagedFilesDict.TryAdd(newPreStagedFile.DataRelPath, newPreStagedFile);
                 }
             }
@@ -979,9 +982,10 @@ namespace SimpleBinaryVCS.DataComponent
                     ProjectFile newPreStagedFile = new ProjectFile(newFile.SrcFile, DataState.Added);
                     newPreStagedFile.DataRelPath = newSrcFileRelPath;
                     _preStagedFilesDict.TryAdd(newPreStagedFile.DataRelPath, newPreStagedFile);
+                    newlyAllocatedFiles.TryAdd(newPreStagedFile.DataRelPath, new ProjectFile(newPreStagedFile, DataState.PreStaged));
                 }
             }
-            RegisterDeployData(_dstProjectData.ProjectName, _preStagedFilesDict);
+            RegisterDeployData(_dstProjectData.ProjectName, newlyAllocatedFiles);
             DataPreStagedEventHandler?.Invoke(_preStagedFilesDict.Values.ToList());
         }
         private void RegisterDeployData(string projectName, Dictionary<string, ProjectFile> registeredDeployment)

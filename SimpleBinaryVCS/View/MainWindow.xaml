@@ -63,12 +63,12 @@
             Width="135" />-->
                     <Button
             x:Name="IntegrityCheckButton" 
-            Content="Version Integrity Check"
+            Content="Integrity Check"
             Margin="10,10,10,10"
             FontSize="18"
             Height="Auto" 
             Command="{Binding FileTrackVM.CheckProjectIntegrity}"
-            Width="225" />
+            Width="150" />
                     <!--<Button
             x:Name="FetchButton" 
             Content="Fetch" 

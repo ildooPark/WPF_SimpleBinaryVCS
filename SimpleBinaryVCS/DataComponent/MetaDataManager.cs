@@ -3,6 +3,7 @@ using DeployManager.DataComponent;
 using SimpleBinaryVCS.Interfaces;
 using SimpleBinaryVCS.Model;
 using SimpleBinaryVCS.Utils;
+using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
@@ -200,9 +201,13 @@ namespace SimpleBinaryVCS.DataComponent
                 CurrentState = MetaDataState.Initializing;
                 StringBuilder changeLog = new StringBuilder();
                 ProjectMetaData newProjectRepo = new ProjectMetaData(Path.GetFileName(projectPath), projectPath);
-
+                Stopwatch stopwatch = new Stopwatch(); 
+                stopwatch.Start();
                 string[]? newProjectFiles = Directory.GetFiles(projectPath, "*", SearchOption.AllDirectories);
                 string[]? newProjectDirs = Directory.GetDirectories(projectPath, "*", SearchOption.AllDirectories);
+                stopwatch.Stop();
+                Console.WriteLine(stopwatch.Elapsed.ToString());
+
                 if (newProjectFiles == null || newProjectDirs == null)
                 { 
                     MessageBox.Show("Couldn't Get Project Files (And Or) Directories on MetaDataManager"); 
@@ -214,10 +219,17 @@ namespace SimpleBinaryVCS.DataComponent
                 newProjectData.ConductedPC = Environment.MachineName;
                 newProjectData.UpdatedVersion = GetProjectVersionName(newProjectData, true);
                 changeLog.AppendLine($"Project Initialized");
-                SemaphoreSlim asyncControl = new SemaphoreSlim(8);
-                List<Task> asyncTasks = new List<Task>();
-                foreach (string filePath in newProjectFiles)
-                {
+                stopwatch.Reset();
+                stopwatch.Start();
+
+                int maxConcurrentTasks = 8;
+                Console.WriteLine(Math.Ceiling((Environment.ProcessorCount * 0.25) * 1.0)); 
+                var options = new ParallelOptions { MaxDegreeOfParallelism = Convert.ToInt32(Math.Ceiling((Environment.ProcessorCount * 0.25) * 1.0)) };
+                //SemaphoreSlim asyncControl = new SemaphoreSlim(maxConcurrentTasks);
+                //List<Task> asyncTasks = new List<Task>();
+
+                ConcurrentDictionary<string, ProjectFile> tempDict = []; 
+                Parallel.ForEach(newProjectFiles, options, filePath => {
                     ProjectFile newFile = new ProjectFile
                         (
                         ProjectDataType.File,
@@ -232,29 +244,59 @@ namespace SimpleBinaryVCS.DataComponent
                         "",
                         true
                         );
-                    newProjectData.ProjectFiles.TryAdd(newFile.DataRelPath, newFile);
-                    asyncTasks.Add(Task.Run(async () =>
-                    {
-                        await asyncControl.WaitAsync();
-                        try
-                        {
-                            _hashTool.GetFileMD5CheckSum(newFile);
-                        }
-                        catch (Exception ex)
-                        {
-                            CurrentState = MetaDataState.Idle;
-                            MessageBox.Show($"MetaDataManager Error: Initialization Failed \n{ex.Message}");
-                            return;
-                        }
-                        finally
-                        {
-                            asyncControl.Release();
-                            Console.WriteLine(asyncControl.CurrentCount);
-                        }
-                    }));
-                    changeLog.AppendLine($"Added {newFile.DataName}");
-                }
-                await Task.WhenAll(asyncTasks);
+                    tempDict.TryAdd(newFile.DataRelPath, newFile); // Create ProjectFile object
+                    _hashTool.GetFileMD5CheckSum(newFile);
+                });
+                
+                newProjectData.ProjectFiles = new Dictionary<string, ProjectFile>(tempDict);
+
+                stopwatch.Stop();
+                Console.WriteLine(stopwatch.Elapsed.ToString());
+
+                //foreach (string filePath in newProjectFiles)
+                //{
+                //    ProjectFile newFile = new ProjectFile
+                //        (
+                //        ProjectDataType.File,
+                //        new FileInfo(filePath).Length,
+                //        FileVersionInfo.GetVersionInfo(filePath).FileVersion,
+                //        newProjectData.UpdatedVersion,
+                //        DateTime.Now,
+                //        DataState.None,
+                //        Path.GetFileName(filePath),
+                //        projectPath,
+                //        Path.GetRelativePath(projectPath, filePath),
+                //        "",
+                //        true
+                //        );
+                //    newProjectData.ProjectFiles.TryAdd(newFile.DataRelPath, newFile);
+
+                //    asyncTasks.Add(Task.Run(async () =>
+                //    {
+                //        await asyncControl.WaitAsync();
+                //        try
+                //        {
+                //            Console.WriteLine("EnterThread");
+                //            _hashTool.GetFileMD5CheckSum(newFile);
+                //        }
+                //        catch (Exception ex)
+                //        {
+                //            CurrentState = MetaDataState.Idle;
+                //            MessageBox.Show($"MetaDataManager Error: Initialization Failed \n{ex.Message}");
+                //            return;
+                //        }
+                //        finally
+                //        {
+                //            asyncControl.Release();
+                //            Console.WriteLine(asyncControl.CurrentCount);
+                //        }
+                //    }));
+                //
+                //    changeLog.AppendLine($"Added {newFile.DataName}");
+                //}
+                //await Task.WhenAll(asyncTasks);
+
+
                 foreach (string dirPath in newProjectDirs)
                 {
                     ProjectFile newFile = new ProjectFile
@@ -275,7 +317,7 @@ namespace SimpleBinaryVCS.DataComponent
                     newProjectData.ChangedFiles.Add(new ChangedFile(new ProjectFile(newFile), DataState.Added));
                     changeLog.AppendLine($"Added {newFile.DataName}");
                 }
-                asyncControl.Dispose();
+
                 newProjectData.UpdatedTime = DateTime.Now;
                 newProjectData.ChangeLog = changeLog.ToString();
                 newProjectData.NumberOfChanges = newProjectData.ProjectFilesObs.Count;
@@ -290,6 +332,7 @@ namespace SimpleBinaryVCS.DataComponent
                 TryAppendProjParentDirAsProjectFile(MainProjectData, projectPath);
                 TryGenerateSupplementDirectories(projectPath, newProjectData.ProjectName);
                 _settingManager.SetRecentDstDirectory(projectPath);
+
                 CurrentState = MetaDataState.Idle;
             }
             catch (Exception ex)
