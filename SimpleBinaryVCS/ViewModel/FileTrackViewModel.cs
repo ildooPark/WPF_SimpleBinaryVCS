@@ -210,7 +210,7 @@ namespace SimpleBinaryVCS.ViewModel
         }
         private void MainProjectIntegrityTest(object sender)
         {
-            Task.Run(() => _metaDataManager.RequestProjectIntegrityTest());
+            Task.Run(() => _metaDataManager.RequestProjectIntegrityCheck());
         }
 
         #region Receive Callback From Model 
@@ -251,7 +251,7 @@ namespace SimpleBinaryVCS.ViewModel
             App.Current.Dispatcher.Invoke(() =>
             {
                 var mainWindow = App.Current.MainWindow;
-                IntegrityLogWindow logWindow = new IntegrityLogWindow(changeLog, changedFileList);
+                IntegrityLogWindow logWindow = new IntegrityLogWindow(_dstProjData, changeLog, changedFileList);
                 logWindow.Owner = mainWindow;
                 logWindow.WindowStartupLocation = WPF.WindowStartupLocation.CenterOwner;
                 logWindow.Show();
@@ -278,14 +278,17 @@ namespace SimpleBinaryVCS.ViewModel
                 
             });
         }
-        private void SrcProjectDataCallBack(object srcProjectDataObj)
+        private void SrcProjectDataCallBack(object? srcProjectDataObj)
         {
             if (srcProjectDataObj is not ProjectData srcProjectData)
             {
                 _srcProjectData = null;
                 return;
             }
-            this._srcProjectData = srcProjectData;
+            else
+            {
+                _srcProjectData = srcProjectData;
+            }
         }
         #endregion
     }

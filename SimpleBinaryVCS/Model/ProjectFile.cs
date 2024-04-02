@@ -2,31 +2,31 @@
 using SimpleBinaryVCS.Interfaces;
 using System.Diagnostics;
 using System.IO;
-using System.Reflection;
 using System.Text.Json.Serialization;
-using System.Xml.Linq;
 
 namespace SimpleBinaryVCS.Model
 {
     public class ProjectFile : IEquatable<ProjectFile>, IComparable<ProjectFile>, IProjectData
     {
-        #region Serialize constructor variables
+        #region [JsonInclude]
         public ProjectDataType DataType { get; private set; }
         public long DataSize { get; set; }
         public string BuildVersion {  get; set; }
         public string DeployedProjectVersion { get; set; }
         public DateTime UpdatedTime { get; set; }
         public bool IsDstFile { get; set; }
-        #endregion
         public DataState DataState { get; set; }
         public string DataName { get; set; }
         public string DataSrcPath { get; set; }
         public string DataRelPath { get; set; }
         public string DataHash { get; set; }
-        #region Json Constructor ignored. 
+        #endregion
 
+        #region [JsonIgnore] 
         [JsonIgnore] 
         public string DataAbsPath => Path.Combine(DataSrcPath, DataRelPath);
+        [JsonIgnore]
+        public string DataRelDir => DataType == ProjectDataType.Directory ? DataRelPath: Path.GetDirectoryName(DataRelPath) ?? "";
         #endregion
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         public ProjectFile() { }
@@ -47,7 +47,7 @@ namespace SimpleBinaryVCS.Model
             this.DataHash = dataHash;
             this.IsDstFile = IsDstFile;
         }
-        #region Constructors
+        #region Overloaded Constructors
         /// <summary>
         /// Lacks FileHash, DeployedProjectVersion, FileChangedState
         /// </summary>
@@ -98,7 +98,7 @@ namespace SimpleBinaryVCS.Model
         /// <summary>
         /// Deep Copy of ProjectFile
         /// </summary>
-        /// <param name="srcData">Copying File</param>
+        /// <param name="srcData">Project File to Copy</param>
         public ProjectFile(ProjectFile srcData)
         {
             this.DataType = srcData.DataType;
@@ -199,7 +199,7 @@ namespace SimpleBinaryVCS.Model
             return this.UpdatedTime.CompareTo(other.UpdatedTime);
         }
         /// <summary>
-        /// Checks fileName
+        /// IEquatable Implementation: Checks Data Name
         /// </summary>
         public bool Equals(ProjectFile? other)
         {
@@ -209,13 +209,6 @@ namespace SimpleBinaryVCS.Model
                 return false;
             }
             return other.DataName == this.DataName;
-        }
-        /// <summary>
-        /// Returns False if not Same
-        /// </summary>
-        public bool CheckSize(ProjectFile other)
-        {
-            return other.DataSize == this.DataSize;
         }
     }
 }

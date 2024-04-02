@@ -66,7 +66,7 @@ namespace SimpleBinaryVCS.ViewModel
         private string? _currentMetaDataState; 
         public string CurrentMetaDataState
         {
-            get => _currentMetaDataState ?? "Idle";
+            get => _currentMetaDataState ??= "Idle";
             set
             {
                 _currentMetaDataState = value;
@@ -88,7 +88,7 @@ namespace SimpleBinaryVCS.ViewModel
         private string? currentVersion;
         public string CurrentVersion
         {
-            get => currentVersion ?? "Undefined";
+            get => currentVersion ??= "Undefined";
             set
             {
                 currentVersion = value ?? "Undefined";
@@ -129,7 +129,7 @@ namespace SimpleBinaryVCS.ViewModel
                 if (response == DialogResult.OK) return;
                 return;
             }
-            _metaDataManager.RequestUpdate(updaterName, UpdateLog, CurrentProjectPath);
+            _metaDataManager.RequestProjectUpdate(updaterName, UpdateLog, CurrentProjectPath);
         }
 
         private bool CanRetrieveProject(object parameter)
@@ -189,6 +189,5 @@ namespace SimpleBinaryVCS.ViewModel
             UpdateLog = "";
         }
         #endregion
-
     }
 }

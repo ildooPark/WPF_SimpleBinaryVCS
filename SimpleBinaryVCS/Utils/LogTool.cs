@@ -10,7 +10,7 @@ namespace SimpleBinaryVCS.Utils
     {
         public static void RegisterUpdate(StringBuilder log, string srcProjectVersion, string dstProjectVersion)
         {
-            log.AppendLine($"Updating Project From {srcProjectVersion}: To {dstProjectVersion}");
+            log.AppendLine($"Updating Project :\nFrom {srcProjectVersion}\nTo {dstProjectVersion}\n");
         }
         public static void RegisterChange(StringBuilder log, DataState state, ProjectFile data)
         {
@@ -27,6 +27,7 @@ namespace SimpleBinaryVCS.Utils
                 log.AppendLine($"{state.ToString()} : {srcData.DataRelPath} at {srcData.UpdatedTime}");
                 log.AppendLine($"From : Build Version: {srcData.BuildVersion} Hash : {srcData.DataHash}");
                 log.AppendLine($"To : Build Version: {dstData.BuildVersion} Hash : {dstData.DataHash}");
+                log.AppendLine();
             }
         }
     }

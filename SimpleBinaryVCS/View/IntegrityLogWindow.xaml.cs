@@ -10,10 +10,10 @@ namespace SimpleBinaryVCS.View
     /// </summary>
     public partial class IntegrityLogWindow : Window
     {
-        public IntegrityLogWindow(string versionLog, ObservableCollection<ProjectFile> fileList)
+        public IntegrityLogWindow(ProjectData projData, string versionLog, ObservableCollection<ProjectFile> fileList)
         {
             InitializeComponent();
-            VersionCheckViewModel versionCheckViewModel = new VersionCheckViewModel(versionLog, fileList);
+            VersionCheckViewModel versionCheckViewModel = new VersionCheckViewModel(projData, versionLog, fileList);
             this.DataContext = versionCheckViewModel;
         }
 

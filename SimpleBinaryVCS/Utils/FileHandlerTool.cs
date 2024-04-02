@@ -90,7 +90,8 @@ namespace SimpleBinaryVCS.Utils
         {
             try
             {
-                var jsonData = JsonSerializer.Serialize(serializingObject);
+                var jsonOption = new JsonSerializerOptions { WriteIndented = true };
+                var jsonData = JsonSerializer.Serialize(serializingObject, jsonOption);
                 File.WriteAllText(filePath, jsonData);
                 return true; 
             }
@@ -240,7 +241,7 @@ namespace SimpleBinaryVCS.Utils
                         Directory.CreateDirectory(Path.GetDirectoryName(dstPath));
                     if (srcPath == dstPath)
                     {
-                        MessageBox.Show($"Source File and Dst File path is same for {state.ToString()}, {dstPath}");
+                        //MessageBox.Show($"Source File and Dst File path is same for {state.ToString()}, {dstPath}");
                         return false; 
                     }
                     File.Copy(srcPath, dstPath, true);
@@ -259,7 +260,8 @@ namespace SimpleBinaryVCS.Utils
             {
                 if (!Directory.Exists(Path.GetDirectoryName(dstPath)))
                     Directory.CreateDirectory(Path.GetDirectoryName(dstPath));
-                File.Move(srcPath, dstPath, true);
+                if (srcPath != dstPath)
+                    File.Move(srcPath, dstPath, true); 
                 return true;
             }
             catch (Exception ex)
