@@ -237,6 +237,7 @@ namespace SimpleBinaryVCS.DataComponent
                         }
                     })); 
                 }
+                await Task.WhenAll(asyncTask); 
 
                 fileIntegrityLog.Append($"Integrity Check Took: {sw.Elapsed.ToString()}s \n");
                 fileIntegrityLog.AppendLine("Integrity Check Complete");
