@@ -66,7 +66,7 @@ namespace SimpleBinaryVCS.ViewModel
         private string? _currentMetaDataState; 
         public string CurrentMetaDataState
         {
-            get => _currentMetaDataState ?? "Idle";
+            get => _currentMetaDataState ??= "Idle";
             set
             {
                 _currentMetaDataState = value;
@@ -88,7 +88,7 @@ namespace SimpleBinaryVCS.ViewModel
         private string? currentVersion;
         public string CurrentVersion
         {
-            get => currentVersion ?? "Undefined";
+            get => currentVersion ??= "Undefined";
             set
             {
                 currentVersion = value ?? "Undefined";
@@ -102,16 +102,16 @@ namespace SimpleBinaryVCS.ViewModel
         private ICommand? getProject;
         public ICommand GetProject => getProject ??= new RelayCommand(RetrieveProject, CanRetrieveProject);
 
-        private MetaDataManager metaDataManager;
+        private MetaDataManager _metaDataManager;
         private MetaDataState? _metaDataState = MetaDataState.Idle;
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         public MetaDataViewModel()
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         {
-            this.metaDataManager = App.MetaDataManager;
-            this.metaDataManager.ProjLoadedEventHandler += ProjectLoadedCallBack;
-            this.metaDataManager.IssueEventHandler += MetaDataStateChangeCallBack;
+            this._metaDataManager = App.MetaDataManager;
+            this._metaDataManager.ProjLoadedEventHandler += MetaDataManager_ProjLoadedCallBack;
+            this._metaDataManager.ManagerStateEventHandler += MetaDataStateChangeCallBack;
         }
         #region Update Version 
         private bool CanUpdate(object obj)
@@ -129,7 +129,7 @@ namespace SimpleBinaryVCS.ViewModel
                 if (response == DialogResult.OK) return;
                 return;
             }
-            metaDataManager.RequestUpdate(updaterName, UpdateLog, CurrentProjectPath);
+            _metaDataManager.RequestProjectUpdate(updaterName, UpdateLog, CurrentProjectPath);
         }
 
         private bool CanRetrieveProject(object parameter)
@@ -151,14 +151,14 @@ namespace SimpleBinaryVCS.ViewModel
             openFD.Dispose();
             if (string.IsNullOrEmpty(projectPath)) return;
 
-            bool retrieveProjectResult = metaDataManager.RequestProjectRetrieval(projectPath);
+            bool retrieveProjectResult = _metaDataManager.RequestProjectRetrieval(projectPath);
             if (!retrieveProjectResult)
             {
                 var result = MessageBox.Show($"{projectPath}\nVersionLog file not found\nInitialize A New Project?",
                     "Import Project", MessageBoxButtons.YesNo);
                 if (result == DialogResult.Yes)
                 {
-                    Task.Run (() => metaDataManager.RequestProjectInitialization(openFD.SelectedPath));
+                    Task.Run (() => _metaDataManager.RequestProjectInitialization(openFD.SelectedPath));
                 }
                 else
                 {
@@ -178,17 +178,16 @@ namespace SimpleBinaryVCS.ViewModel
                 ((MainWindow)System.Windows.Application.Current.MainWindow).UpdateLayout();
             });
         }
-        private void ProjectLoadedCallBack(object projObj)
+        private void MetaDataManager_ProjLoadedCallBack(object projObj)
         {
             if (projObj is not ProjectData projectData) return;
             ProjectData = projectData;
             ProjectName = ProjectData.ProjectName ?? "Undefined";
             CurrentVersion = ProjectData.UpdatedVersion ?? "Undefined";
-
+            CurrentProjectPath = projectData.ProjectPath;
             UpdaterName = "";
             UpdateLog = "";
         }
         #endregion
-
     }
 }

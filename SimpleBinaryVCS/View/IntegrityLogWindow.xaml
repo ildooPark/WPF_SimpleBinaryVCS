@@ -70,7 +70,17 @@
                 HorizontalAlignment="left" 
                 Margin="5"
                 BorderThickness="1" BorderBrush="#E0E0E0" FontSize="16"/>
-            
+
+            <Button 
+                Grid.Row="0"
+                x:Name="ExportXLSX"
+                FontSize="18"
+                Content="Export to XLSX"
+                Width="135"
+                Margin="10, 5, 10, 5"
+                HorizontalAlignment="Right"
+                Command="{Binding ExportToXLSX}"
+                />
             <DataGrid 
                 Grid.Row="1"
                 IsReadOnly="True"

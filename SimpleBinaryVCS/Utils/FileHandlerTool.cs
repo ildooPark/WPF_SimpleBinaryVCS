@@ -86,6 +86,43 @@ namespace SimpleBinaryVCS.Utils
                 return false;
             }
         }
+        public bool TrySerializeJsonData<T>(string filePath, in T? serializingObject)
+        {
+            try
+            {
+                var jsonOption = new JsonSerializerOptions { WriteIndented = true };
+                var jsonData = JsonSerializer.Serialize(serializingObject, jsonOption);
+                File.WriteAllText(filePath, jsonData);
+                return true; 
+            }
+            catch (Exception ex)
+            {
+                return false;
+            }
+        }
+        public bool TryDeserializeJsonData<T>(string filePath, out T? serializingObject)
+        {
+            try
+            {
+                var jsonDataBytes = File.ReadAllBytes(filePath);
+                T? serializingObj = JsonSerializer.Deserialize<T>(jsonDataBytes);
+                if (serializingObj != null)
+                {
+                    serializingObject = serializingObj;
+                    return true;
+                }
+                else
+                {
+                    serializingObject = default;
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                serializingObject = default;
+                return false;
+            }
+        }
         public bool TryApplyFileChanges(List<ChangedFile> Changes)
         {
             if (Changes == null) return false;
@@ -204,7 +241,7 @@ namespace SimpleBinaryVCS.Utils
                         Directory.CreateDirectory(Path.GetDirectoryName(dstPath));
                     if (srcPath == dstPath)
                     {
-                        MessageBox.Show($"Source File and Dst File path is same for {state.ToString()}, {dstPath}");
+                        //MessageBox.Show($"Source File and Dst File path is same for {state.ToString()}, {dstPath}");
                         return false; 
                     }
                     File.Copy(srcPath, dstPath, true);
@@ -223,7 +260,8 @@ namespace SimpleBinaryVCS.Utils
             {
                 if (!Directory.Exists(Path.GetDirectoryName(dstPath)))
                     Directory.CreateDirectory(Path.GetDirectoryName(dstPath));
-                File.Move(srcPath, dstPath, true);
+                if (srcPath != dstPath)
+                    File.Move(srcPath, dstPath, true); 
                 return true;
             }
             catch (Exception ex)

@@ -66,6 +66,7 @@ namespace SimpleBinaryVCS.ViewModel
 
         private ICommand? compareDeployedProjectWithMain;
         public ICommand? CompareDeployedProjectWithMain => compareDeployedProjectWithMain ??= new RelayCommand(CompareSrcProjWithMain, CanCompareSrcProjWithMain);
+        
 
         private string? _updaterName;
         public string UpdaterName
@@ -107,7 +108,7 @@ namespace SimpleBinaryVCS.ViewModel
             this._metaDataManager = App.MetaDataManager;
             this._metaDataManager.FetchRequestEventHandler += FetchRequestCallBack;
             this._metaDataManager.ProjExportEventHandler += ExportRequestCallBack;
-            this._metaDataManager.IssueEventHandler += MetaDataStateChangeCallBack;
+            this._metaDataManager.ManagerStateEventHandler += MetaDataStateChangeCallBack;
         }
 
         private bool CanFetch(object obj)

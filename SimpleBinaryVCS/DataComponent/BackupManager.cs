@@ -23,7 +23,7 @@ namespace SimpleBinaryVCS.DataComponent
         //public event Action? ExportBackupEventHandler; 
         public event Action<object>? ProjectRevertEventHandler;
         public event Action<object>? FetchCompleteEventHandler;
-        public event Action<MetaDataState> IssueEventHandler;
+        public event Action<MetaDataState> ManagerStateEventHandler;
 
         private FileHandlerTool _fileHandlerTool;
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
@@ -46,11 +46,12 @@ namespace SimpleBinaryVCS.DataComponent
                 RegisterBackupFiles(projectData);
                 ProjectMetaData.ProjectDataList.AddFirst(new ProjectData(projectData));
             }
+
             string projectMetaDataPath = $"{ProjectMetaData.ProjectPath}\\ProjectMetaData.bin";
             bool serializeSuccess = _fileHandlerTool.TrySerializeProjectMetaData(ProjectMetaData, projectMetaDataPath);
             if (serializeSuccess)
             {
-                ProjectMetaData.ProjectMain = projectData;
+                ProjectMetaData.SetProjectMain(projectData);
             }
             FetchCompleteEventHandler?.Invoke(ProjectBackupListObservable);
         }
@@ -58,13 +59,13 @@ namespace SimpleBinaryVCS.DataComponent
         /// <summary>
         /// By Default should Point to ProjectMain, Make backup of the ucrrent project main before applying new changes. 
         /// </summary>
-        public void ProjectLoadedCallback (object? projectObj)
+        public void MetaDataManager_ProjLoadedCallback (object? projectObj)
         {
             if (projectObj is not ProjectData newMainProject) return;
             if (ProjectMetaData == null || BackupProjectDataList == null || BackupFiles == null) return;
             BackupProject(newMainProject);
         }
-        public void MetaDataLoadedCallBack(object metaDataObj)
+        public void MetaDataManager_MetaDataLoadedCallBack(object metaDataObj)
         {
             if (metaDataObj is not ProjectMetaData projectMetaData) return;
             if (projectMetaData == null) return;
