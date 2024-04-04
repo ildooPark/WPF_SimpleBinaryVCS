@@ -173,7 +173,7 @@ namespace SimpleBinaryVCS.DataComponent
 
                 ConcurrentDictionary<string, ProjectFile> projectFilesConcurrent = new ConcurrentDictionary<string, ProjectFile> ();
                 var maxConcurrency = new ParallelOptions { MaxDegreeOfParallelism = Convert.ToInt32(Math.Ceiling((Environment.ProcessorCount * 0.75) * 1.0)) };
-                Parallel.ForEach(intersectFiles, fileRelPath =>
+                Parallel.ForEach(intersectFiles, maxConcurrency, fileRelPath =>
                 {
                     //TODO : Resolve Hard coded issue -> Setting Manager Ignore
                     if (projectFilesDict[fileRelPath].DataType == ProjectDataType.Directory) return;
@@ -237,6 +237,7 @@ namespace SimpleBinaryVCS.DataComponent
                         }
                     })); 
                 }
+                await Task.WhenAll(asyncTask); 
 
                 fileIntegrityLog.Append($"Integrity Check Took: {sw.Elapsed.ToString()}s \n");
                 fileIntegrityLog.AppendLine("Integrity Check Complete");

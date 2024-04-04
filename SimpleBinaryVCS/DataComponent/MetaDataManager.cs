@@ -237,7 +237,7 @@ namespace SimpleBinaryVCS.DataComponent
                 var options = new ParallelOptions { MaxDegreeOfParallelism = 
                     Convert.ToInt32(Math.Ceiling((Environment.ProcessorCount * 0.75) * 1.0)) };
                 ConcurrentDictionary<string, ProjectFile> tempDict = [];
-                Parallel.ForEach(newProjectFiles, filePath =>
+                Parallel.ForEach(newProjectFiles, options, filePath =>
                 {
                     ProjectFile newFile = new ProjectFile
                         (
