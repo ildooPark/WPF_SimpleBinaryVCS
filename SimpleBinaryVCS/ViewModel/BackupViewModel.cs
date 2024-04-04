@@ -3,8 +3,11 @@ using SimpleBinaryVCS.Model;
 using SimpleBinaryVCS.Utils;
 using SimpleBinaryVCS.View;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.IO;
 using System.Text.RegularExpressions;
 using System.Windows.Input;
+using System.Windows.Threading;
 using WPF = System.Windows;
 
 namespace SimpleBinaryVCS.ViewModel
@@ -15,24 +18,24 @@ namespace SimpleBinaryVCS.ViewModel
         /// Aligns all the project in order, such that version with the highest revision number 
         /// is listed as the Newest Version. 
         /// </summary>
-        private ObservableCollection<ProjectData>? backupProjectDataList;
+        private ObservableCollection<ProjectData>? _backupProjectDataList;
         public ObservableCollection<ProjectData> BackupProjectDataList
         {
-            get => backupProjectDataList ??= new ObservableCollection<ProjectData>();
+            get => _backupProjectDataList ??= new ObservableCollection<ProjectData>();
             set
             {
-                backupProjectDataList = value;
+                _backupProjectDataList = value;
                 OnPropertyChanged("BackupProjectDataList");
             }
         }
-        private ProjectData? selectedItem;
+        private ProjectData? _selectedItem;
         public ProjectData? SelectedItem
         {
-            get { return selectedItem; }
+            get { return _selectedItem; }
             set
             {
                 if (value == null) return;
-                selectedItem = value;
+                _selectedItem = value;
                 UpdaterName = value.UpdaterName;
                 UpdateLog = value.UpdateLog;
                 DiffLog = value.ChangedProjectFileObservable;
@@ -46,75 +49,92 @@ namespace SimpleBinaryVCS.ViewModel
         private ICommand? checkoutBackup;
         public ICommand CheckoutBackup => checkoutBackup ??= new RelayCommand(Revert, CanRevert);
 
-        private ICommand? exportVersionFull;
-        public ICommand ExportVersionFull => exportVersionFull ??= new RelayCommand(Revert, CanRevert);
+        private ICommand? exportVersion;
+        public ICommand ExportVersion => exportVersion ??= new RelayCommand(ExportBackupFiles, CanExportBackupFiles);
+
+        
+
+        private ICommand? cleanRestoreBackup;
+        public ICommand CleanRestoreBackup => cleanRestoreBackup ??= new RelayCommand(CleanRestoreBackupFiles, CanCleanRestoreBackupFiles);
+        
 
         private ICommand? extractVersionLog;
-        public ICommand ExtractVersionLog => extractVersionLog ??= new RelayCommand(Revert, CanRevert);
+        public ICommand ExtractVersionLog => extractVersionLog ??= new RelayCommand(ExtractVersionMetaData);
 
         private ICommand? viewFullLog;
         public ICommand ViewFullLog => viewFullLog ??= new RelayCommand(OnViewFullLog, CanRevert);
+
+        private ICommand? compareDeployedProjectWithMain;
+        public ICommand? CompareDeployedProjectWithMain => compareDeployedProjectWithMain ??= new RelayCommand(CompareSrcProjWithMain, CanCompareSrcProjWithMain);
         
-        private string? updaterName;
+
+        private string? _updaterName;
         public string UpdaterName
         {
-            get => updaterName ??= "";
+            get => _updaterName ??= "";
             set
             {
-                updaterName = value;
+                _updaterName = value;
                 OnPropertyChanged("UpdaterName");
             }
         }
 
-        private string? updateLog;
+        private string? _updateLog;
         public string UpdateLog
         {
-            get => updateLog ??= "";
+            get => _updateLog ??= "";
             set
             {
-                updateLog = value;
+                _updateLog = value;
                 OnPropertyChanged("UpdateLog");
             }
         }
 
-        private ObservableCollection<ProjectFile>? diffLog;
+        private ObservableCollection<ProjectFile>? _diffLog;
         public ObservableCollection<ProjectFile> DiffLog
         {
-            get => diffLog ??= new ObservableCollection<ProjectFile>();
+            get => _diffLog ??= new ObservableCollection<ProjectFile>();
             set
             {
-                diffLog = value;
+                _diffLog = value;
                 OnPropertyChanged("DiffLog");
             }
         }
 
-        private MetaDataManager metaDataManager;
+        private MetaDataManager _metaDataManager;
+        private MetaDataState? _metaDataState = MetaDataState.Idle;
         public BackupViewModel()
         {
-            this.metaDataManager = App.MetaDataManager;
-            this.metaDataManager.FetchRequestEventHandler += FetchRequestCallBack;
+            this._metaDataManager = App.MetaDataManager;
+            this._metaDataManager.FetchRequestEventHandler += FetchRequestCallBack;
+            this._metaDataManager.ProjExportEventHandler += ExportRequestCallBack;
+            this._metaDataManager.ManagerStateEventHandler += MetaDataStateChangeCallBack;
         }
 
         private bool CanFetch(object obj)
         {
-            if (App.Current == null || metaDataManager.ProjectMetaData == null) return false;
+            if (App.Current == null || _metaDataManager.ProjectMetaData == null) return false;
             return true;
         }
-
         private void Fetch(object obj)
         {
             SelectedItem = null;
             //Set up Current Project at Main 
-            if (metaDataManager.CurrentProjectPath == null || metaDataManager.ProjectMetaData == null) return;
-            metaDataManager.RequestFetchBackup();
+            if (_metaDataManager.CurrentProjectPath == null || _metaDataManager.ProjectMetaData == null) return;
+            _metaDataManager.RequestFetchBackup();
 
         }
-        private void FetchRequestCallBack(object backupListObj)
+
+        private void CompareSrcProjWithMain(object obj)
         {
-            if (backupListObj is not ObservableCollection<ProjectData> backupList) return;
-            BackupProjectDataList = backupList;
+            _metaDataManager.RequestProjVersionDiff(SelectedItem);
         }
-
+        private bool CanCompareSrcProjWithMain(object obj)
+        {
+            if (_metaDataState != MetaDataState.Idle) return false;
+            if (SelectedItem == null) return false;
+            return true;
+        }
         private void OnViewFullLog(object obj)
         {
             if (SelectedItem == null)
@@ -130,22 +150,23 @@ namespace SimpleBinaryVCS.ViewModel
         }
         private bool CanRevert(object obj)
         {
-            if (SelectedItem == null || metaDataManager.MainProjectData == null) return false;
+            if (SelectedItem == null || _metaDataManager.MainProjectData == null) return false;
+            if (_metaDataState != MetaDataState.Idle) return false;
             return true;
         }
 
         private void Revert(object obj)
         {
-            if (selectedItem == null)
+            if (_selectedItem == null)
             {
                 MessageBox.Show("BUVM 164: Selected BackupVersion is null");
                 return;
             }
-            var response = MessageBox.Show($"Do you want to Revert to {selectedItem.UpdatedVersion}", "Confirm Updates",
+            var response = MessageBox.Show($"Do you want to Revert to {_selectedItem.UpdatedVersion}", "Confirm Updates",
                 MessageBoxButtons.YesNo); 
             if (response == DialogResult.Yes)
             {
-                metaDataManager.RequestRevertProject(selectedItem);
+                _metaDataManager.RequestRevertProject(_selectedItem);
                 return;
             }
             else
@@ -153,5 +174,89 @@ namespace SimpleBinaryVCS.ViewModel
                 return;
             }
         }
+        private bool CanCleanRestoreBackupFiles(object obj)
+        {
+            return _metaDataState == MetaDataState.Idle;
+        }
+        private void CleanRestoreBackupFiles(object? obj)
+        {
+            if (SelectedItem == null)
+            {
+                MessageBox.Show("Must Select Certain Backup For Clean Backup Restoration");
+                return;
+            }
+            var response = MessageBox.Show($"Would You like to Restore back to Version: {SelectedItem.UpdatedVersion}\n " +
+                $"This may take longer than regular version Checkout", "Clean Restore", MessageBoxButtons.YesNo);
+
+            if (response == DialogResult.Yes)
+            {
+                Task.Run(() => _metaDataManager.RequestProjectCleanRestore(SelectedItem));
+            }
+            else
+            {
+                return;
+            }
+        }
+        private bool CanExportBackupFiles(object obj)
+        {
+            return _metaDataState == MetaDataState.Idle;
+        }
+        private void ExportBackupFiles(object? obj)
+        {
+            if (SelectedItem == null)
+            {
+                MessageBox.Show("Must Select Certain Backup For Clean Backup Restoration");
+                return;
+            }
+            Task.Run(() => _metaDataManager.RequestExportProjectBackup(SelectedItem));
+        }
+
+        private void ExtractVersionMetaData(object? obj)
+        {
+            if (SelectedItem == null)
+            {
+                MessageBox.Show("Must Select Certain Backup For Clean Backup Restoration");
+                return;
+            }
+            _metaDataManager.RequestExportProjectVersionLog(SelectedItem);
+        }
+
+        #region CallBack From Model Events 
+        private void ProjectLoadedCallBack(object? obj)
+        {
+
+        }
+        private void FetchRequestCallBack(object backupListObj)
+        {
+            if (backupListObj is not ObservableCollection<ProjectData> backupList) return;
+            BackupProjectDataList = backupList;
+        }
+
+        private void ExportRequestCallBack(object exportPathObj)
+        {
+            if (exportPathObj is not string exportPath) return;
+            try
+            {
+                Process.Start("explorer.exe", exportPath);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"{exportPath} does not Exists! : ERROR: {ex.Message}");
+            }
+        }
+
+        private void MetaDataStateChangeCallBack(MetaDataState state)
+        {
+            App.Current.Dispatcher.Invoke(() =>
+            {
+                _metaDataState = state;
+                ((MainWindow)System.Windows.Application.Current.MainWindow).UpdateLayout();
+            });
+        }
+        #endregion
+
+        #region Planned
+
+        #endregion
     }
 }

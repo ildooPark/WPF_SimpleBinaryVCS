@@ -1,4 +1,5 @@
 ﻿using SimpleBinaryVCS.DataComponent;
+using SimpleBinaryVCS.Utils;
 
 namespace SimpleBinaryVCS
 {
@@ -7,36 +8,17 @@ namespace SimpleBinaryVCS
     /// </summary>
     public partial class App : System.Windows.Application
     {
-        private static MetaDataManager? metaDataManager; 
-        public static MetaDataManager MetaDataManager
-        {
-            get => metaDataManager ??= new MetaDataManager();
-        }
+        private static MetaDataManager? _metaDataManager; 
+        public static MetaDataManager MetaDataManager => _metaDataManager ??= new MetaDataManager();
 
-        private static UpdateManager? updateManager;
-        public static UpdateManager UpdateManager
-        {
-            get => updateManager ??= new UpdateManager();
-        }
+        private static FileHandlerTool? _fileHandlerTool; 
+        public static FileHandlerTool FileHandlerTool => _fileHandlerTool ??= new FileHandlerTool();
 
-        private static BackupManager? backupManager;
-        public static BackupManager BackupManager
-        {
-            get => backupManager ??= new BackupManager();
-        }
-
-        private static FileManager? fileManager;
-        public static FileManager FileManager
-        {
-            get => fileManager ??= new FileManager();
-        }
-
-        public static void AwakeManagers()
+        private static HashTool? _hashTool;
+        public static HashTool HashTool => _hashTool ??= new HashTool();
+        public static void AwakeModel()
         {
             MetaDataManager.Awake(); 
-            UpdateManager.Awake();
-            BackupManager.Awake();
-            FileManager.Awake();
         }
     }
 }

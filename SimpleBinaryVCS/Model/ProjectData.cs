@@ -1,5 +1,7 @@
-﻿using System.Collections.ObjectModel;
+﻿using SimpleBinaryVCS.Interfaces;
+using System.Collections.ObjectModel;
 using System.Text.Json.Serialization;
+using System.Windows.Media.Converters;
 
 namespace SimpleBinaryVCS.Model
 {
@@ -19,15 +21,20 @@ namespace SimpleBinaryVCS.Model
         public Dictionary<string, ProjectFile> ProjectFiles { get; set; }
 
         [JsonIgnore]
+        public bool IsProjectMain { get; set; } = false;  
         public ObservableCollection<ProjectFile> ProjectFilesObs => new ObservableCollection<ProjectFile>(ProjectFiles.Values.ToList());
         [JsonIgnore]
         public List<string> ProjectRelDirsList => ProjectFiles.Values.ToList()
-            .Where(file => file.DataType == Interfaces.ProjectDataType.Directory)
+            .Where(file => file.DataType == ProjectDataType.Directory && file.DataRelPath != "")
             .Select(file => file.DataRelPath)
             .ToList();
         [JsonIgnore]
+        public List<ProjectFile> ProjectDirFileList => ProjectFiles.Values.ToList()
+            .Where(file => file.DataType == ProjectDataType.Directory)
+            .ToList();
+        [JsonIgnore]
         public List<string> ProjectRelFilePathsList => ProjectFiles.Values.ToList()
-            .Where(file => file.DataType == Interfaces.ProjectDataType.File)
+            .Where(file => file.DataType == ProjectDataType.File)
             .Select(file => file.DataRelPath)
             .ToList();
         [JsonIgnore]
@@ -55,6 +62,46 @@ namespace SimpleBinaryVCS.Model
                     if (changes.SrcFile != null) changedFilesObservable.Add(changes.SrcFile);
                 }
                 return changedFilesObservable;
+            }
+        }
+        [JsonIgnore]
+        public Dictionary<string, List<ProjectFile>> ProjectFilesDict_NameSorted
+        {
+            get
+            {
+                Dictionary<string, List<ProjectFile>> namesSorted = new Dictionary<string, List<ProjectFile>>();
+                foreach (ProjectFile projFile in ProjectFiles.Values)
+                {
+                    if (namesSorted.TryGetValue(projFile.DataName, out List<ProjectFile>? projFileList))
+                    {
+                        projFileList.Add(projFile);
+                    }
+                    else
+                    {
+                        namesSorted.Add(projFile.DataName, new List<ProjectFile> { projFile });
+                    }
+                }
+                return namesSorted;
+            }
+        }
+        [JsonIgnore]
+        public Dictionary<string, List<ProjectFile>> ProjectFilesDict_RelDirSorted
+        {
+            get
+            {
+                Dictionary<string, List<ProjectFile>> relDirSorted = new Dictionary<string, List<ProjectFile>>();
+                foreach (ProjectFile projFile in ProjectFiles.Values)
+                {
+                    if (relDirSorted.TryGetValue(projFile.DataRelDir, out List<ProjectFile>? projFileList))
+                    {
+                        projFileList.Add(projFile);
+                    }
+                    else
+                    {
+                        relDirSorted.Add(projFile.DataRelDir, new List<ProjectFile> { projFile });
+                    }
+                }
+                return relDirSorted;
             }
         }
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
@@ -142,7 +189,7 @@ namespace SimpleBinaryVCS.Model
         public bool Equals(ProjectData? other)
         {
             if (other == null) return false;
-            return other.UpdatedVersion == this.UpdatedVersion; 
+            return this.UpdatedVersion == other.UpdatedVersion; 
         }
 
         public int Compare(ProjectData? x, ProjectData? y)
@@ -201,7 +248,7 @@ namespace SimpleBinaryVCS.Model
                 MessageBox.Show("Project Path is Null, Couldn't Set Source Data Path for all Project Files");
                 return;
             }
-            foreach (ProjectFile file in ProjectFilesObs)
+            foreach (ProjectFile file in ProjectFiles.Values)
             {
                 file.DataSrcPath = ProjectPath;
             }

@@ -1,13 +1,6 @@
 ﻿using SimpleBinaryVCS.DataComponent;
 using SimpleBinaryVCS.Model;
 using SimpleBinaryVCS.Utils;
-using SimpleBinaryVCS.View;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows;
 using System.Windows.Input;
 
 namespace SimpleBinaryVCS.ViewModel
@@ -24,21 +17,31 @@ namespace SimpleBinaryVCS.ViewModel
                 OnPropertyChanged("OverlapFilesList");
             }
         }
-
+        private List<ChangedFile>? newFilesList;
+        public List<ChangedFile>? NewFilesList
+        {
+            get => newFilesList ??= new List<ChangedFile>();
+            set
+            {
+                newFilesList = value;
+                OnPropertyChanged("NewFilesList");
+            }
+        }
         private ICommand? confirmCommand;
         public ICommand ConfirmCommand => confirmCommand ??= new RelayCommand(ConfirmChoices);
         public event Action TaskFinishedEventHandler; 
         private MetaDataManager metaDataManager;
 
-        public OverlapFileViewModel(List<ChangedFile> registeredOverlaps)
+        public OverlapFileViewModel(List<ChangedFile> registeredOverlaps, List<ChangedFile>? registeredNew = null)
         {
-            this.overlapFilesList = registeredOverlaps;
+            this.OverlapFilesList = registeredOverlaps;
+            this.NewFilesList = registeredNew;
             metaDataManager = App.MetaDataManager;
         }
 
         private void ConfirmChoices(object? obj)
         {
-            metaDataManager.RequestOverlappedFileAllocation(overlapFilesList);
+            metaDataManager.RequestOverlappedFileAllocation(overlapFilesList, newFilesList);
             TaskFinishedEventHandler?.Invoke();
         }
     }
