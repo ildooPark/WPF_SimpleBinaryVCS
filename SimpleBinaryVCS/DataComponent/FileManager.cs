@@ -2,6 +2,7 @@
 using SimpleBinaryVCS.Interfaces;
 using SimpleBinaryVCS.Model;
 using SimpleBinaryVCS.Utils;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
@@ -72,7 +73,7 @@ namespace SimpleBinaryVCS.DataComponent
             _registeredChangesDict = new Dictionary<string, ChangedFile>();
             _fileHandlerTool = App.FileHandlerTool;
             _hashTool = App.HashTool;
-            _asyncControl = new SemaphoreSlim(8);
+            _asyncControl = new SemaphoreSlim(12);
         }
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         public void Awake()
@@ -111,12 +112,9 @@ namespace SimpleBinaryVCS.DataComponent
                 var rawFilesTask = Task.Run(() => Directory.GetFiles(_dstProjectData.ProjectPath, "*", SearchOption.AllDirectories));
                 var rawDirsTask = Task.Run(() => Directory.GetDirectories(_dstProjectData.ProjectPath, "*", SearchOption.AllDirectories));
 
-                string[]? rawFiles = await rawFilesTask;
-                string[]? rawDirs = await rawDirsTask;
+                string[]? rawFiles = await rawFilesTask; rawFiles ??= [];
+                string[]? rawDirs = await rawDirsTask; rawDirs ??= [];
                 (List<string> excludingFiles, List<string> excludingDirs) = await ignoringFilesAndDirsTask;
-
-                rawFiles ??= [];
-                rawDirs ??= [];
 
                 IEnumerable<string> directoryFiles = rawFiles.ToList().Except(excludingFiles);
                 IEnumerable<string> directoryDirs = rawDirs.ToList().Except(excludingDirs); 
@@ -140,8 +138,6 @@ namespace SimpleBinaryVCS.DataComponent
 
                 foreach (string dirRelPath in addedDirs)
                 {
-                    //TODO : Resolve Hard coded issue -> Setting Manager Ignore
-                    if (dirRelPath == $"Backup_{_dstProjectData.ProjectName}" || dirRelPath == $"Export_{ _dstProjectData.ProjectName}") continue;
                     ProjectFile dstFile = new ProjectFile(_dstProjectData.ProjectPath, dirRelPath, null, DataState.Added | DataState.IntegrityChecked, ProjectDataType.Directory);
                     ChangedFile newChange = new ChangedFile(dstFile, DataState.Added | DataState.IntegrityChecked);
                     _registeredChangesDict.TryAdd(dstFile.DataRelPath, newChange);
@@ -150,8 +146,6 @@ namespace SimpleBinaryVCS.DataComponent
 
                 foreach (string dirRelPath in deletedDirs)
                 {
-                    //TODO : Resolve Hard coded issue -> Setting Manager Ignore
-                    if (dirRelPath == "") continue;
                     ProjectFile dstFile = new ProjectFile(_dstProjectData.ProjectPath, dirRelPath, null, DataState.Deleted | DataState.IntegrityChecked, ProjectDataType.Directory);
                     ChangedFile newChange = new ChangedFile(dstFile, DataState.Deleted | DataState.IntegrityChecked);
                     _preStagedFilesDict.TryAdd(dirRelPath, dstFile);
@@ -160,8 +154,6 @@ namespace SimpleBinaryVCS.DataComponent
 
                 foreach (string fileRelPath in addedFiles)
                 {
-                    //TODO : Resolve Hard coded issue -> Setting Manager Ignore
-                    if (fileRelPath == "ProjectMetaData.bin") continue;
                     fileIntegrityLog.AppendLine($"{fileRelPath} has been Added");
                     string? fileHash = _hashTool.GetFileMD5CheckSum(_dstProjectData.ProjectPath, fileRelPath);
                     ProjectFile dstFile = new ProjectFile(_dstProjectData.ProjectPath, fileRelPath, fileHash, DataState.Added | DataState.IntegrityChecked, ProjectDataType.File);
@@ -178,69 +170,81 @@ namespace SimpleBinaryVCS.DataComponent
                     _preStagedFilesDict.TryAdd(fileRelPath, dstFile);
                     _registeredChangesDict.TryAdd(dstFile.DataRelPath, new ChangedFile(srcFile, dstFile, DataState.Deleted | DataState.IntegrityChecked, true));
                 }
-                Dictionary<string, ProjectFile> intersectedFiles = new Dictionary<string, ProjectFile> ();
-                List<Task> asyncHashing = new List<Task> ();
 
-                foreach (string fileRelPath in intersectFiles)
+                ConcurrentDictionary<string, ProjectFile> projectFilesConcurrent = new ConcurrentDictionary<string, ProjectFile> ();
+                var maxConcurrency = new ParallelOptions { MaxDegreeOfParallelism = Convert.ToInt32(Math.Ceiling((Environment.ProcessorCount * 0.75) * 1.0)) };
+                Parallel.ForEach(intersectFiles, fileRelPath =>
                 {
                     //TODO : Resolve Hard coded issue -> Setting Manager Ignore
-                    if (projectFilesDict[fileRelPath].DataType == ProjectDataType.Directory) continue;
+                    if (projectFilesDict[fileRelPath].DataType == ProjectDataType.Directory) return;
                     ProjectFile intersectedFile = new ProjectFile(projectFilesDict[fileRelPath]);
-                    if (!intersectedFiles.TryAdd(fileRelPath, intersectedFile))
+                    if (!projectFilesConcurrent.TryAdd(fileRelPath, intersectedFile))
                     {
                         ManagerStateEventHandler?.Invoke(MetaDataState.Idle);
                         MessageBox.Show($"Couldn't Run File Integrity Check, Couldn't Hash Intersected File on {fileRelPath}");
                         return;
                     }
-                    asyncHashing.Add(Task.Run(async () =>
+                    try
+                    {
+                        _hashTool.GetFileMD5CheckSum(intersectedFile);
+
+                    }
+                    catch (Exception ex)
+                    {
+                        ManagerStateEventHandler?.Invoke(MetaDataState.Idle);
+                        MessageBox.Show($"Couldn't Run File Integrity Check: File async Hashing Failed\n{ex.Message}");
+                        return;
+                    }
+                });
+
+                List<Task> asyncTask = []; 
+                foreach (ProjectFile intersectedFile in projectFilesConcurrent.Values)
+                {
+                    asyncTask.Add(Task.Run(async () =>
                     {
                         await _asyncControl.WaitAsync(); 
                         try
                         {
-                            _hashTool.GetFileMD5CheckSum(intersectedFile);
+                            if (!projectFilesDict.TryGetValue(intersectedFile.DataRelPath, out ProjectFile? projectFile))
+                            {
+                                ManagerStateEventHandler?.Invoke(MetaDataState.Idle);
+                                MessageBox.Show($"Couldn't Run File Integrity Check, project File does not exist in Intersected file list {intersectedFile.DataName}");
+                                return;
+                            }
+                            if (projectFile.DataHash != intersectedFile.DataHash)
+                            {
+                                fileIntegrityLog.AppendLine($"File {projectFile.DataName} on {projectFile.DataRelPath} has been modified");
+
+                                ProjectFile srcFile = new ProjectFile(projectFile, DataState.None);
+                                ProjectFile dstFile = new ProjectFile(projectFile, DataState.Modified | DataState.IntegrityChecked);
+                                dstFile.BuildVersion = FileVersionInfo.GetVersionInfo(Path.Combine(_dstProjectData.ProjectPath, projectFile.DataRelPath)).FileVersion ?? "";
+                                dstFile.DataSize = new FileInfo(Path.Combine(_dstProjectData.ProjectPath, projectFile.DataRelPath)).Length;
+                                dstFile.DataHash = intersectedFile.DataHash;
+                                dstFile.UpdatedTime = new FileInfo(srcFile.DataAbsPath).LastAccessTime;
+
+                                _preStagedFilesDict.TryAdd(projectFile.DataRelPath, dstFile);
+                                _registeredChangesDict.TryAdd(dstFile.DataRelPath, new ChangedFile(srcFile, dstFile, DataState.Modified | DataState.IntegrityChecked, true));
+                            }
                         }
-                        catch (Exception ex)
+                        catch (Exception Ex)
                         {
-                            ManagerStateEventHandler?.Invoke(MetaDataState.Idle);
-                            MessageBox.Show($"Couldn't Run File Integrity Check: File async Hashing Failed\n{ex.Message}");
-                            return;
+                            MessageBox.Show($"Failed During Integrity Test {Ex.Message}");
+                            return; 
                         }
                         finally
                         {
-                            _asyncControl.Release();
+                            _asyncControl.Release(); 
                         }
-                    }));
+                    })); 
                 }
-                await Task.WhenAll(asyncHashing);
 
-                foreach (ProjectFile intersectedFile in intersectedFiles.Values)
-                {
-                    if (!projectFilesDict.TryGetValue(intersectedFile.DataRelPath, out ProjectFile? projectFile))
-                    {
-                        ManagerStateEventHandler?.Invoke(MetaDataState.Idle);
-                        MessageBox.Show($"Couldn't Run File Integrity Check, project File does not exist in Intersected file list {intersectedFile.DataName}");
-                        return;
-                    }
-                    if (projectFile.DataHash != intersectedFile.DataHash)
-                    {
-                        fileIntegrityLog.AppendLine($"File {projectFile.DataName} on {projectFile.DataRelPath} has been modified");
-
-                        ProjectFile srcFile = new ProjectFile(projectFile, DataState.None);
-                        ProjectFile dstFile = new ProjectFile(projectFile, DataState.Modified | DataState.IntegrityChecked);
-                        dstFile.BuildVersion = FileVersionInfo.GetVersionInfo(Path.Combine(_dstProjectData.ProjectPath, projectFile.DataRelPath)).FileVersion ?? "";
-                        dstFile.DataSize = new FileInfo(Path.Combine(_dstProjectData.ProjectPath, projectFile.DataRelPath)).Length;
-                        dstFile.DataHash = intersectedFile.DataHash;
-                        dstFile.UpdatedTime = new FileInfo(srcFile.DataAbsPath).LastAccessTime;
-                        _preStagedFilesDict.TryAdd(projectFile.DataRelPath, dstFile);
-                        _registeredChangesDict.TryAdd(dstFile.DataRelPath, new ChangedFile(srcFile, dstFile, DataState.Modified | DataState.IntegrityChecked, true));
-                    }
-                }
-                sw.Stop();
-                fileIntegrityLog.Append($"Integrity Check Took: {sw.ToString()}s \n");
+                fileIntegrityLog.Append($"Integrity Check Took: {sw.Elapsed.ToString()}s \n");
                 fileIntegrityLog.AppendLine("Integrity Check Complete");
                 DataStagedEventHandler?.Invoke(_registeredChangesDict.Values.ToList());
                 IntegrityCheckEventHandler?.Invoke(fileIntegrityLog.ToString(), _preStagedFilesDict.Values.ToList());
                 ManagerStateEventHandler?.Invoke(MetaDataState.Idle);
+                Console.Write(sw.ToString());
+                sw.Stop();
             }
 
             catch (Exception ex)
@@ -464,8 +468,13 @@ namespace SimpleBinaryVCS.DataComponent
                 return null;
             }
         }
-        public List<ChangedFile>? FindVersionDifferencesForIntegration(ProjectData srcData, ProjectData dstData)
+        public List<ChangedFile>? FindVersionDifferencesForIntegration(ProjectData srcData, ProjectData dstData, out int significantDiff)
         {
+            if (_projIgnoreData == null)
+            {
+                significantDiff = -1; 
+                return null;
+            }
             try
             {
                 ManagerStateEventHandler?.Invoke(MetaDataState.Processing);
@@ -488,13 +497,10 @@ namespace SimpleBinaryVCS.DataComponent
                 // Files to Overwrite
                 IEnumerable<string> intersectFiles = srcData.ProjectRelFilePathsList.Intersect(dstData.ProjectRelFilePathsList);
 
-                // TODO: Filter out the Ignore File List 
-
                 foreach (string dirRelPath in dirsOnSrc)
                 {
                     ProjectFile srcDir = new ProjectFile(srcDict[dirRelPath], DataState.Added, dstData.ProjectPath);
                     ProjectFile dstDir = new ProjectFile(ProjectDataType.Directory);
-
                     ChangedFile newChange = new ChangedFile(srcDir, dstDir, DataState.Added);
                     fileChanges.Add(newChange);
                 }
@@ -530,14 +536,17 @@ namespace SimpleBinaryVCS.DataComponent
                         fileChanges.Add(new ChangedFile(srcFile, dstFile, DataState.Modified, true));
                     }
                 }
-                _projIgnoreData.FilterChangedFileList(fileChanges);
+                List<ChangedFile> filteredChangedList = new List<ChangedFile>(fileChanges);
+                _projIgnoreData.FilterChangedFileList(filteredChangedList);
                 ManagerStateEventHandler?.Invoke(MetaDataState.Idle);
+                significantDiff = filteredChangedList.Count;
                 return fileChanges;
             }
             catch (Exception ex)
             {
                 ManagerStateEventHandler?.Invoke(MetaDataState.Idle);
                 System.Windows.MessageBox.Show($"{ex.Message}. Couldn't Run Find Version Differences Against Given Src");
+                significantDiff = -1; 
                 return null;
             }
         }
@@ -564,7 +573,6 @@ namespace SimpleBinaryVCS.DataComponent
                 IEnumerable<string> dirsOnDst = dstData.ProjectRelDirsList.Except(srcData.ProjectRelDirsList);
                 // Files to Overwrite
                 IEnumerable<string> intersectFiles = srcData.ProjectRelFilePathsList.Intersect(dstData.ProjectRelFilePathsList);
-
                 // TODO: Filter out the Ignore File List 
 
                 foreach (string dirRelPath in dirsOnSrc)
@@ -686,7 +694,7 @@ namespace SimpleBinaryVCS.DataComponent
                 return;
             }
         }
-        private void RegisterAllSrcFiles(string srcDirPath)
+        private async void RegisterAllSrcFiles(string srcDirPath)
         {
             string[]? filesAllDirectories;
             string[]? filesTopDirectories;
@@ -694,9 +702,14 @@ namespace SimpleBinaryVCS.DataComponent
 
             try
             {
-                filesAllDirectories = Directory.GetFiles(srcDirPath, "*", SearchOption.AllDirectories);
-                filesTopDirectories = Directory.GetFiles(srcDirPath, "*", SearchOption.TopDirectoryOnly);
-                dirsAllDirectories = Directory.GetDirectories(srcDirPath, "*", SearchOption.AllDirectories);
+                var filesAllDirTask = Task.Run(() => Directory.GetFiles(srcDirPath, "*", SearchOption.AllDirectories));
+                var filesTopDirTask = Task.Run(() => Directory.GetFiles(srcDirPath, "*", SearchOption.TopDirectoryOnly));
+                var dirsAllTask = Task.Run(() => Directory.GetDirectories(srcDirPath, "*", SearchOption.AllDirectories));
+                filesAllDirectories = await filesAllDirTask;
+                filesTopDirectories = await filesTopDirTask;
+                dirsAllDirectories = await dirsAllTask;     
+
+
             }
             catch (Exception ex)
             {
@@ -704,6 +717,7 @@ namespace SimpleBinaryVCS.DataComponent
                 filesAllDirectories = null;
                 filesTopDirectories = null;
                 dirsAllDirectories = null;
+                return; 
             }
             if (filesAllDirectories == null || filesTopDirectories == null || dirsAllDirectories == null)
             {
@@ -821,8 +835,6 @@ namespace SimpleBinaryVCS.DataComponent
             }
 
         }
-
-
         private void RegisterNewData(ProjectData srcProjectData)
         {
             try

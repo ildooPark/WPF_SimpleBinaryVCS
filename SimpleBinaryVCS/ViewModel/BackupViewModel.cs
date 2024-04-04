@@ -66,6 +66,7 @@ namespace SimpleBinaryVCS.ViewModel
 
         private ICommand? compareDeployedProjectWithMain;
         public ICommand? CompareDeployedProjectWithMain => compareDeployedProjectWithMain ??= new RelayCommand(CompareSrcProjWithMain, CanCompareSrcProjWithMain);
+        
 
         private string? _updaterName;
         public string UpdaterName

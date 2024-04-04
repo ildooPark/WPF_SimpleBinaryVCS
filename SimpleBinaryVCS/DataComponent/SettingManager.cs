@@ -31,7 +31,9 @@ namespace DeployManager.DataComponent
         private const string _projIgnoreFilename = "DeployAssistant.ignore";
         private const string _projDeployFilename = "DeployAssistant.deploy";
         private FileHandlerTool _fileHandlerTool;
+#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         public SettingManager()
+#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         {
             try
             {
@@ -123,8 +125,14 @@ namespace DeployManager.DataComponent
                         MessageBox.Show($"Setting Manager Project Ignore Error, Couldn't Deserialize IgnoreData");
                         return;
                     }
-                    else 
-                        _projectIgnoreData = projectIgnoreData; 
+                    else
+                    {
+                        if (projectIgnoreData == null)
+                        {
+                            throw new ArgumentNullException(nameof(projectIgnoreData));
+                        }
+                        _projectIgnoreData = projectIgnoreData;
+                    }
                 }
                 else
                 {

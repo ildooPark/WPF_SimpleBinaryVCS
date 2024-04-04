@@ -1,4 +1,7 @@
-﻿using System;
+﻿using DeployAssistant.Model;
+using DeployAssistant.ViewModel;
+using SimpleBinaryVCS.Model;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -17,11 +20,13 @@ namespace DeployAssistant.View
     /// <summary>
     /// Interaction logic for CompatibleVersionWindow.xaml
     /// </summary>
-    public partial class CompatibleVersionWindow : Window
+    public partial class VersionComparisonWindow : Window
     {
-        public CompatibleVersionWindow()
+        public VersionComparisonWindow(ProjectData srcData, List<ProjectSimilarity> similarities)
         {
             InitializeComponent();
+            VersionCompatibilityViewModel vcVM = new VersionCompatibilityViewModel (srcData, similarities);
+            this.DataContext = vcVM;
         }
     }
 }

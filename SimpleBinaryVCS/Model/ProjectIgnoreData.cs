@@ -12,6 +12,7 @@ namespace DeployAssistant.Model
         Integration = 1 , 
         IntegrityCheck = 1 << 1,
         Deploy = 1 << 2,
+        Initialization = 1 << 3,
         All = ~0
     }
     public class ProjectIgnoreData
@@ -37,6 +38,7 @@ namespace DeployAssistant.Model
                 new RecordedFile("Resources", ProjectDataType.Directory, IgnoreType.Integration)
             };
         }
+
         public void FilterProjectFileList(List<IProjectData> list)
         {
 

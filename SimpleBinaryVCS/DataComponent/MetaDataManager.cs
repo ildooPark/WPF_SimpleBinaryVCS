@@ -42,6 +42,7 @@ namespace SimpleBinaryVCS.DataComponent
         public event Action<ProjectData, ProjectData, List<ChangedFile>>? ProjComparisonCompleteEventHandler;
         public event Action<MetaDataState> ManagerStateEventHandler;
         public event Action<ProjectIgnoreData> UpdateIgnoreListEventHandler;
+        public event Action<ProjectData, List<ProjectSimilarity>>? SimilarityCheckCompleteEventHandler;
         private MetaDataState _currentState; 
         public MetaDataState CurrentState
         {
@@ -201,10 +202,21 @@ namespace SimpleBinaryVCS.DataComponent
                 CurrentState = MetaDataState.Initializing;
                 StringBuilder changeLog = new StringBuilder();
                 ProjectMetaData newProjectRepo = new ProjectMetaData(Path.GetFileName(projectPath), projectPath);
+                ProjectIgnoreData newIgnoreData = new ProjectIgnoreData(projectPath);
+                newIgnoreData.ConfigureDefaultIgnore(newProjectRepo.ProjectName); 
+
                 Stopwatch stopwatch = new Stopwatch(); 
                 stopwatch.Start();
-                string[]? newProjectFiles = Directory.GetFiles(projectPath, "*", SearchOption.AllDirectories);
-                string[]? newProjectDirs = Directory.GetDirectories(projectPath, "*", SearchOption.AllDirectories);
+                var ignoringFilesAndDirsTask = Task.Run(() =>
+                    newIgnoreData.GetIgnoreFilesAndDirPaths(projectPath, IgnoreType.Initialization));
+                var getFilesTask = Task.Run(() => Directory.GetFiles(projectPath, "*", SearchOption.AllDirectories));
+                var getDirsTask = Task.Run(() => Directory.GetDirectories(projectPath, "*", SearchOption.AllDirectories));
+
+                string[]? newProjectFiles = await getFilesTask; 
+                string[]? newProjectDirs = await getDirsTask;
+                (List<string> excludingFiles, List<string> excludingDirs) = await ignoringFilesAndDirsTask;
+                newProjectFiles = newProjectFiles.Except(excludingFiles).ToArray();
+                newProjectDirs = newProjectDirs.Except(excludingDirs).ToArray();
                 stopwatch.Stop();
                 Console.WriteLine(stopwatch.Elapsed.ToString());
 
@@ -222,14 +234,11 @@ namespace SimpleBinaryVCS.DataComponent
                 stopwatch.Reset();
                 stopwatch.Start();
 
-                int maxConcurrentTasks = 8;
-                Console.WriteLine(Math.Ceiling((Environment.ProcessorCount * 0.25) * 1.0)); 
-                var options = new ParallelOptions { MaxDegreeOfParallelism = Convert.ToInt32(Math.Ceiling((Environment.ProcessorCount * 0.25) * 1.0)) };
-                //SemaphoreSlim asyncControl = new SemaphoreSlim(maxConcurrentTasks);
-                //List<Task> asyncTasks = new List<Task>();
-
-                ConcurrentDictionary<string, ProjectFile> tempDict = []; 
-                Parallel.ForEach(newProjectFiles, options, filePath => {
+                var options = new ParallelOptions { MaxDegreeOfParallelism = 
+                    Convert.ToInt32(Math.Ceiling((Environment.ProcessorCount * 0.75) * 1.0)) };
+                ConcurrentDictionary<string, ProjectFile> tempDict = [];
+                Parallel.ForEach(newProjectFiles, filePath =>
+                {
                     ProjectFile newFile = new ProjectFile
                         (
                         ProjectDataType.File,
@@ -249,53 +258,8 @@ namespace SimpleBinaryVCS.DataComponent
                 });
                 
                 newProjectData.ProjectFiles = new Dictionary<string, ProjectFile>(tempDict);
-
                 stopwatch.Stop();
                 Console.WriteLine(stopwatch.Elapsed.ToString());
-
-                //foreach (string filePath in newProjectFiles)
-                //{
-                //    ProjectFile newFile = new ProjectFile
-                //        (
-                //        ProjectDataType.File,
-                //        new FileInfo(filePath).Length,
-                //        FileVersionInfo.GetVersionInfo(filePath).FileVersion,
-                //        newProjectData.UpdatedVersion,
-                //        DateTime.Now,
-                //        DataState.None,
-                //        Path.GetFileName(filePath),
-                //        projectPath,
-                //        Path.GetRelativePath(projectPath, filePath),
-                //        "",
-                //        true
-                //        );
-                //    newProjectData.ProjectFiles.TryAdd(newFile.DataRelPath, newFile);
-
-                //    asyncTasks.Add(Task.Run(async () =>
-                //    {
-                //        await asyncControl.WaitAsync();
-                //        try
-                //        {
-                //            Console.WriteLine("EnterThread");
-                //            _hashTool.GetFileMD5CheckSum(newFile);
-                //        }
-                //        catch (Exception ex)
-                //        {
-                //            CurrentState = MetaDataState.Idle;
-                //            MessageBox.Show($"MetaDataManager Error: Initialization Failed \n{ex.Message}");
-                //            return;
-                //        }
-                //        finally
-                //        {
-                //            asyncControl.Release();
-                //            Console.WriteLine(asyncControl.CurrentCount);
-                //        }
-                //    }));
-                //
-                //    changeLog.AppendLine($"Added {newFile.DataName}");
-                //}
-                //await Task.WhenAll(asyncTasks);
-
 
                 foreach (string dirPath in newProjectDirs)
                 {
@@ -423,6 +387,46 @@ namespace SimpleBinaryVCS.DataComponent
 
         }
 
+        public void RequestProjectCompatibility(ProjectData srcProjectData)
+        {
+            try
+            {
+                if (_projectMetaData == null) return;
+                List<ProjectSimilarity> projectComparisons = []; 
+                foreach (ProjectData projData in _projectMetaData.ProjectDataList)
+                {
+                    ProjectSimilarity similaraity = new ProjectSimilarity();
+                    projectComparisons.Add(similaraity); 
+                    //Compute the file differences 
+                        try
+                        {
+                            int sigDiff = 0; 
+                            List<ChangedFile>? identifiedDiff = _fileManager.FindVersionDifferencesForIntegration(srcProjectData, projData, out sigDiff);
+                            similaraity.projData = projData;
+                            similaraity.numDiffWithResources = identifiedDiff?.Count ?? -1; 
+                            similaraity.numDiffWithoutResources = sigDiff;
+                            similaraity.fileDifferences = identifiedDiff ?? [];
+                        }
+                        catch(Exception ex)
+                        {
+                            MessageBox.Show($"Error while collecting Project Compatibility {ex.Message}");
+                            return;
+                        }
+                        finally
+                        {
+                        }
+                    }
+
+                SimilarityCheckCompleteEventHandler?.Invoke(srcProjectData, projectComparisons); 
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error while collecting Project Compatibility {ex.Message}");
+                return; 
+            }
+            
+        }
+
         public void RequestExportProjectFilesXLSX(ICollection<ProjectFile> projectFiles, ProjectData projData)
         {
             _exportManager.ExportProjectFilesXLSX(projData, projectFiles);
@@ -485,10 +489,7 @@ namespace SimpleBinaryVCS.DataComponent
             ProjComparisonCompleteEventHandler?.Invoke(srcData, MainProjectData, fileDiff);
         }
 
-        public void UpdateManager_ReportFileDifferencesCallBack(ProjectData srcData, ProjectData destData, List<ChangedFile> fileDifferences)
-        {
-            ProjComparisonCompleteEventHandler?.Invoke(srcData, MainProjectData, fileDifferences);
-        }
+        
         #endregion
 
         #region Version Management Tools
@@ -504,6 +505,10 @@ namespace SimpleBinaryVCS.DataComponent
         #endregion
 
         #region Callbacks
+        public void UpdateManager_ReportFileDifferencesCallBack(ProjectData srcData, ProjectData destData, List<ChangedFile> fileDifferences)
+        {
+            ProjComparisonCompleteEventHandler?.Invoke(srcData, MainProjectData, fileDifferences);
+        }
         private void FileManager_IntegrityCheckCallBack(string changeLog, List<ProjectFile> changedFileList)
         {
             IntegrityCheckCompleteEventHandler?.Invoke(changeLog, new ObservableCollection<ProjectFile>(changedFileList));

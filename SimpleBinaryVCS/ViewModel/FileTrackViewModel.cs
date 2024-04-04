@@ -1,9 +1,12 @@
-﻿using SimpleBinaryVCS.DataComponent;
+﻿using DeployAssistant.Model;
+using DeployAssistant.View;
+using SimpleBinaryVCS.DataComponent;
 using SimpleBinaryVCS.Model;
 using SimpleBinaryVCS.Utils;
 using SimpleBinaryVCS.View;
 using System.Collections.ObjectModel;
 using System.Windows.Input;
+using static System.Windows.Forms.AxHost;
 using WinForms = System.Windows.Forms;
 using WPF = System.Windows;
 namespace SimpleBinaryVCS.ViewModel
@@ -71,6 +74,14 @@ namespace SimpleBinaryVCS.ViewModel
 
         private ICommand? compareDeployedProjectWithMain;
         public ICommand? CompareDeployedProjectWithMain => compareDeployedProjectWithMain ??= new RelayCommand(CompareSrcProjWithMain, CanCompareSrcProjWithMain);
+        
+        private ICommand? srcSimilarityWithBackups;
+        public ICommand? SrcSimilarityWithBackups => srcSimilarityWithBackups ??= new RelayCommand(GetSimilaritiesWithLocal, CanCompareSrcProjWithMain);
+
+        private void GetSimilaritiesWithLocal(object obj)
+        {
+            _metaDataManager.RequestProjectCompatibility(_srcProjectData); 
+        }
 
         private bool CanCompareSrcProjWithMain(object obj)
         {
@@ -103,7 +114,10 @@ namespace SimpleBinaryVCS.ViewModel
             this._metaDataManager.ManagerStateEventHandler += MetaDataManager_IssueEventCallBack;
             this._metaDataManager.ProjLoadedEventHandler += MetaDataManager_ProjLoadedCallBack;
             this._metaDataManager.ProjComparisonCompleteEventHandler += MetaDataManager_ProjComparisonCompleteCallBack;
+            this._metaDataManager.SimilarityCheckCompleteEventHandler += MetaDataManager_SimilarityCheckCompleteCallBack;
         }
+
+        
 
         private bool CanSetDeployDir(object obj)
         {
@@ -269,6 +283,7 @@ namespace SimpleBinaryVCS.ViewModel
                 versionDiffWindow.Show();
             });
         }
+
         private void MetaDataManager_IssueEventCallBack(MetaDataState state)
         {
             App.Current.Dispatcher.Invoke(() =>
@@ -278,6 +293,19 @@ namespace SimpleBinaryVCS.ViewModel
                 
             });
         }
+
+        private void MetaDataManager_SimilarityCheckCompleteCallBack(ProjectData data, List<ProjectSimilarity> diffList)
+        {
+            App.Current.Dispatcher.Invoke(() =>
+            {
+                var mainWindow = App.Current.MainWindow;
+                VersionComparisonWindow versionCompWindow = new VersionComparisonWindow(data, diffList);
+                versionCompWindow.Owner = mainWindow;
+                versionCompWindow.WindowStartupLocation = WPF.WindowStartupLocation.CenterOwner;
+                versionCompWindow.Show();
+            });
+        }
+
         private void SrcProjectDataCallBack(object? srcProjectDataObj)
         {
             if (srcProjectDataObj is not ProjectData srcProjectData)

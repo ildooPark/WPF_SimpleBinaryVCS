@@ -283,6 +283,7 @@
                             <MenuItem Header="Checkout Version" Name="Checkout" Command="{Binding BackupVM.CheckoutBackup}"/>
                             <MenuItem Header="Full Log" Name="VersionFullLog" Command="{Binding BackupVM.ViewFullLog}"/>
                             <MenuItem Header="Src Full Log" Name="SrcProjectFullLog" Command="{Binding FileTrackVM.GetDeployedProjectInfo}"/>
+                            <MenuItem Header="Src Version Similarities" Name="VersionSimilarities" Command="{Binding FileTrackVM.SrcSimilarityWithBackups}"/>
                             <!--<MenuItem Header="Clean Checkout Version" Name="Restore" Command="{Binding BackupVM.CleanRestoreBackup}"/>-->
                         </ContextMenu>
                     </ListView.ContextMenu>
