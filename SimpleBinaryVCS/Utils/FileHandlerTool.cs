@@ -1,4 +1,4 @@
-﻿using SimpleBinaryVCS.DataComponent;
+﻿using DeployAssistant.Model;
 using SimpleBinaryVCS.Interfaces;
 using SimpleBinaryVCS.Model;
 using System.IO;
@@ -24,13 +24,14 @@ namespace SimpleBinaryVCS.Utils
                 return false;
             }
         }
+
         public bool TryDeserializeProjectData(string filePath, out ProjectData? projectData)
         {
             try
             {
                 var jsonDataBase64 = File.ReadAllText(filePath);
                 var jsonDataBytes = Convert.FromBase64String(jsonDataBase64);
-                string jsonString = System.Text.Encoding.UTF8.GetString(jsonDataBytes);
+                string jsonString = Encoding.UTF8.GetString(jsonDataBytes);
                 ProjectData? data = JsonSerializer.Deserialize<ProjectData>(jsonString);
                 if (data != null)
                 {
@@ -47,6 +48,7 @@ namespace SimpleBinaryVCS.Utils
                 return false;
             }
         }
+
         public bool TrySerializeProjectMetaData(ProjectMetaData data, string filePath)
         {
             try
@@ -62,6 +64,7 @@ namespace SimpleBinaryVCS.Utils
                 return false; 
             }
         }
+
         public bool TryDeserializeProjectMetaData(string filePath, out ProjectMetaData? projectMetaData)
         {
             try
@@ -86,6 +89,7 @@ namespace SimpleBinaryVCS.Utils
                 return false;
             }
         }
+
         public bool TrySerializeJsonData<T>(string filePath, in T? serializingObject)
         {
             try
@@ -100,6 +104,7 @@ namespace SimpleBinaryVCS.Utils
                 return false;
             }
         }
+
         public bool TryDeserializeJsonData<T>(string filePath, out T? serializingObject)
         {
             try
@@ -123,12 +128,13 @@ namespace SimpleBinaryVCS.Utils
                 return false;
             }
         }
-        public bool TryApplyFileChanges(List<ChangedFile> Changes)
+
+        public bool TryApplyFileChanges(List<ChangedFile> changes)
         {
-            if (Changes == null) return false;
+            if (changes == null) return false;
             try
             {
-                foreach (ChangedFile file in Changes)
+                foreach (ChangedFile file in changes)
                 {
                     if ((file.DataState & DataState.IntegrityChecked) != 0) continue;
                     bool result = HandleData(file.SrcFile, file.DstFile, file.DataState);
@@ -142,6 +148,7 @@ namespace SimpleBinaryVCS.Utils
                 return false;
             }
         }
+
         public bool HandleData(IProjectData dstData, DataState state)
         {
             bool result;
@@ -155,6 +162,7 @@ namespace SimpleBinaryVCS.Utils
             }
             return result; 
         }
+
         public bool HandleData(IProjectData? srcData, IProjectData dstData, DataState state)
         {
             bool result;
@@ -168,6 +176,7 @@ namespace SimpleBinaryVCS.Utils
             }
             return result;
         }
+
         public bool HandleData(string? srcPath, string dstPath, ProjectDataType type, DataState state)
         {
             bool result; 
@@ -181,6 +190,7 @@ namespace SimpleBinaryVCS.Utils
             }
             return result;
         }
+
         public void HandleData(string? srcPath, IProjectData dstData, DataState state)
         {
             if (dstData.DataType == ProjectDataType.File)
@@ -192,6 +202,7 @@ namespace SimpleBinaryVCS.Utils
                 HandleDirectory(srcPath, dstData.DataAbsPath, state);
             }
         }
+
         public bool HandleDirectory(string? srcPath, string dstPath, DataState state)
         {
             try
@@ -199,7 +210,14 @@ namespace SimpleBinaryVCS.Utils
                 if ((state & DataState.Deleted) != 0)
                 {
                     if (Directory.Exists(dstPath))
+                    {
+                        var subFiles = Directory.GetFiles(dstPath, "*", SearchOption.AllDirectories);
+                        foreach (var subFile in subFiles)
+                        {
+                            HandleFile(null, subFile, DataState.Deleted);
+                        }
                         Directory.Delete(dstPath, true);
+                    }
                 }
                 else
                 {
@@ -213,6 +231,7 @@ namespace SimpleBinaryVCS.Utils
                 MessageBox.Show(ex.Message); return false; 
             }
         }
+
         public bool HandleFile(string? srcPath, string dstPath, DataState state)
         {
             try
@@ -220,8 +239,12 @@ namespace SimpleBinaryVCS.Utils
                 if ((state & DataState.Deleted) != 0)
                 {
                     if (File.Exists(dstPath))
+                    {
+                        FileInfo fileInfo = new FileInfo(dstPath);
+                        if (fileInfo.IsReadOnly) fileInfo.IsReadOnly = false; 
                         File.Delete(dstPath);
-                    return true; 
+                    }
+                        return true;
                 }
                 if (srcPath == null)
                 {
@@ -232,8 +255,15 @@ namespace SimpleBinaryVCS.Utils
                 {
                     if (!Directory.Exists(Path.GetDirectoryName(dstPath))) 
                         Directory.CreateDirectory(Path.GetDirectoryName(dstPath));
-                    if (!File.Exists(dstPath))
+                    if (File.Exists(dstPath))
+                    {
+                        FileInfo fileInfo = new FileInfo(dstPath);
+                        if (fileInfo.IsReadOnly) fileInfo.IsReadOnly = false;
+                    }
+                    if (File.Exists(srcPath))
+                    {
                         File.Copy(srcPath, dstPath, true);
+                    }
                 }
                 else
                 {
@@ -244,13 +274,28 @@ namespace SimpleBinaryVCS.Utils
                         //MessageBox.Show($"Source File and Dst File path is same for {state.ToString()}, {dstPath}");
                         return false; 
                     }
-                    File.Copy(srcPath, dstPath, true);
+                    if (File.Exists(dstPath))
+                    {
+                        FileInfo fileInfo = new FileInfo(dstPath);
+                        if (fileInfo.IsReadOnly) fileInfo.IsReadOnly = false;
+                    }
+                    if (File.Exists(srcPath))
+                    {
+                        if (srcPath != dstPath)
+                        {
+                            File.Copy(srcPath, dstPath, true);
+                        }
+                    }
                 }
                 return true; 
             }
+            catch (UnauthorizedAccessException auex)
+            {
+                MessageBox.Show($"File Read Only Issue : {auex.Message}"); return false; 
+            }
             catch (Exception ex)
             {
-                MessageBox.Show(ex.Message); return false; 
+                MessageBox.Show($"Issue While Handling File {ex.Message}"); return false; 
             }
         }
 

@@ -1,8 +1,6 @@
-﻿using SimpleBinaryVCS.DataComponent;
-using SimpleBinaryVCS.Interfaces;
+﻿using DeployAssistant.Model;
 using SimpleBinaryVCS.Model;
 using System.Text;
-using static System.Windows.Forms.AxHost;
 
 namespace SimpleBinaryVCS.Utils
 {

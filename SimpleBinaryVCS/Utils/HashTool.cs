@@ -61,6 +61,22 @@ namespace SimpleBinaryVCS.Utils
             md5.Dispose();
             return BitConverter.ToString(srcHashBytes).Replace("-", "");
         }
+        public string GetFileMD5CheckSum(string filePath)
+        {
+            byte[] srcHashBytes;
+            using MD5 md5 = MD5.Create();
+            if (md5 == null)
+            {
+                WPF.MessageBox.Show($"Failed to Initialize MD5 for file {filePath}");
+                return "";
+            }
+            using (var srcStream = File.OpenRead(filePath))
+            {
+                srcHashBytes = md5.ComputeHash(srcStream);
+            }
+            md5.Dispose();
+            return BitConverter.ToString(srcHashBytes).Replace("-", "");
+        }
         public async Task GetFileMD5CheckSumAsync(ProjectFile file)
         {
             try
