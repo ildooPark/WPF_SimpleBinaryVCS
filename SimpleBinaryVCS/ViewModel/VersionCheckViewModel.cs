@@ -1,5 +1,4 @@
 ﻿using SimpleBinaryVCS.DataComponent;
-using SimpleBinaryVCS.Interfaces;
 using SimpleBinaryVCS.Model;
 using SimpleBinaryVCS.Utils;
 using System.Collections.ObjectModel;
@@ -30,15 +29,31 @@ namespace SimpleBinaryVCS.ViewModel
             }
         }
 
-        private ICommand? exportToXLSX;
-        public ICommand ExportToXLSX => exportToXLSX ??= new RelayCommand(ExportFile, CanExport);
+        private ICommand? similaritiesWithLocal;
+        public ICommand? SimilaritiesWithLocal => similaritiesWithLocal ??= new RelayCommand(GetSimilarities);
 
-        private void ExportFile(object obj)
+        private void GetSimilarities(object? obj)
+        {
+            _metaDataManager.RequestProjectCompatibility(_projectData); 
+        }
+
+        private ICommand? conductIntegrate;
+        public ICommand? ConductIntegrate => conductIntegrate ??= new RelayCommand(IntegrateToLocal);
+
+        private void IntegrateToLocal(object? obj)
+        {
+            _metaDataManager.RequestProjectIntegrate(null, null, null); 
+        }
+
+        private ICommand? exportToXLSX;
+        public ICommand ExportToXLSX => exportToXLSX ??= new RelayCommand(ExportXLSX, CanExportXLSX);
+
+        private void ExportXLSX(object obj)
         {
             _metaDataManager.RequestExportProjectFilesXLSX(FileList, _projectData); 
         }
 
-        private bool CanExport(object obj)
+        private bool CanExportXLSX(object obj)
         {
             return FileList.Count > 0; 
         }

@@ -54,8 +54,7 @@ namespace SimpleBinaryVCS.ViewModel
         public ICommand ClearNewfiles => clearNewfiles ??= new RelayCommand(ClearFiles, CanClearFiles);
 
         private ICommand? refreshDeployFileList;
-        public ICommand RefreshDeployFileList => refreshDeployFileList ??= new RelayCommand(RefreshFilesList);
-
+        public ICommand RefreshDeployFileList => refreshDeployFileList ??= new RelayCommand(RefreshFilesList, CanRefresh);
 
         private ICommand? revertChange;
         public ICommand RevertChange => revertChange ??= new RelayCommand(RevertIntegrityCheckFile);
@@ -117,7 +116,12 @@ namespace SimpleBinaryVCS.ViewModel
             this._metaDataManager.SimilarityCheckCompleteEventHandler += MetaDataManager_SimilarityCheckCompleteCallBack;
         }
 
-        
+        private bool CanRefresh(object obj)
+        {
+            if (_metaDataState != MetaDataState.Idle) return false;
+            if (_deploySrcPath == null) return false;
+            return true; 
+        }
 
         private bool CanSetDeployDir(object obj)
         {
@@ -173,7 +177,11 @@ namespace SimpleBinaryVCS.ViewModel
             logWindow.Show();
         }
 
-        private bool CanClearFiles(object obj) { return ChangedFileList.Count != 0; }
+        private bool CanClearFiles(object obj) 
+        {
+            if (_metaDataState != MetaDataState.Idle) return false;
+            return ChangedFileList.Count != 0; 
+        }
         private void ClearFiles(object obj)
         {
             _metaDataManager.RequestClearStagedFiles();
@@ -182,11 +190,14 @@ namespace SimpleBinaryVCS.ViewModel
         private bool CanRestoreFile(object? obj)
         {
             if (_metaDataState != MetaDataState.Idle) return false;
-            if (obj is ProjectFile projFile &&
-                (projFile.DataState == DataState.Deleted ||
-                !projFile.IsDstFile)) return true; 
-            else return false;
+            if (obj is not ProjectFile projFile) return false;
+
+            if ((projFile.DataState & DataState.Deleted) != 0) return true;
+            if (((projFile.DataState & DataState.Added) == 0) && !projFile.IsDstFile) return true;
+
+            return false; 
         }
+
         private void RestoreFile(object? obj)
         {
             if (obj is ProjectFile file)
@@ -197,10 +208,7 @@ namespace SimpleBinaryVCS.ViewModel
         
         private void RefreshFilesList(object? obj)
         {
-            if (_deploySrcPath == null)
-            {
-                MessageBox.Show("Please Set Src Deploy Path");
-            }
+            
             _metaDataManager.RequestClearStagedFiles();
             _metaDataManager.RequestSrcDataRetrieval(_deploySrcPath);
         }
@@ -255,21 +263,21 @@ namespace SimpleBinaryVCS.ViewModel
 
         private void MetaDataManager_FileChangeCallBack(ObservableCollection<ProjectFile> changedFileList)
         {
-            this.ChangedFileList = changedFileList;
+            ChangedFileList = changedFileList;
         }
 
         private void ProjectIntegrityCheckCallBack(string changeLog, ObservableCollection<ProjectFile> changedFileList)
         {
             if (changedFileList == null) { MessageBox.Show("Model Binding Issue: ChangedList is Empty"); return; }
 
-            App.Current.Dispatcher.Invoke(() =>
+            App.Current.Dispatcher.Invoke((Delegate)(() =>
             {
                 var mainWindow = App.Current.MainWindow;
                 IntegrityLogWindow logWindow = new IntegrityLogWindow(_dstProjData, changeLog, changedFileList);
                 logWindow.Owner = mainWindow;
                 logWindow.WindowStartupLocation = WPF.WindowStartupLocation.CenterOwner;
                 logWindow.Show();
-            });
+            }));
         }
 
         private void MetaDataManager_ProjComparisonCompleteCallBack(ProjectData srcProject, ProjectData dstProject, List<ChangedFile> diff)

@@ -1,4 +1,5 @@
-﻿using SimpleBinaryVCS.DataComponent;
+﻿using DeployAssistant.Model;
+using SimpleBinaryVCS.DataComponent;
 using SimpleBinaryVCS.Model;
 using SimpleBinaryVCS.Utils;
 using SimpleBinaryVCS.View;
@@ -28,6 +29,12 @@ namespace SimpleBinaryVCS.ViewModel
                 ProjectName = value?.ProjectName ?? "Undefined";
                 CurrentVersion = value?.UpdatedVersion ?? "Undefined"; 
             }
+        }
+
+        private bool[] _modeArray = new bool[] { true, false };
+        public bool[] ModeArray
+        {
+            get { return _modeArray; }
         }
 
         private ObservableCollection<ProjectFile>? projectFiles;
@@ -96,11 +103,29 @@ namespace SimpleBinaryVCS.ViewModel
             }
         }
 
+        private string _canProcessMerge = "Hidden";  
+        public string CanProcessMerge
+        {
+            get => _canProcessMerge; 
+            set
+            {
+                _canProcessMerge = value;
+                OnPropertyChanged("CanProcessMerge"); 
+            }
+        }
+
         private ICommand? conductUpdate;
         public ICommand ConductUpdate => conductUpdate ??= new RelayCommand(Update, CanUpdate);
 
+        private ICommand? conductIntegrate;
+        public ICommand? ConductIntegrate => conductIntegrate ??= new RelayCommand(IntegrateToLocal, CanUpdate);
+
+        
         private ICommand? getProject;
         public ICommand GetProject => getProject ??= new RelayCommand(RetrieveProject, CanRetrieveProject);
+
+        private ICommand? setDeployMode;
+        public ICommand SetDeployMode => setDeployMode ??= new RelayCommand(DeployMode, CanIntegrate);
 
         private MetaDataManager _metaDataManager;
         private MetaDataState? _metaDataState = MetaDataState.Idle;
@@ -109,10 +134,13 @@ namespace SimpleBinaryVCS.ViewModel
         public MetaDataViewModel()
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         {
-            this._metaDataManager = App.MetaDataManager;
-            this._metaDataManager.ProjLoadedEventHandler += MetaDataManager_ProjLoadedCallBack;
-            this._metaDataManager.ManagerStateEventHandler += MetaDataStateChangeCallBack;
+            _metaDataManager = App.MetaDataManager;
+            _metaDataManager.ProjLoadedEventHandler += MetaDataManager_ProjLoadedCallBack;
+            _metaDataManager.ManagerStateEventHandler += MetaDataStateChangeCallBack;
+            _metaDataManager.SrcProjectLoadedEventHandler += MetaDataManager_SrcProjectLoadedEventHandler;
         }
+
+        
         #region Update Version 
         private bool CanUpdate(object obj)
         {
@@ -129,7 +157,30 @@ namespace SimpleBinaryVCS.ViewModel
                 if (response == DialogResult.OK) return;
                 return;
             }
-            _metaDataManager.RequestProjectUpdate(updaterName, UpdateLog, CurrentProjectPath);
+            Task.Run(() => _metaDataManager.RequestProjectUpdate(updaterName, UpdateLog, CurrentProjectPath));
+        }
+
+        private bool CanIntegrate(object obj)
+        {
+
+            if (_metaDataState != MetaDataState.Idle) return false;
+            return true;
+        }
+
+        private void IntegrateToLocal(object? obj)
+        {
+            _metaDataManager.RequestProjectIntegrate(updaterName, UpdateLog, CurrentProjectPath);
+        }
+
+        private void DeployMode(object? obj)
+        {
+            for (int i = 0; i < 2; i++) 
+            {
+                if (_modeArray[i])
+                {
+                    _metaDataManager.CurrentDeployMode = (DeployMode)i;
+                }
+            }
         }
 
         private bool CanRetrieveProject(object parameter)
@@ -187,6 +238,19 @@ namespace SimpleBinaryVCS.ViewModel
             CurrentProjectPath = projectData.ProjectPath;
             UpdaterName = "";
             UpdateLog = "";
+        }
+        private void MetaDataManager_SrcProjectLoadedEventHandler(object? projDataObj)
+        {
+            App.Current.Dispatcher.Invoke(() =>
+            {
+                if (projDataObj == null || projDataObj is not ProjectData projData)
+                {
+                    CanProcessMerge = "Hidden";
+                    return; 
+                }
+                CanProcessMerge = "Visible";
+            });
+            
         }
         #endregion
     }

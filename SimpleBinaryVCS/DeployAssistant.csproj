@@ -8,7 +8,7 @@
     <UseWPF>true</UseWPF>
     <UseWindowsForms>True</UseWindowsForms>
     <IncludeSymbols>False</IncludeSymbols>
-    <FileVersion>1.1</FileVersion>
+    <FileVersion>3.5</FileVersion>
     <PackageIcon>flexible-deployment.png</PackageIcon>
     <ApplicationIcon>3700468-archive-document-education-exam-file-test_108747.ico</ApplicationIcon>
   </PropertyGroup>

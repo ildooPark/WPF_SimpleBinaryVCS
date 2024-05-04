@@ -4,10 +4,8 @@ using SimpleBinaryVCS.Utils;
 using SimpleBinaryVCS.View;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
-using System.IO;
-using System.Text.RegularExpressions;
+using DeployAssistant.Model;
 using System.Windows.Input;
-using System.Windows.Threading;
 using WPF = System.Windows;
 
 namespace SimpleBinaryVCS.ViewModel
@@ -51,8 +49,6 @@ namespace SimpleBinaryVCS.ViewModel
 
         private ICommand? exportVersion;
         public ICommand ExportVersion => exportVersion ??= new RelayCommand(ExportBackupFiles, CanExportBackupFiles);
-
-        
 
         private ICommand? cleanRestoreBackup;
         public ICommand CleanRestoreBackup => cleanRestoreBackup ??= new RelayCommand(CleanRestoreBackupFiles, CanCleanRestoreBackupFiles);
@@ -166,7 +162,7 @@ namespace SimpleBinaryVCS.ViewModel
                 MessageBoxButtons.YesNo); 
             if (response == DialogResult.Yes)
             {
-                _metaDataManager.RequestRevertProject(_selectedItem);
+                Task.Run(() => _metaDataManager.RequestRevertProject(_selectedItem));
                 return;
             }
             else
