@@ -1,20 +1,9 @@
-﻿using SimpleBinaryVCS.Interfaces;
-using SimpleBinaryVCS.Model;
+﻿using SimpleBinaryVCS.Model;
 using System.IO;
 using System.Text.Json.Serialization;
 
 namespace DeployAssistant.Model
 {
-    [Flags]
-    public enum IgnoreType
-    {
-        None = 0,
-        Integration = 1 , 
-        IntegrityCheck = 1 << 1,
-        Deploy = 1 << 2,
-        Initialization = 1 << 3,
-        All = ~0
-    }
     public class ProjectIgnoreData
     {
         public string ProjectName { get; set; }
@@ -30,21 +19,47 @@ namespace DeployAssistant.Model
             {
                 new RecordedFile("ProjectMetaData.bin" , ProjectDataType.File, IgnoreType.All),
                 new RecordedFile("*.ignore" , ProjectDataType.File, IgnoreType.All),
-                new RecordedFile("*.deploy" , ProjectDataType.File, IgnoreType.Deploy),
                 new RecordedFile("*.VersionLog", ProjectDataType.File, IgnoreType.All),
                 new RecordedFile("Export_XLSX", ProjectDataType.Directory, IgnoreType.All),
+                new RecordedFile("ProductionRecord.db" , ProjectDataType.File, IgnoreType.All),
+                new RecordedFile("configfilepath.txt" , ProjectDataType.File, IgnoreType.All),
+                new RecordedFile("msg_format.dat" , ProjectDataType.File, IgnoreType.All),
+                new RecordedFile("*.deploy" , ProjectDataType.File, IgnoreType.All),
                 new RecordedFile("en-US", ProjectDataType.Directory, IgnoreType.Integration),
                 new RecordedFile("ko-KR", ProjectDataType.Directory, IgnoreType.Integration),
                 new RecordedFile("Resources", ProjectDataType.Directory, IgnoreType.Integration)
             };
         }
 
-        public void FilterProjectFileList(List<IProjectData> list)
+        public void FilterProjectFileList(ref List<ProjectFile> fileList, IgnoreType ignoreType)
         {
-
+            List<ProjectFile> excludingList = [];
+            foreach (ProjectFile file in fileList)
+            {
+                if (PartOfIgnore(file, ignoreType)) excludingList.Add(file);
+            }
+            fileList = fileList.Except(excludingList).ToList();
         }
 
-        public void FilterChangedFileList(List<ChangedFile> changedFileList)
+        public void FilterProjectRelFileDirList(ref List<string> relFileDirList, IgnoreType ignoreType)
+        {
+            List<string> excludingList = [];
+            foreach (string relFileDir in relFileDirList)
+            {
+                if (PartOfIgnoreFileDir(relFileDir, ignoreType)) excludingList.Add(relFileDir);
+            }
+            relFileDirList = relFileDirList.Except(excludingList).ToList();
+        }
+        public void FilterProjectRelDirList(ref List<string> relDirList, IgnoreType ignoreType)
+        {
+            List<string> excludingList = [];
+            foreach (string relDir in relDirList)
+            {
+                if (PartOfIgnoreDir(relDir, ignoreType)) excludingList.Add(relDir);
+            }
+            relDirList = relDirList.Except(excludingList).ToList();
+        }
+        public void FilterChangedFileList(ref List<ChangedFile> changedFileList)
         {
             List<ChangedFile> excludingList = []; 
             foreach (ChangedFile file in changedFileList)
@@ -59,6 +74,41 @@ namespace DeployAssistant.Model
                 }
             }
             changedFileList = changedFileList.Except(excludingList).ToList();
+        }
+
+        public void FilterChangedFileList(ref List<ChangedFile> changedFileList, IgnoreType ignoreType)
+        {
+            List<ChangedFile> excludingList = [];
+            foreach (ChangedFile file in changedFileList)
+            {
+                if (file.SrcFile == null || file.SrcFile.DataName == "")
+                {
+                    if (PartOfIgnore(file.DstFile, ignoreType)) excludingList.Add(file);
+                }
+                else
+                {
+                    if (PartOfIgnore(file.SrcFile, ignoreType)) excludingList.Add(file);
+                }
+            }
+            changedFileList = changedFileList.Except(excludingList).ToList();
+        }
+        public void FilterChangedFileList(List<ChangedFile> changedFileList, IgnoreType ignoreType, out int sigDiffCount)
+        {
+            List<ChangedFile> excludingList = [];
+            List<ChangedFile> sigDiffList = []; 
+            foreach (ChangedFile file in changedFileList)
+            {
+                if (file.SrcFile == null || file.SrcFile.DataName == "")
+                {
+                    if (PartOfIgnore(file.DstFile, ignoreType)) excludingList.Add(file);
+                }
+                else
+                {
+                    if (PartOfIgnore(file.SrcFile, ignoreType)) excludingList.Add(file);
+                }
+            }
+            sigDiffList = changedFileList.Except(excludingList).ToList();
+            sigDiffCount = sigDiffList.Count;
         }
 
         public void FilterFilePathList(List<string> filePath, string filePathRoot)
@@ -130,11 +180,63 @@ namespace DeployAssistant.Model
             {
                 if (file.DataType == ProjectDataType.File)
                 {
+                    if (projectFile.DataName.Equals(file.DataName, StringComparison.OrdinalIgnoreCase)) return true;
+                }
+                else
+                {
+                    if (projectFile.DataRelPath.Contains(file.DataName, StringComparison.OrdinalIgnoreCase)) return true;
+                }
+            }
+            return false;
+        }
+
+        private bool PartOfIgnore(ProjectFile projectFile, IgnoreType ignoreType)
+        {
+            foreach (RecordedFile file in IgnoreFileList)
+            {
+                if ((ignoreType & file.IgnoreType) == 0) continue; 
+                if (file.DataType == ProjectDataType.File)
+                {
                     if (projectFile.DataName == file.DataName) return true;
                 }
                 else
                 {
-                    if (projectFile.DataRelPath.Contains(file.DataName)) return true;
+                    if (projectFile.DataRelPath.Contains(file.DataName, StringComparison.OrdinalIgnoreCase)) return true;
+                }
+            }
+            return false;
+        }
+
+        private bool PartOfIgnoreDir(string relativePath, IgnoreType ignoreType)
+        {
+            foreach (RecordedFile file in IgnoreFileList)
+            {
+                if ((ignoreType & file.IgnoreType) == 0) continue;
+                if (file.DataType == ProjectDataType.File)
+                {
+                    continue;
+                }
+                else
+                {
+                    if (relativePath.Contains(file.DataName, StringComparison.OrdinalIgnoreCase)) return true;
+                }
+            }
+            return false;
+        }
+
+        private bool PartOfIgnoreFileDir(string relativePath, IgnoreType ignoreType)
+        {
+            foreach (RecordedFile file in IgnoreFileList)
+            {
+                if ((ignoreType & file.IgnoreType) == 0) continue;
+                if (file.DataType == ProjectDataType.File)
+                {
+                    string pathFileName = Path.GetFileName(relativePath);
+                    if (file.DataName.Equals(pathFileName, StringComparison.OrdinalIgnoreCase)) return true;
+                }
+                else
+                {
+                    continue; 
                 }
             }
             return false;

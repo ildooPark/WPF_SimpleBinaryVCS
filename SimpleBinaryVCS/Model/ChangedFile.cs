@@ -1,4 +1,4 @@
-﻿using SimpleBinaryVCS.DataComponent;
+﻿using DeployAssistant.Model;
 using System.Text.Json.Serialization;
 
 namespace SimpleBinaryVCS.Model
@@ -27,20 +27,20 @@ namespace SimpleBinaryVCS.Model
                 DstFile = null;
             DataState = srcChangedfile.DataState;
         }
-        public ChangedFile(ProjectFile DstFile, DataState _DataState)
+        public ChangedFile(ProjectFile DstFile, DataState DataState)
         {
             SrcFile = null;
             this.DstFile = DstFile;
-            DstFile.IsDstFile = (_DataState & DataState.Overlapped) == 0 ? true : false; 
-            DataState = _DataState;
+            DstFile.IsDstFile = (DataState & DataState.Overlapped) == 0 ? true : false; 
+            this.DataState = DataState;
         }
-        public ChangedFile(ProjectFile SrcFile,  ProjectFile DstFile, DataState _DataState, bool RegisterChanges)
+        public ChangedFile(ProjectFile SrcFile,  ProjectFile DstFile, DataState DataState, bool RegisterChanges)
         {
             this.SrcFile = SrcFile;
             SrcFile.IsDstFile = false; 
             this.DstFile = DstFile;
-            DstFile.IsDstFile = (_DataState & DataState.Overlapped) == 0 ? true : false;
-            DataState = _DataState;
+            DstFile.IsDstFile = (DataState & DataState.Overlapped) == 0 ? true : false;
+            this.DataState = DataState;
         }
         [JsonConstructor]
         public ChangedFile(ProjectFile SrcFile, ProjectFile DstFile, DataState DataState)

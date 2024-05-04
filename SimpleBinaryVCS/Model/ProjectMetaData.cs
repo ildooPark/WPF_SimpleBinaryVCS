@@ -29,7 +29,7 @@ namespace SimpleBinaryVCS.Model
             this.BackupFiles = new Dictionary<string, ProjectFile>();
         }
 
-        public void ReconfigureProjectPath(string projectPath)
+        public void ReconfigureProjectFiles(string projectPath)
         {
             this.projectPath = projectPath;
             if (ProjectDataList != null && ProjectDataList.Count > 0)
@@ -43,6 +43,17 @@ namespace SimpleBinaryVCS.Model
             ProjectMain.ProjectPath = projectPath;
             ProjectMain.SetProjectFilesSrcPath();
             SetBackupFilesPath();
+        }
+
+        public void ReconfigureProjectFileNames()
+        {
+            if (ProjectDataList != null && ProjectDataList.Count > 0)
+            {
+                foreach (ProjectData backupProjData in ProjectDataList)
+                {
+                    backupProjData.ReconfigureProjectFiles();
+                }
+            }
         }
 
         public void SetBackupFilesPath()

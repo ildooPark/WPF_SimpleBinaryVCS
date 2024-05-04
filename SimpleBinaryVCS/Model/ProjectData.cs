@@ -1,8 +1,6 @@
-﻿using SimpleBinaryVCS.Interfaces;
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.Text.Json.Serialization;
-using System.Windows.Media.Converters;
-
+using DeployAssistant.Model;
 namespace SimpleBinaryVCS.Model
 {
     public class ProjectData : IEquatable<ProjectData>, IComparer<ProjectData>, IComparable<ProjectData>
@@ -58,8 +56,23 @@ namespace SimpleBinaryVCS.Model
                 ObservableCollection<ProjectFile> changedFilesObservable = new ObservableCollection<ProjectFile>();
                 foreach (ChangedFile changes in ChangedFiles)
                 {
+                    if ((changes.DataState & DataState.Added) != 0)
+                    {
+                        if (changes.SrcFile != null)
+                        {
+                            changes.SrcFile.DataState = DataState.Added;
+                            changedFilesObservable.Add(changes.SrcFile);
+                            continue;
+                        }
+                        else if (changes.DstFile != null)
+                        {
+                            changes.DstFile.DataState = DataState.Added;
+                            changedFilesObservable.Add(changes.DstFile);
+                            continue;
+                        }
+                    }
                     if (changes.DstFile != null) changedFilesObservable.Add(changes.DstFile);
-                    if (changes.SrcFile != null) changedFilesObservable.Add(changes.SrcFile);
+                    if (changes.SrcFile != null && changes.SrcFile.DataName != "") changedFilesObservable.Add(changes.SrcFile);
                 }
                 return changedFilesObservable;
             }
@@ -69,7 +82,7 @@ namespace SimpleBinaryVCS.Model
         {
             get
             {
-                Dictionary<string, List<ProjectFile>> namesSorted = new Dictionary<string, List<ProjectFile>>();
+                Dictionary<string, List<ProjectFile>> namesSorted = new Dictionary<string, List<ProjectFile>>(StringComparer.OrdinalIgnoreCase);
                 foreach (ProjectFile projFile in ProjectFiles.Values)
                 {
                     if (namesSorted.TryGetValue(projFile.DataName, out List<ProjectFile>? projFileList))
@@ -89,7 +102,7 @@ namespace SimpleBinaryVCS.Model
         {
             get
             {
-                Dictionary<string, List<ProjectFile>> relDirSorted = new Dictionary<string, List<ProjectFile>>();
+                Dictionary<string, List<ProjectFile>> relDirSorted = new Dictionary<string, List<ProjectFile>>(StringComparer.OrdinalIgnoreCase);
                 foreach (ProjectFile projFile in ProjectFiles.Values)
                 {
                     if (relDirSorted.TryGetValue(projFile.DataRelDir, out List<ProjectFile>? projFileList))
@@ -105,7 +118,10 @@ namespace SimpleBinaryVCS.Model
             }
         }
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
-        public ProjectData() { }
+        public ProjectData() 
+        {
+            ProjectFiles = new Dictionary<string, ProjectFile>(StringComparer.OrdinalIgnoreCase);
+        }
         [JsonConstructor]
         public ProjectData(string ProjectName, string ProjectPath, string UpdaterName, string ConductedPC, 
             DateTime UpdatedTime, string UpdatedVersion, string UpdateLog, string ChangeLog, 
@@ -122,14 +138,14 @@ namespace SimpleBinaryVCS.Model
             this.RevisionNumber = RevisionNumber;
             this.NumberOfChanges = NumberOfChanges;
             this.ChangedFiles = ChangedFiles;
-            this.ProjectFiles = ProjectFiles;
+            this.ProjectFiles = ProjectFiles.ToDictionary(StringComparer.OrdinalIgnoreCase);
         }
         public ProjectData(string projectPath)
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         {
             this.ProjectPath = projectPath;
             this.RevisionNumber = 0;
-            this.ProjectFiles = new Dictionary<string, ProjectFile>();
+            this.ProjectFiles = new Dictionary<string, ProjectFile>(StringComparer.OrdinalIgnoreCase);
             this.ChangedFiles = new List<ChangedFile>();
         }
         public ProjectData(ProjectData srcProjectData)
@@ -203,10 +219,16 @@ namespace SimpleBinaryVCS.Model
         }
         private Dictionary<string, ProjectFile> CloneProjectFiles()
         {
-            Dictionary<string, ProjectFile> clone = new Dictionary<string, ProjectFile>();
+            Dictionary<string, ProjectFile> clone = new Dictionary<string, ProjectFile>(StringComparer.OrdinalIgnoreCase);
             foreach (ProjectFile srcFile in ProjectFiles.Values)
             {
-                clone.Add(srcFile.DataRelPath, new ProjectFile(srcFile));
+                if (!clone.TryAdd(srcFile.DataRelPath, new ProjectFile(srcFile)))
+                {
+                    if (srcFile.CompareTo(clone[srcFile.DataRelPath]) > 0)
+                    {
+                        clone[srcFile.DataRelPath] = new ProjectFile(srcFile);
+                    }
+                }
             }
             return clone;
         }
@@ -219,6 +241,22 @@ namespace SimpleBinaryVCS.Model
                 clone.Add(new ChangedFile(srcChangedFile));
             }
             return clone;
+        }
+
+        public void ReconfigureProjectFiles()
+        {
+            Dictionary<string, ProjectFile> clone = new Dictionary<string, ProjectFile>(StringComparer.OrdinalIgnoreCase);
+            foreach (ProjectFile srcFile in ProjectFiles.Values)
+            {
+                if (!clone.TryAdd(srcFile.DataRelPath, new ProjectFile(srcFile)))
+                {
+                    if (srcFile.CompareTo(clone[srcFile.DataRelPath]) > 0)
+                    {
+                        clone[srcFile.DataRelPath] = new ProjectFile(srcFile);
+                    }
+                }
+            }
+            ProjectFiles = clone;
         }
         public int CompareTo(ProjectData? other)
         {

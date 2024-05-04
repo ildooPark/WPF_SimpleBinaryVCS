@@ -1,4 +1,4 @@
-﻿using SimpleBinaryVCS.DataComponent;
+﻿using DeployAssistant.Model;
 using SimpleBinaryVCS.Interfaces;
 using System.Diagnostics;
 using System.IO;
@@ -102,16 +102,16 @@ namespace SimpleBinaryVCS.Model
         /// <param name="srcData">Project File to Copy</param>
         public ProjectFile(ProjectFile srcData)
         {
-            this.DataType = srcData.DataType;
-            this.DataSize = srcData.DataSize;
-            this.BuildVersion = srcData.BuildVersion;
-            this.DeployedProjectVersion = srcData.DeployedProjectVersion;
-            this.UpdatedTime = srcData.UpdatedTime;
-            this.DataState = srcData.DataState;
-            this.DataName = srcData.DataName;
-            this.DataSrcPath = srcData.DataSrcPath;
-            this.DataRelPath = srcData.DataRelPath;
-            this.DataHash = srcData.DataHash;
+            DataType = srcData.DataType;
+            DataSize = srcData.DataSize;
+            BuildVersion = srcData.BuildVersion;
+            DeployedProjectVersion = srcData.DeployedProjectVersion;
+            UpdatedTime = srcData.UpdatedTime;
+            DataState = srcData.DataState;
+            DataName = srcData.DataName;
+            DataSrcPath = srcData.DataSrcPath;
+            DataRelPath = srcData.DataRelPath;
+            DataHash = srcData.DataHash;
         }
         public ProjectFile(ProjectFile updatedData, string deployedProjectVersion, string currentProjectPath)
         {
@@ -154,26 +154,43 @@ namespace SimpleBinaryVCS.Model
         }
         public ProjectFile(string fileSrcPath, string fileRelPath, string? fileHash, DataState DataState, ProjectDataType dataType)
         {
-            string fileFullPath = Path.Combine(fileSrcPath, fileRelPath);
-            if (dataType == ProjectDataType.File)
+            try
             {
-                var fileInfo = FileVersionInfo.GetVersionInfo(fileFullPath);
-                this.DataSize = new FileInfo(fileFullPath).Length;
-                this.BuildVersion = fileInfo.FileVersion ?? "";
+                string fileFullPath = Path.Combine(fileSrcPath, fileRelPath);
+                if (dataType == ProjectDataType.File)
+                {
+                    var fileInfo = FileVersionInfo.GetVersionInfo(fileFullPath);
+                    this.DataSize = new FileInfo(fileFullPath).Length;
+                    this.BuildVersion = fileInfo.FileVersion ?? "";
+                }
+                else
+                {
+                    this.DataSize = 0;
+                    this.BuildVersion = "";
+                }
+                this.DeployedProjectVersion = "";
+                this.DataSrcPath = fileSrcPath;
+                this.DataName = Path.GetFileName(fileFullPath);
+                this.DataRelPath = fileRelPath;
+                this.DataHash = fileHash ?? "";
+                this.UpdatedTime = DateTime.Now;
+                this.DataState = DataState;
+                this.DataType = dataType;
             }
-            else
+            catch (Exception ex)
             {
-                this.DataSize = 0;
-                this.BuildVersion = "";
+                DataSize = 0;
+                BuildVersion = "ERROR";
+                DeployedProjectVersion = "ERROR";
+                DataName = "ERROR";
+                DataRelPath = "ERROR";
+                DataSrcPath = "ERROR";
+                DataHash = "ERROR";
+                UpdatedTime = DateTime.Now;
+                this.DataState = DataState.None; 
+                DataType = ProjectDataType.File;
+                Console.WriteLine(ex.ToString());
             }
-            this.DeployedProjectVersion = "";
-            this.DataSrcPath = fileSrcPath; 
-            this.DataName = Path.GetFileName(fileFullPath);
-            this.DataRelPath = fileRelPath;
-            this.DataHash = fileHash ?? "";
-            this.UpdatedTime = DateTime.Now;
-            this.DataState = DataState;
-            this.DataType = dataType;
         }
         // 
         /// <summary>
