@@ -11,20 +11,7 @@ using System.Text;
 
 namespace SimpleBinaryVCS.DataComponent
 {
-    public enum MetaDataState
-    {
-        IntegrityChecking,
-        CleanRestoring,
-        Exporting,
-        Reverting,
-        Processing,
-        Retrieving,
-        Updating,
-        IntegrationValidating,
-        Integrating,
-        Initializing,
-        Idle
-    }
+    
     public class MetaDataManager : IManager
     {
         public string? CurrentProjectPath {  get; set; }
@@ -34,16 +21,24 @@ namespace SimpleBinaryVCS.DataComponent
         public event Action<string>? ProjExportEventHandler; 
         public event Action<object>? StagedChangesEventHandler;
         public event Action<object>? PreStagedChangesEventHandler;
-        public event Action<object>? SrcProjectLoadedEventHandler;
+        public event Action<object?>? SrcProjectLoadedEventHandler;
         public event Action<object>? ProjLoadedEventHandler;
         public event Action<object>? MetaDataLoadedEventHandler;
         public event Action<object>? FetchRequestEventHandler;
+        public event Action<Dictionary<string, ProjectFile>>? SrcProjectFilesHashedEventHandler; 
         public event Action<string, ObservableCollection<ProjectFile>>? IntegrityCheckCompleteEventHandler;
         public event Action<ProjectData, ProjectData, List<ChangedFile>>? ProjComparisonCompleteEventHandler;
         public event Action<MetaDataState> ManagerStateEventHandler;
         public event Action<ProjectIgnoreData> UpdateIgnoreListEventHandler;
         public event Action<ProjectData, List<ProjectSimilarity>>? SimilarityCheckCompleteEventHandler;
-        private MetaDataState _currentState; 
+        private MetaDataState _currentState;
+        private DeployMode _currentDeployMode;
+        private DeployMode _prevDeployMode; 
+        public DeployMode CurrentDeployMode
+        {
+            get => _currentDeployMode; 
+            set => _currentDeployMode = value;
+        }
         public MetaDataState CurrentState
         {
             get => _currentState;
@@ -77,6 +72,7 @@ namespace SimpleBinaryVCS.DataComponent
                 else if (ProjectMetaData == null) throw new ArgumentNullException(nameof(ProjectMetaData));
                 _mainProjectData = new ProjectData(value);
                 ProjectMetaData.SetProjectMain(_mainProjectData);
+                SrcProjectLoadedEventHandler?.Invoke(null); 
                 ProjLoadedEventHandler?.Invoke(_mainProjectData);
             }
         }
@@ -128,6 +124,7 @@ namespace SimpleBinaryVCS.DataComponent
             SrcProjectLoadedEventHandler += _updateManager.MetaDataManager_SrcProjectLoadedCallBack;
             StagedChangesEventHandler += _updateManager.MetaDataManager_StagedChangesCallBack;
             UpdateIgnoreListEventHandler += _fileManager.MetaDataManager_UpdateIgnoreListCallBack;
+            SrcProjectFilesHashedEventHandler += _updateManager.MetaDataManager_SrcFilesHashedCallBack; 
 
             _backupManager.ProjectRevertEventHandler += ProjectChangeCallBack;
             _backupManager.ManagerStateEventHandler += ManagerStateCallBack;
@@ -143,7 +140,8 @@ namespace SimpleBinaryVCS.DataComponent
             _fileManager.OverlappedFileFoundEventHandler += FileManager_OverlappedFileFoundCallBack; 
             _fileManager.IntegrityCheckEventHandler += FileManager_IntegrityCheckCallBack;
             _fileManager.SrcProjectDataLoadedEventHandler += FileManager_SrcProjectLoadedCallBack;
-
+            _fileManager.SrcFileHashedEventHandler += FileManager_SrcFileHashedCallBack;
+            
             _exportManager.ManagerStateEventHandler += ManagerStateCallBack;
             _exportManager.ExportCompleteEventHandler += ExportManager_ExportCompleteCallBack;
 
@@ -154,6 +152,11 @@ namespace SimpleBinaryVCS.DataComponent
             _updateManager.Awake();
             _updateManager.Awake();
             _settingManager.Awake();
+        }
+
+        private void FileManager_SrcFileHashedCallBack(Dictionary<string, ProjectFile> hashedDict)
+        {
+            SrcProjectFilesHashedEventHandler?.Invoke(hashedDict); 
         }
 
         #region View Model Request Calls
@@ -170,9 +173,11 @@ namespace SimpleBinaryVCS.DataComponent
                     if (retrievedData.ProjectPath != projectPath)
                     {
                         retrievedData.ProjectPath = projectPath;
-                        retrievedData.ReconfigureProjectPath(projectPath);
+                        retrievedData.ReconfigureProjectFiles(projectPath);
                     }
+
                     retrievedData.ProjectPath = projectPath;
+                    retrievedData.ReconfigureProjectFileNames();
                     ProjectMetaData = retrievedData;
                     MainProjectData = retrievedData.ProjectMain;
 
@@ -190,7 +195,6 @@ namespace SimpleBinaryVCS.DataComponent
                 MessageBox.Show($"MetaDataManager TryRetrieveProject Error {ex.Message}");
                 return false;
             }
-            TryAppendProjParentDirAsProjectFile(MainProjectData, projectPath);
             CurrentState = MetaDataState.Idle;
             return true;
         }
@@ -205,8 +209,6 @@ namespace SimpleBinaryVCS.DataComponent
                 ProjectIgnoreData newIgnoreData = new ProjectIgnoreData(projectPath);
                 newIgnoreData.ConfigureDefaultIgnore(newProjectRepo.ProjectName); 
 
-                Stopwatch stopwatch = new Stopwatch(); 
-                stopwatch.Start();
                 var ignoringFilesAndDirsTask = Task.Run(() =>
                     newIgnoreData.GetIgnoreFilesAndDirPaths(projectPath, IgnoreType.Initialization));
                 var getFilesTask = Task.Run(() => Directory.GetFiles(projectPath, "*", SearchOption.AllDirectories));
@@ -215,14 +217,13 @@ namespace SimpleBinaryVCS.DataComponent
                 string[]? newProjectFiles = await getFilesTask; 
                 string[]? newProjectDirs = await getDirsTask;
                 (List<string> excludingFiles, List<string> excludingDirs) = await ignoringFilesAndDirsTask;
+
                 newProjectFiles = newProjectFiles.Except(excludingFiles).ToArray();
                 newProjectDirs = newProjectDirs.Except(excludingDirs).ToArray();
-                stopwatch.Stop();
-                Console.WriteLine(stopwatch.Elapsed.ToString());
 
                 if (newProjectFiles == null || newProjectDirs == null)
                 { 
-                    MessageBox.Show("Couldn't Get Project Files (And Or) Directories on MetaDataManager"); 
+                    MessageBox.Show("Couldn't Get Project Files (And Or) Directories To MetaDataManager"); 
                     return; 
                 }
 
@@ -231,12 +232,10 @@ namespace SimpleBinaryVCS.DataComponent
                 newProjectData.ConductedPC = Environment.MachineName;
                 newProjectData.UpdatedVersion = GetProjectVersionName(newProjectData, true);
                 changeLog.AppendLine($"Project Initialized");
-                stopwatch.Reset();
-                stopwatch.Start();
 
                 var options = new ParallelOptions { MaxDegreeOfParallelism = 
                     Convert.ToInt32(Math.Ceiling((Environment.ProcessorCount * 0.75) * 1.0)) };
-                ConcurrentDictionary<string, ProjectFile> tempDict = [];
+                ConcurrentDictionary<string, ProjectFile> tempDict = new(StringComparer.OrdinalIgnoreCase);
                 Parallel.ForEach(newProjectFiles, options, filePath =>
                 {
                     ProjectFile newFile = new ProjectFile
@@ -258,8 +257,6 @@ namespace SimpleBinaryVCS.DataComponent
                 });
                 
                 newProjectData.ProjectFiles = new Dictionary<string, ProjectFile>(tempDict);
-                stopwatch.Stop();
-                Console.WriteLine(stopwatch.Elapsed.ToString());
 
                 foreach (string dirPath in newProjectDirs)
                 {
@@ -293,7 +290,6 @@ namespace SimpleBinaryVCS.DataComponent
 
                 ProjectMetaData = newProjectRepo;
                 MainProjectData = newProjectData;
-                TryAppendProjParentDirAsProjectFile(MainProjectData, projectPath);
                 TryGenerateSupplementDirectories(projectPath, newProjectData.ProjectName);
                 _settingManager.SetRecentDstDirectory(projectPath);
 
@@ -324,14 +320,28 @@ namespace SimpleBinaryVCS.DataComponent
             return true;
         }
 
-        public void RequestRevertProject(ProjectData? targetProject)
+        public async void RequestRevertProject(ProjectData? targetProject)
         {
             if (targetProject == null)
             {
                 MessageBox.Show("Invalid Request For Backup: Targeting Project is Null");
                 return;
             }
-
+            if (_currentDeployMode != DeployMode.Unsafe)
+            {
+                _currentDeployMode = DeployMode.IntegrityCheck;
+                var result = await _fileManager.MainProjectIntegrityCheck();
+                if (result == false)
+                {
+                    _prevDeployMode = DeployMode.Safe; 
+                    MessageBox.Show("Integrity Check Failed!");
+                    return;
+                }
+                else
+                {
+                    _currentDeployMode = DeployMode.Safe;
+                }
+            }
             List<ChangedFile>? fileDifferences = _fileManager.FindVersionDifferences(targetProject, MainProjectData, true);
             _backupManager.RevertProject(targetProject, fileDifferences);
         }
@@ -359,12 +369,12 @@ namespace SimpleBinaryVCS.DataComponent
 
         public void RequestOverlappedFileAllocation(List<ChangedFile> overlapSorted, List<ChangedFile> newSorted)
         {
-            _fileManager.RegisterAbnormalFiles(overlapSorted, newSorted);
+            _fileManager.HandleAbnormalFiles(overlapSorted, newSorted);
         }
 
         public void RequestProjectIntegrityCheck()
         {
-            _fileManager.MainProjectIntegrityCheck();
+            var result = _fileManager.MainProjectIntegrityCheck();
         }
 
         public void RequestFileRestore(ProjectFile targetFile, DataState state)
@@ -401,7 +411,7 @@ namespace SimpleBinaryVCS.DataComponent
                         try
                         {
                             int sigDiff = 0; 
-                            List<ChangedFile>? identifiedDiff = _fileManager.FindVersionDifferencesForIntegration(srcProjectData, projData, out sigDiff);
+                            List<ChangedFile>? identifiedDiff = _fileManager.FindVersionDifferences(srcProjectData, projData, out sigDiff);
                             similaraity.projData = projData;
                             similaraity.numDiffWithResources = identifiedDiff?.Count ?? -1; 
                             similaraity.numDiffWithoutResources = sigDiff;
@@ -412,11 +422,7 @@ namespace SimpleBinaryVCS.DataComponent
                             MessageBox.Show($"Error while collecting Project Compatibility {ex.Message}");
                             return;
                         }
-                        finally
-                        {
-                        }
-                    }
-
+                }
                 SimilarityCheckCompleteEventHandler?.Invoke(srcProjectData, projectComparisons); 
             }
             catch (Exception ex)
@@ -424,58 +430,53 @@ namespace SimpleBinaryVCS.DataComponent
                 MessageBox.Show($"Error while collecting Project Compatibility {ex.Message}");
                 return; 
             }
-            
         }
 
         public void RequestExportProjectFilesXLSX(ICollection<ProjectFile> projectFiles, ProjectData projData)
         {
             _exportManager.ExportProjectFilesXLSX(projData, projectFiles);
         }
-
-        public void RequestProjectUpdate(string? updaterName, string? updateLog, string? currentProjectPath)
+        public void RequestProjectIntegrate(string? updaterName, string? updateLog, string? currentProjectPath)
         {
             try
             {
-                if (currentProjectPath == null)
+                List<ChangedFile>? fileDifferences = _fileManager.FindFilesForIntegration(_srcProjectData, MainProjectData);
+                if (_updateManager.TryIntegrateSrcProject(_srcProjectData, fileDifferences))
                 {
-                    MessageBox.Show("Project Path must be set for Update Request");
-                    return;
+                    _updateManager.IntegrateProjectMain(updaterName, updateLog, currentProjectPath, fileDifferences);
                 }
-                if (_srcProjectData != null)
-                {
-                    var responseForIntegration = MessageBox.Show("Src Project Data Found, Try Integrate?", "Integrate Project",
-                            MessageBoxButtons.YesNo);
-                    if (responseForIntegration == DialogResult.Yes)
-                    {
-                        List<ChangedFile>? fileDifferences = _fileManager.FindVersionDifferences(_srcProjectData, MainProjectData);
-                        if (!_updateManager.TryIntegrateSrcProject(_srcProjectData, fileDifferences))
-                        {
-                            var responseForUpdate = MessageBox.Show("Integration Failed, Update Anyway?", "Update Project",
-                            MessageBoxButtons.YesNo);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
+        }
 
-                            if (responseForUpdate == DialogResult.No)
-                            {
-                                return;
-                            }
-                        }
-                        else
-                        {
-                            _updateManager.MergeProjectMain(updaterName, updateLog, currentProjectPath);
-                            return;
-                        }
+        public async void RequestProjectUpdate(string? updaterName, string? updateLog, string? currentProjectPath)
+        {
+            try
+            {
+                if (_currentDeployMode == DeployMode.Safe)
+                {
+                    _currentDeployMode = DeployMode.IntegrityCheck;
+
+                    var result = await _fileManager.MainProjectIntegrityCheck();
+                    if (result == false)
+                    {
+                        MessageBox.Show("Integrity Check Failed!");
+                        return;
                     }
                     else
                     {
-                        var responseForUpdate = MessageBox.Show("Update Anyway?", "Update Project",
-                                MessageBoxButtons.YesNo);
-
-                        if (responseForUpdate == DialogResult.No)
-                        {
-                            return;
-                        }
+                        _currentDeployMode = DeployMode.Safe;
                     }
                 }
+
                 _updateManager.UpdateProjectMain(updaterName, updateLog, currentProjectPath);
+                if (_currentDeployMode == DeployMode.IntegrityCheck)
+                {
+                    _currentDeployMode = _prevDeployMode;
+                }
             }
             catch (Exception ex)
             {
@@ -554,7 +555,7 @@ namespace SimpleBinaryVCS.DataComponent
             if (srcProjectObj is null)
             {
                 _srcProjectData = null;
-                SrcProjectLoadedEventHandler?.Invoke(_srcProjectData);
+                SrcProjectLoadedEventHandler?.Invoke(null);
             }
             if (srcProjectObj is not ProjectData srcProjectData)
             {
@@ -580,6 +581,7 @@ namespace SimpleBinaryVCS.DataComponent
         {
             CurrentState = state;
         }
+
         private void SettingManager_SetLastDstProjectCallBack(string dstProjectPath)
         {
             if (!RequestProjectRetrieval(dstProjectPath))
@@ -628,21 +630,6 @@ namespace SimpleBinaryVCS.DataComponent
                 MessageBox.Show($"Project Initialization Failed due to {ex.Message}");
                 return false;   
             }
-        }
-        //Since I did not include parent directory as part of project Directory in previous iterations of project initialization
-        private bool TryAppendProjParentDirAsProjectFile(ProjectData? projData, string projectPath)
-        {
-            if (projData == null) return false;
-            ProjectFile projParentDir = new ProjectFile
-                        (
-                            projectPath, 
-                            "", 
-                            null, 
-                            DataState.None, 
-                            ProjectDataType.Directory
-                        );
-            projData.ProjectFiles.TryAdd("", projParentDir);
-            return true;
         }
         #endregion
         #endregion

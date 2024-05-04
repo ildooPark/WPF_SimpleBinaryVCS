@@ -1,7 +1,6 @@
 ﻿using DeployAssistant.Model;
 using DeployManager.Model;
 using SimpleBinaryVCS;
-using SimpleBinaryVCS.DataComponent;
 using SimpleBinaryVCS.Interfaces;
 using SimpleBinaryVCS.Model;
 using SimpleBinaryVCS.Utils;
@@ -9,14 +8,7 @@ using System.IO;
 
 namespace DeployManager.DataComponent
 {
-    [Flags]
-    public enum IgnoreFileType
-    {
-        Directory = 0, 
-        File = 1, 
-        Integration = 1 << 1, 
-        Deploy = 1 << 2
-    }
+
     public class SettingManager : IManager
     {
         public event Action<MetaDataState>? ManagerStateEventHandler;
@@ -30,6 +22,7 @@ namespace DeployManager.DataComponent
         private const string _configFilename = "DeployAssistant.config";
         private const string _projIgnoreFilename = "DeployAssistant.ignore";
         private const string _projDeployFilename = "DeployAssistant.deploy";
+
         private FileHandlerTool _fileHandlerTool;
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         public SettingManager()
@@ -46,6 +39,7 @@ namespace DeployManager.DataComponent
             }
             _fileHandlerTool = App.FileHandlerTool;
         }
+
         public void Awake()
         {
             try

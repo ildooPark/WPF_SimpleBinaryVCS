@@ -1,12 +1,13 @@
-﻿using SimpleBinaryVCS.Interfaces;
-using SimpleBinaryVCS.Model;
-using SimpleBinaryVCS.Utils;
-using WPF = System.Windows;
-using System.IO;
-using System.IO.Compression;
+﻿using DeployAssistant.Model;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Spreadsheet;
+using SimpleBinaryVCS.Interfaces;
+using SimpleBinaryVCS.Model;
+using SimpleBinaryVCS.Utils;
+using System.IO;
+using System.IO.Compression;
+using WPF = System.Windows;
 
 namespace SimpleBinaryVCS.DataComponent
 {
@@ -52,6 +53,7 @@ namespace SimpleBinaryVCS.DataComponent
             }
             ExportCompleteEventHandler?.Invoke(exportDstPath);
         }
+
         public void ExportProject(ProjectData projectData)
         {
             if (_backupFilesDict == null)
@@ -87,6 +89,7 @@ namespace SimpleBinaryVCS.DataComponent
                 ExportCompleteEventHandler?.Invoke(exportPath);
             }
         }
+
         private bool TryExportProject(ProjectData projectData, out string? exportPath)
         {
             try
@@ -194,7 +197,7 @@ namespace SimpleBinaryVCS.DataComponent
                 Row headerRow = new Row();
                 headerRow.Append(new Cell(new InlineString(new Text("DataName"))));
                 headerRow.Append(new Cell(new InlineString(new Text("DataType"))));
-                headerRow.Append(new Cell(new InlineString(new Text("DataSize"))));
+                headerRow.Append(new Cell(new InlineString(new Text("DataSize (kb)"))));
                 headerRow.Append(new Cell(new InlineString(new Text("BuildVersion"))));
                 headerRow.Append(new Cell(new InlineString(new Text("DeployedProjectVersion"))));
                 headerRow.Append(new Cell(new InlineString(new Text("UpdatedTime"))));
@@ -209,10 +212,10 @@ namespace SimpleBinaryVCS.DataComponent
                 {
                     Row newRow = new Row();
                     newRow.Append(new Cell(new InlineString(new Text(item.DataName))));
-                    newRow.Append(new Cell(new InlineString(new Text(item.DataType.ToString())))); // Assuming DataType is an enum
+                    newRow.Append(new Cell(new InlineString(new Text(item.DataType.ToString())))); 
                     newRow.Append(new Cell(new InlineString(new Text(item.DataSize.ToString()))));
                     newRow.Append(new Cell(new InlineString(new Text(item.BuildVersion))));
-                    newRow.Append(new Cell(new InlineString(new Text(item.DeployedProjectVersion))                      ));
+                    newRow.Append(new Cell(new InlineString(new Text(item.DeployedProjectVersion))));
                     newRow.Append(new Cell(new InlineString(new Text(item.UpdatedTime.ToString())))); // Convert to string as needed
                     newRow.Append(new Cell(new InlineString(new Text(item.DataState.ToString())))); // Assuming DataState is an enum
                     newRow.Append(new Cell(new InlineString(new Text(item.DataSrcPath))));
@@ -227,7 +230,7 @@ namespace SimpleBinaryVCS.DataComponent
                 exportPath = null;
                 return false; 
             }
-            exportPath = xlsxFileDirPath; 
+            exportPath = xlsxFileDirPath;
             return true; 
         }
         private bool TryExportProjectFilesXLSX(ProjectData projectData, ICollection<ProjectFile> projectFiles, out string? exportPath)
@@ -263,7 +266,7 @@ namespace SimpleBinaryVCS.DataComponent
                 Row headerRow = new Row();
                 headerRow.Append(new Cell(new InlineString(new Text("DataName"))));
                 headerRow.Append(new Cell(new InlineString(new Text("DataType"))));
-                headerRow.Append(new Cell(new InlineString(new Text("DataSize"))));
+                headerRow.Append(new Cell(new InlineString(new Text("DataSize (kb)"))));
                 headerRow.Append(new Cell(new InlineString(new Text("BuildVersion"))));
                 headerRow.Append(new Cell(new InlineString(new Text("DeployedProjectVersion"))));
                 headerRow.Append(new Cell(new InlineString(new Text("UpdatedTime"))));
@@ -303,6 +306,7 @@ namespace SimpleBinaryVCS.DataComponent
         {
 
         }
+
         private bool TryExportProjectChanges(ProjectData projectData, List<ChangedFile> changes, out string? exportPath)
         {
             exportPath = null;
@@ -321,8 +325,8 @@ namespace SimpleBinaryVCS.DataComponent
         {
             if (metaDataObj is not ProjectMetaData projectMetaData) return;
             if (projectMetaData == null) return;
-            this._backupFilesDict = projectMetaData.BackupFiles;
-            this._currentProjectPath = projectMetaData.ProjectPath;
+            _backupFilesDict = projectMetaData.BackupFiles;
+            _currentProjectPath = projectMetaData.ProjectPath;
         }
         #endregion
     }

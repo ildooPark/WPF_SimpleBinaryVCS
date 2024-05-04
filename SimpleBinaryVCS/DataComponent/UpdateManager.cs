@@ -1,4 +1,5 @@
-﻿using SimpleBinaryVCS.Interfaces;
+﻿using DeployAssistant.Model;
+using SimpleBinaryVCS.Interfaces;
 using SimpleBinaryVCS.Model;
 using SimpleBinaryVCS.Utils;
 using System.Text;
@@ -13,6 +14,7 @@ namespace SimpleBinaryVCS.DataComponent
         private List<ChangedFile>? _currentProjectFileChanges;
         private FileHandlerTool _fileHandlerTool;
         private Dictionary<string, ProjectFile> _backupFiles;
+        private Dictionary<string, ProjectFile> _srcFileHash; 
 
         public event Action<ProjectData, ProjectData, List<ChangedFile>>? ReportFileDifferences;
         public event Action<object>? ProjectUpdateEventHandler;
@@ -81,27 +83,33 @@ namespace SimpleBinaryVCS.DataComponent
             ManagerStateEventHandler?.Invoke(MetaDataState.Idle);
         }
 
-        public void MergeProjectMain(string updaterName, string updateLog, string currentProjectPath)
+        public void IntegrateProjectMain(string updaterName, string updateLog, string currentProjectPath, List<ChangedFile>? fileDifferences)
         {
             if (_srcProjectData == null)
             {
                 MessageBox.Show("Insert Source Project");
                 return;
             }
-            if (_currentProjectFileChanges == null || _currentProjectFileChanges.Count == 0) 
+            if (fileDifferences == null || fileDifferences.Count == 0) 
             { 
-                MessageBox.Show("File Changes does not exist"); return; 
+                var response = MessageBox.Show("File Changes does not exist, Integrate Anyway?", "Integrate Source Project", 
+                    MessageBoxButtons.YesNo);
+                
+                if (response == DialogResult.No)
+                {
+                    return; 
+                }
             }
 
-            RegisterFileChanges(_srcProjectData, _projectMain, _currentProjectFileChanges, out StringBuilder? changeLog); 
+            RegisterFileChanges(_srcProjectData, _projectMain, fileDifferences, out StringBuilder? changeLog); 
             ManagerStateEventHandler?.Invoke(MetaDataState.Integrating);
             bool updateSuccess = false;
             while (!updateSuccess)
             {
-                updateSuccess = _fileHandlerTool.TryApplyFileChanges(_currentProjectFileChanges);
+                updateSuccess = _fileHandlerTool.TryApplyFileChanges(fileDifferences);
                 if (!updateSuccess)
                 {
-                    var response = MessageBox.Show("Integration Failed, Would you like to Retry?", "Update Project",
+                    var response = MessageBox.Show("Integration Failed, Would you like to Retry?", "Integrate Source Project",
                         MessageBoxButtons.YesNo);
                     if (response == DialogResult.Yes)
                     {
@@ -115,8 +123,10 @@ namespace SimpleBinaryVCS.DataComponent
                     }
                 }
             }
+
+            FlipModifiedChanges(fileDifferences); 
             ProjectData integratingProjData = new ProjectData(_srcProjectData);
-            integratingProjData.ChangedFiles = _currentProjectFileChanges; 
+            integratingProjData.ChangedFiles = fileDifferences; 
             integratingProjData.ProjectPath = currentProjectPath;
             integratingProjData.SetProjectFilesSrcPath();
             integratingProjData.UpdaterName = updaterName;
@@ -126,16 +136,31 @@ namespace SimpleBinaryVCS.DataComponent
             ManagerStateEventHandler?.Invoke(MetaDataState.Idle);
         }
 
+        public void FlipModifiedChanges(List<ChangedFile> changes)
+        {
+            foreach (ChangedFile change in changes)
+            {
+                if ((change.DataState & DataState.Modified) != 0)
+                {
+                    if (change.DstFile == null || change.SrcFile == null) continue; 
+                    ProjectFile tempFile = change.DstFile;
+                    change.DstFile = change.SrcFile; 
+                    change.SrcFile = tempFile;
+                }
+            }
+        }
+
         public bool TryIntegrateSrcProject(ProjectData srcProject, List<ChangedFile> fileDifferences)
         {
             ManagerStateEventHandler?.Invoke(MetaDataState.IntegrationValidating);
             List<ChangedFile> validationFailedFiles = []; 
             foreach (ChangedFile changedFile in fileDifferences)
             {
-                if ((changedFile.DataState & DataState.Added | DataState.Modified) != 0)
+                if ((changedFile.DataState & (DataState.Added | DataState.Modified)) != 0)
                 {
+                    if (changedFile.SrcFile == null) continue; 
                     if (changedFile.SrcFile.DataType == ProjectDataType.Directory) continue; 
-                    if (!ValidateSrcFile(changedFile.SrcFile))
+                    if (!ValidateSrcFile(changedFile.SrcFile, changedFile.DstFile, changedFile.DataState))
                         validationFailedFiles.Add(changedFile);
                 }
             }
@@ -182,7 +207,6 @@ namespace SimpleBinaryVCS.DataComponent
             }
             changeLog = newChangeLog; 
         }
-
         private void RegisterFileChanges(ProjectData srcProj, ProjectData dstProj, List<ChangedFile> fileChanges, out StringBuilder? changeLog)
         {
             if (fileChanges.Count <= 0)
@@ -190,44 +214,63 @@ namespace SimpleBinaryVCS.DataComponent
                 changeLog = null;
                 return;
             }
+            //Only dealing with Added and or Modified Files
             srcProj.NumberOfChanges = 0; 
             StringBuilder newChangeLog = new StringBuilder();
             LogTool.RegisterUpdate(newChangeLog, dstProj.UpdatedVersion, srcProj.UpdatedVersion);
             foreach (ChangedFile changes in fileChanges)
             {
-                if (changes.DstFile == null) continue;
-                changes.DstFile.DeployedProjectVersion = srcProj.UpdatedVersion;
-                if (srcProj.ProjectFiles.TryGetValue(changes.DstFile.DataRelPath, out ProjectFile? projectFile))
-                {
-                    projectFile.DataState = changes.DataState;
-                }
                 if ((changes.DataState & DataState.Added) != 0)
                 {
+                    if (changes.SrcFile == null) continue; 
+                    if (srcProj.ProjectFiles.TryGetValue(changes.SrcFile.DataRelPath, out ProjectFile? projectFile))
+                    {
+                        projectFile.DataState = changes.DataState;
+                    }
                     LogTool.RegisterChange(newChangeLog, changes.DataState, changes.DstFile); 
+                }
+                else if ((changes.DataState & DataState.Deleted) != 0)
+                {
+                    LogTool.RegisterChange(newChangeLog, changes.DataState, changes.DstFile);
                 }
                 else
                 {
-                    LogTool.RegisterChange(newChangeLog, changes.DataState, changes.SrcFile, changes.DstFile);
+                    if (changes.DstFile == null) continue;
+                    if (srcProj.ProjectFiles.TryGetValue(changes.DstFile.DataRelPath, out ProjectFile? projectFile))
+                    {
+                        projectFile.DataState = changes.DataState;
+                    }
+                    LogTool.RegisterChange(newChangeLog, changes.DataState, changes.DstFile, changes.SrcFile);
                 }
                 srcProj.NumberOfChanges++;
             }
             changeLog = newChangeLog;
         }
-        private bool ValidateSrcFile(ProjectFile srcFile)
+        private bool ValidateSrcFile(ProjectFile metaSrcFile, ProjectFile metaDstFile, DataState changeState)
         {
             // Due to application for changedfile view in simplified backup log, Destination file represents deploying file. in Modified file list.
-            if (_currentProjectFileChanges == null) return false;
-            if (srcFile == null || srcFile.DataName == "") return false;
+            if (metaSrcFile == null || metaSrcFile.DataName == "") return false;
+            if (_srcFileHash == null || _srcFileHash.Count <= 0) return false;
 
-            foreach (ChangedFile stagedChanges in _currentProjectFileChanges)
+            if (_srcFileHash.TryGetValue(metaSrcFile.DataHash, out var actualSrcFile))
             {
-                if (stagedChanges.DstFile.DataName == srcFile.DataName
-                    && stagedChanges.DstFile.DataHash == srcFile.DataHash)
+                if ((changeState & DataState.Added) != 0)
                 {
-                    return true; 
+                    metaSrcFile.DataSrcPath = actualSrcFile.DataSrcPath;
+                    metaSrcFile.DataRelPath = actualSrcFile.DataRelPath;
                 }
+                else
+                {
+                    metaDstFile.DataRelPath = metaSrcFile.DataRelPath;
+                    metaSrcFile.DataSrcPath = actualSrcFile.DataSrcPath;
+                    metaSrcFile.DataRelPath = actualSrcFile.DataRelPath; 
+                }
+                return true;
             }
-            return false; 
+            else
+            {
+                return false;
+            }
         }
         private string GetProjectVersionName(ProjectData projData, int currentUpdateCount)
         {
@@ -256,13 +299,19 @@ namespace SimpleBinaryVCS.DataComponent
             _currentProjectFileChanges = null; 
             _srcProjectData = null;
         }
-        public void MetaDataManager_SrcProjectLoadedCallBack(object srcProjDataObj)
+        public void MetaDataManager_SrcProjectLoadedCallBack(object? srcProjDataObj)
         {
             if (srcProjDataObj is not ProjectData srcProjectData)
             {
                 return;
             }
+            _srcFileHash = []; 
             this._srcProjectData = srcProjectData;
+        }
+
+        public void MetaDataManager_SrcFilesHashedCallBack(Dictionary<string, ProjectFile> hashedSrcFiles)
+        {
+            _srcFileHash = hashedSrcFiles; 
         }
         #endregion
     }
