@@ -1,6 +1,7 @@
 ﻿using SimpleBinaryVCS.Interfaces;
 using SimpleBinaryVCS.Model;
 using SimpleBinaryVCS.Utils;
+using DeployAssistant.Model;
 using System.Collections.ObjectModel;
 using System.IO;
 
@@ -37,7 +38,7 @@ namespace SimpleBinaryVCS.DataComponent
         {
             if (BackupProjectDataList == null || ProjectMetaData == null)
             { 
-                Console.WriteLine("Failed to Load ProjectMetaData: BackupProjectList is Null"); 
+                MessageBox.Show("Failed to Load ProjectMetaData: BackupProjectList is Null"); 
                 return; 
             }
             bool hasBackup = BackupProjectDataList.Contains(projectData);
@@ -52,6 +53,10 @@ namespace SimpleBinaryVCS.DataComponent
             if (serializeSuccess)
             {
                 ProjectMetaData.SetProjectMain(projectData);
+            }
+            else
+            {
+
             }
             FetchCompleteEventHandler?.Invoke(ProjectBackupListObservable);
         }
@@ -75,34 +80,74 @@ namespace SimpleBinaryVCS.DataComponent
         #endregion
         private void RegisterBackupFiles(ProjectData projectData)
         {
-            if (BackupFiles == null) return;
-            string backupSrcPath = GetFileBackupSrcPath(projectData);
-            int backupCount = 0; 
-            if (!Directory.Exists(backupSrcPath)) Directory.CreateDirectory(backupSrcPath);
-            foreach (ChangedFile changes in projectData.ChangedFiles)
+            try
             {
-                if (changes.DstFile == null) continue; 
-                if (changes.DstFile.DataType == ProjectDataType.Directory) continue;
-                if (!BackupFiles.TryGetValue(changes.DstFile.DataHash, out ProjectFile? backupFile))
+                if (BackupFiles == null) return;
+                string backupSrcPath = GetFileBackupSrcPath(projectData);
+                int backupCount = 0;
+                if (!Directory.Exists(backupSrcPath)) Directory.CreateDirectory(backupSrcPath);
+                foreach (ChangedFile changes in projectData.ChangedFiles)
                 {
-                    ProjectFile newBackupFile = new ProjectFile(changes.DstFile, DataState.Backup, backupSrcPath);
+                    if ((changes.DataState & DataState.Integrate) != 0)
+                    {
+                        if ((changes.DataState & (DataState.Modified | DataState.Added)) == 0)
+                        {
+                            continue;
+                        }
+                        BackupIntegratedFile(changes.DstFile, projectData.ProjectPath, backupSrcPath);
+                        backupCount++;
+                        continue; 
+                    }
+                    if (changes.DstFile == null) continue;
+                    if (changes.DstFile.DataType == ProjectDataType.Directory) continue;
+                    if (!BackupFiles.TryGetValue(changes.DstFile.DataHash, out ProjectFile? backupFile))
+                    {
+                        ProjectFile newBackupFile = new ProjectFile(changes.DstFile, DataState.Backup, backupSrcPath);
+                        BackupFiles.Add(newBackupFile.DataHash, newBackupFile);
+                        _fileHandlerTool.HandleData(changes.DstFile.DataAbsPath, newBackupFile.DataAbsPath, ProjectDataType.File, DataState.Backup);
+                        newBackupFile.DataSrcPath = backupSrcPath;
+                        if (changes.SrcFile != null)
+                            changes.SrcFile.DataSrcPath = backupSrcPath;
+                        changes.DstFile.DeployedProjectVersion = projectData.UpdatedVersion;
+                        backupCount++;
+                    }
+                    else
+                    {
+                        if (changes.SrcFile != null)
+                            changes.SrcFile.DataSrcPath = backupFile.DataSrcPath;
+                        changes.DstFile.DataSrcPath = projectData.ProjectPath;
+                        changes.DstFile.DeployedProjectVersion = projectData.UpdatedVersion;
+                    }
+                }
+                if (backupCount <= 0) Directory.Delete(backupSrcPath, true);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message); 
+            }
+        }
+
+        public void BackupIntegratedFile(ProjectFile integratedFile, string projSrcPath, string backupSrcPath)
+        {
+            if (BackupFiles == null) return;
+            try
+            {
+                if (!BackupFiles.TryGetValue(integratedFile.DataHash, out ProjectFile? backupFile))
+                {
+                    integratedFile.DataSrcPath = projSrcPath;
+                    ProjectFile newBackupFile = new ProjectFile(integratedFile, DataState.Backup, backupSrcPath);
                     BackupFiles.Add(newBackupFile.DataHash, newBackupFile);
-                    _fileHandlerTool.HandleData(changes.DstFile.DataAbsPath, newBackupFile.DataAbsPath, ProjectDataType.File, DataState.Backup);
-                    newBackupFile.DataSrcPath = backupSrcPath;
-                    if (changes.SrcFile != null)
-                        changes.SrcFile.DataSrcPath = backupSrcPath;
-                    changes.DstFile.DeployedProjectVersion = projectData.UpdatedVersion;
-                    backupCount++;
+                    _fileHandlerTool.HandleData(integratedFile.DataAbsPath, newBackupFile.DataAbsPath, ProjectDataType.File, DataState.Backup);
                 }
                 else
                 {
-                    if (changes.SrcFile != null)
-                        changes.SrcFile.DataSrcPath = backupFile.DataSrcPath;
-                    changes.DstFile.DataSrcPath = projectData.ProjectPath;
-                    changes.DstFile.DeployedProjectVersion = projectData.UpdatedVersion;
+                    backupFile.DataSrcPath = backupSrcPath; 
                 }
             }
-            if (backupCount <= 0) Directory.Delete(backupSrcPath, true);
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
         }
 
         public string GetFileBackupSrcPath(ProjectData projectData)
@@ -111,7 +156,7 @@ namespace SimpleBinaryVCS.DataComponent
             return backupPath; 
         }
 
-        #region Link To View Model 
+        #region Link To View Model
         public bool FetchBackupProjectList()
         {
             if (ProjectMetaData == null || ProjectMetaData.ProjectDataList == null) return false;
@@ -128,18 +173,43 @@ namespace SimpleBinaryVCS.DataComponent
             BackupFiles.TryGetValue(projectFile.DataHash, out ProjectFile? backupFile);
             return backupFile != null ? backupFile.DataAbsPath : "";
         }
-        public void RevertProject(ProjectData revertingProjectData, List<ChangedFile>? FileDifferences)
+        public void RevertProject(ProjectData revertingProjectData, List<ChangedFile>? fileDifferences)
         {
+
             try
             {
+                if (fileDifferences == null)
+                {
+                    ManagerStateEventHandler?.Invoke(MetaDataState.Idle);
+                    MessageBox.Show($"BUVM RevertProject File changes is null");
+                    return;
+                }
+                ManagerStateEventHandler?.Invoke(MetaDataState.Reverting);
                 bool revertSuccess = false; 
                 ProjectData revertedData = new ProjectData(revertingProjectData, true);
                 while (!revertSuccess)
                 {
-                    revertSuccess = _fileHandlerTool.TryApplyFileChanges(FileDifferences);
+                    List<ChangedFile> changedDirs = [];
+                    List<ChangedFile> changedFiles = [];
+                    
+                    foreach (ChangedFile changes in fileDifferences)
+                    {
+                        if (changes.DstFile == null) continue; 
+                        if (changes.DstFile.DataType == ProjectDataType.File)
+                        {
+                            changedFiles.Add(changes);
+                        }
+                        else
+                        {
+                            changedDirs.Add(changes);
+                        }
+                    }
+                    bool revertSuccessDirs = _fileHandlerTool.TryApplyFileChanges(changedDirs);
+                    bool revertSuccessFiles = _fileHandlerTool.TryApplyFileChanges(changedFiles);
+                    revertSuccess = revertSuccessDirs && revertSuccessFiles; 
                     if (!revertSuccess)
                     {
-                        var response = MessageBox.Show("Update Failed, Would you like to Retry?", "Update Project",
+                        var response = MessageBox.Show("Reverting Project Failed, Would you like to Retry?", "Checkout Project",
                             MessageBoxButtons.YesNo);
                         if (response == DialogResult.Yes)
                         {
@@ -147,14 +217,18 @@ namespace SimpleBinaryVCS.DataComponent
                         }
                         else
                         {
-                            MessageBox.Show("Revert Failed"); return;
+                            MessageBox.Show("Revert Failed");
+                            ManagerStateEventHandler?.Invoke(MetaDataState.Idle); 
+                            return;
                         }
                     }
                 }
                 ProjectRevertEventHandler?.Invoke(revertingProjectData);
+                ManagerStateEventHandler?.Invoke(MetaDataState.Idle);
             }
             catch (Exception ex)
             {
+                ManagerStateEventHandler?.Invoke(MetaDataState.Idle);
                 MessageBox.Show($"BUVM RevertProject {ex.Message}");
             }
         }
