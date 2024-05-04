@@ -15,8 +15,8 @@
             <RowDefinition Height="4.5*"/>
             <RowDefinition Height="0.5*"/>
             <RowDefinition Height="0.5*"/>
-            <RowDefinition Height="1*"/>
-            <RowDefinition Height="1*"/>
+            <RowDefinition Height="1.5*"/>
+            <RowDefinition Height="1.5*"/>
         </Grid.RowDefinitions>
         <TextBlock Grid.Row="0" Text="OverlappedFiles"/>
         <ListBox Grid.Row="1" ItemsSource="{Binding OverlapFilesList}">
@@ -38,22 +38,23 @@
                       VerticalAlignment="Bottom"
                       HorizontalAlignment="Stretch"
                       ResizeDirection="Rows"
-                      BorderThickness="0.5"
+                      BorderThickness="1"
                       BorderBrush="Black"
                       />
-        <TextBlock Grid.Row="2"
-                   Text="NewFiles"/>
-        <TextBox Grid.Row="3"
+        <StackPanel Grid.Row ="2">
+            <TextBlock Text="NewFiles"/>
+            <TextBox
                  Name="NewFileFilterKeyword"
                  TextChanged="NewFileFilterKeyword_TextChanged"
                  BorderThickness="1"
                  Margin="3"
                  />
+        </StackPanel> 
         <GridSplitter Grid.Row="3"
               VerticalAlignment="Bottom"
               HorizontalAlignment="Stretch"
               ResizeDirection="Rows"
-              BorderThickness="0.5"
+              BorderThickness="1"
               BorderBrush="Black"
               />
         <ListBox Grid.Row="4" Name="NewFileDirectories" ItemsSource="{Binding NewFilesList}">

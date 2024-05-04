@@ -1,12 +1,8 @@
-﻿using SimpleBinaryVCS.DataComponent;
+﻿using DeployAssistant.Model;
 
 namespace SimpleBinaryVCS.Interfaces
 {
-    public enum ProjectDataType
-    {
-        File,
-        Directory
-    }
+
     public interface IProjectData
     {
         ProjectDataType DataType { get; }

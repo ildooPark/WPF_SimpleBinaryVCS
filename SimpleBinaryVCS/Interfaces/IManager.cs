@@ -1,4 +1,4 @@
-﻿using SimpleBinaryVCS.DataComponent;
+﻿using DeployAssistant.Model;
 
 namespace SimpleBinaryVCS.Interfaces
 {

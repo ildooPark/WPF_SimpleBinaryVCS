@@ -14,7 +14,7 @@
             <RowDefinition Height = "1*" />
             <RowDefinition Height = "9*" />
         </Grid.RowDefinitions>
-        <Border BorderBrush="Black" BorderThickness="0.25" Grid.ColumnSpan="2">
+        <Border BorderBrush="LightGray" BorderThickness="1" Grid.ColumnSpan="2">
             <Grid Grid.Row="0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="4*"/>
@@ -37,22 +37,22 @@
             Command="{Binding FileTrackVM.GetDeployedProjectInfo}"
             Width="75" />-->
                     <Button
-                x:Name="SetDeploySrcDir"
-                Margin="10,10,10,10"
-                FontSize="18"
-                Content="Set Source Dir" 
-                Height="Auto" 
-                Command="{Binding FileTrackVM.GetDeploySrcDir}"
-                Width="135" />
+                        x:Name="SetDeploySrcDir"
+                        Margin="5,5,5,5"
+                        FontSize="15"
+                        Content="Set Source Dir" 
+                        Height="Auto" 
+                        Command="{Binding FileTrackVM.GetDeploySrcDir}"
+                        Width="110" />
                     <Button
-                x:Name="SetProject" 
-                Content="Set Dest Dir"
-                Margin="10,10,10,10"
-                FontSize="18"
-                Height="Auto" 
-                Command="{Binding MetaDataVM.GetProject}"
-                Width="135" />
-
+                        x:Name="SetProject" 
+                        Content="Set Dest Dir"
+                        Margin="5,5,5,5"
+                        FontSize="15"
+                        Height="Auto" 
+                        Command="{Binding MetaDataVM.GetProject}"
+                        Width="100" />
+                    
                     <!--<Button
             x:Name="FullLogButton" 
             Content="Full Log"
@@ -62,13 +62,26 @@
             Command="{Binding BackupVM.ViewFullLog}"
             Width="135" />-->
                     <Button
-            x:Name="IntegrityCheckButton" 
-            Content="Integrity Check"
-            Margin="10,10,10,10"
-            FontSize="18"
-            Height="Auto" 
-            Command="{Binding FileTrackVM.CheckProjectIntegrity}"
-            Width="150" />
+                        x:Name="IntegrityCheckButton" 
+                        Content="Integrity Check"
+                        Margin="5,5,5,5"
+                        FontSize="15"
+                        Height="Auto" 
+                        Command="{Binding FileTrackVM.CheckProjectIntegrity}"
+                        Width="110" />
+                    <Button
+                        x:Name="CheckoutVersion" 
+                        Content="Check Out"
+                        Margin="5,5,5,5"
+                        FontSize="15"
+                        Height="Auto" 
+                        Command="{Binding BackupVM.CheckoutBackup}"
+                        Width="110" />
+                    
+                    <TextBlock
+                        Margin="5,5,5,5"
+                        FontSize="12.5"
+                        Text="{Binding MetaDataVM.CurrentMetaDataState}"/>
                     <!--<Button
             x:Name="FetchButton" 
             Content="Fetch" 
@@ -77,20 +90,24 @@
             Command="{Binding BackupVM.FetchBackup}"
             Width="50" />-->
                 </StackPanel>
-                <StackPanel Grid.Column="1" Margin="0, 10, 0, 0">
+                <StackPanel Grid.Column="1" Margin="0, 0, 0, 0">
                     <TextBlock>
                         <TextBlock.Inlines>
-                            <Run Text="Project Name: " FontSize="22"/>
-                            <Run Text="{Binding MetaDataVM.ProjectName}" FontSize="22"/>
+                            <Run Text="Project Name: " FontSize="21"/>
+                            <Run Text="{Binding MetaDataVM.ProjectName}" FontSize="21"/>
                         </TextBlock.Inlines>
                     </TextBlock>
 
                     <TextBlock>
                         <TextBlock.Inlines>
-                            <Run Text="Current Project Version: " FontSize="22" />
-                            <Run Text="{Binding MetaDataVM.CurrentVersion}" FontSize="22" FontWeight="Bold"/>
+                            <Run Text="Current Project Version: " FontSize="21" />
+                            <Run Text="{Binding MetaDataVM.CurrentVersion}" FontSize="21" FontWeight="Bold"/>
                         </TextBlock.Inlines>
                     </TextBlock>
+                    <RadioButton x:Name="safeMode" Content="Safe Mode" IsChecked= "{Binding Path=MetaDataVM.ModeArray[0]}"
+                                 Command="{Binding MetaDataVM.SetDeployMode}"/>
+                    <RadioButton x:Name="unsafeMode" Content="Unsafe Mode" IsChecked= "{Binding Path=MetaDataVM.ModeArray[1]}"
+                                 Command="{Binding MetaDataVM.SetDeployMode}"/>
                 </StackPanel>
             </Grid>
         </Border>
@@ -101,7 +118,7 @@
                 <ColumnDefinition Width="4*"/>
                 <ColumnDefinition Width="2*"/>
             </Grid.ColumnDefinitions>
-            <Border BorderBrush="Black" BorderThickness="0.25">
+            <Border BorderBrush="LightGray" BorderThickness="1">
                 <Grid Grid.Column="0">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="1.5*"/>
@@ -188,6 +205,7 @@
                         ItemsSource='{Binding BackupVM.DiffLog}'
                         IsReadOnly="True"
                         BorderBrush="#cdcdcd"
+                        BorderThickness="1"
                         ScrollViewer.CanContentScroll="True"
                         ScrollViewer.VerticalScrollBarVisibility="Auto"
                         ScrollViewer.HorizontalScrollBarVisibility="Auto"
@@ -207,7 +225,7 @@
                                         <Button Content="Restore" 
                                             Command="{Binding DataContext.FileTrackVM.AddForRestore, 
                                         RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
-                                            IsEnabled="{Binding DataContext.FileTrackVM.AddForRestore.CanExecute}"
+                                            IsEnabled="{Binding DataContext.FileTrackVM.AddForRestore.CanRestoreFile}"
                                             CommandParameter="{Binding}" />
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
@@ -237,8 +255,8 @@
                 </Grid>
             </Border>
             <GridSplitter Grid.Column="0"
-                          BorderThickness="0.25"
-                          BorderBrush="Black"
+                          BorderThickness="1"
+                          BorderBrush="LightGray"
                           />
             <Grid Grid.Column="1">
                 <ListView
@@ -246,6 +264,7 @@
                     ItemsSource="{Binding BackupVM.BackupProjectDataList}"
                     SelectedItem="{Binding BackupVM.SelectedItem}"
                     BorderBrush="#cdcdcd"
+                    BorderThickness="1"
                     ScrollViewer.CanContentScroll="True"
                     ScrollViewer.VerticalScrollBarVisibility="Auto"
                     ScrollViewer.HorizontalScrollBarVisibility="Auto"
@@ -301,8 +320,8 @@
                     />-->
             <GridSplitter 
                 Grid.Column="1"
-                BorderThickness="0.25"
-                BorderBrush="Black"
+                BorderThickness="1"
+                BorderBrush="LightGray"
                 />
             <Grid Grid.Column="2">
                 <Grid.RowDefinitions>
@@ -321,7 +340,8 @@
                     Name="ProjectMainFileList" 
                     ItemsSource='{Binding MetaDataVM.ProjectFiles}'
                     IsReadOnly="True"
-                    BorderBrush="#cdcdcd"
+                    BorderBrush="LightGray"
+                    BorderThickness="1"
                     ScrollViewer.CanContentScroll="True"
                     ScrollViewer.VerticalScrollBarVisibility="Auto"
                     ScrollViewer.HorizontalScrollBarVisibility="Auto"
@@ -346,8 +366,8 @@
             </Grid>
 
             <GridSplitter Grid.Column="2"
-              BorderThickness="0.25"
-              BorderBrush="Black"
+              BorderThickness="1"
+              BorderBrush="LightGray"
               />
             <Grid Grid.Column="3">
                 <Grid.RowDefinitions>
@@ -399,6 +419,7 @@
                     ItemsSource='{Binding FileTrackVM.ChangedFileList}'
                     SelectedItem="{Binding FileTrackVM.SelectedItem, UpdateSourceTrigger=PropertyChanged}"
                     BorderBrush="#cdcdcd"
+                    BorderThickness="1"
                     ScrollViewer.CanContentScroll="True"
                     ScrollViewer.VerticalScrollBarVisibility="Auto"
                     ScrollViewer.HorizontalScrollBarVisibility="Auto"
@@ -472,9 +493,16 @@
                             Height="40"
                             Command="{Binding MetaDataVM.ConductUpdate}"
                             />
-                        <TextBlock
-                            Text="{Binding MetaDataVM.CurrentMetaDataState}"
+                        <Button
+                            x:Name="MergeButton"
+                            FontSize="18"
+                            Margin="0,5,0,5"
+                            Content="Merge" 
+                            Height="40"
+                            Command="{Binding MetaDataVM.ConductIntegrate}"
+                            Visibility="{Binding MetaDataVM.CanProcessMerge}"
                             />
+                        
                     </StackPanel>
                 </StackPanel>
             </Grid>

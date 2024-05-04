@@ -9,6 +9,7 @@ namespace SimpleBinaryVCS.View
     /// </summary>
     public partial class OverlapFileWindow : Window
     {
+
         public OverlapFileWindow(List<ChangedFile> overlapFiles, List<ChangedFile> newFiles)
         {
             InitializeComponent();
